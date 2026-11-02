@@ -14,7 +14,8 @@
 | $1 | Source: User | verified |
 | coming soon | Source: User | verified |
 | Coming Soon | Source: User | verified |
-| Only one Search provider can be active at a time. DuckDuckGo is used by default when none is selected. | Source: User | verified |
+| Only one Search provider can be active at a time. DuckDuckGo is used by default when none is selected. | Source: User | removed (replaced by parallel fan-out copy) |
+| Every search runs in parallel across the free engines — Parallel, Brave, DuckDuckGo, and Wikipedia. Add an API provider here and it joins that fan-out; if any engine is slow or fails, the others still return results. | Source: User | verified |
 | Set the primary highlight used by controls, active states, and actions. | Source: User | verified |
 | Review browser storage used by DeepChat on this device. | Source: User | verified |
 | Upload | Source: User | verified |

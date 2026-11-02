@@ -48,6 +48,11 @@ DeepChat is a feature-rich, local-first conversational workspace built with Next
 - Granular MCP permissions, runtime tool configuration, and security gates.
 - Built-in provider switcher with native support for the official Google GenAI SDK (Gemini models).
 
+### Parallel Web Search (No API Key)
+- Every search fans out in parallel across free, keyless engines — Parallel (hosted MCP), Brave, DuckDuckGo, and Wikipedia.
+- If any engine is slow or fails, the others still return results; providers are merged with round-robin deduplication so citations stay diverse.
+- Optional API-key providers (Brave API, Tavily, Perplexity, Exa, SerpAPI, Google CSE, Kagi, Linkup, OpenAI-compatible) join the same parallel fan-out when configured in Settings.
+
 ### Rich Developer Workflows & Sandboxes
 - Full markdown layout with extensive LaTeX mathematical formula support (KaTeX) and GFM rendering.
 - Syntax highlighting powered by Shiki for production-grade code readability.

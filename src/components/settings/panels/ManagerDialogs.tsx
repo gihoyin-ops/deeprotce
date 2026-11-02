@@ -143,7 +143,7 @@ interface SearchManagerDialogProps {
   onConfigureCatalog: (toolId: string) => void;
 }
 
-// select single search provider
+// select search providers (installed API providers join the free parallel fan-out)
 export function SearchManagerDialog({ open, closing, settings, onClose, onToggle, onRemove, onConfigure, onInstalledChange, onConfigureCatalog }: SearchManagerDialogProps) {
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<'All' | ToolCategory>('All');
@@ -184,7 +184,9 @@ export function SearchManagerDialog({ open, closing, settings, onClose, onToggle
           <div className="mb-6 space-y-3">
             <div>
               <p className="text-sm font-extrabold text-slate-800 dark:text-slate-100">Installed providers</p>
-              <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">Only one Search provider can be active at a time. DuckDuckGo is used by default when none is selected.</p>
+              <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+                Every search runs in parallel across the free engines — Parallel, Brave, DuckDuckGo, and Wikipedia. Add an API provider here and it joins that fan-out; if any engine is slow or fails, the others still return results.
+              </p>
             </div>
             {settings.installed.map(tool => (
               <ToolInstalledRow key={tool.id} tool={tool} onToggle={onToggle} onRemove={onRemove} onConfigure={onConfigure} />

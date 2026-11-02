@@ -61,7 +61,6 @@ export const TOOL_CATALOG: ToolCatalogItem[] = [
   tool('linkup', 'Linkup', 'Web search API optimized for LLM retrieval and citations.', 'API Search', ['LINKUP_API_KEY'], ['api', 'citations', 'search']),
   tool('kagi', 'Kagi', 'Premium web search and summarization through Kagi APIs.', 'API Search', ['KAGI_API_KEY'], ['api', 'summary', 'search']),
   tool('google-custom-search', 'Google Custom Search', 'Programmable Google search engine results.', 'API Search', ['GOOGLE_SEARCH_API_KEY', 'GOOGLE_SEARCH_ENGINE_ID'], ['api', 'google', 'search']),
-  tool('bing', 'Bing', 'No-key web search option for lightweight browsing-style queries.', 'No API Search', [], ['no-api', 'bing', 'search']),
   tool('duckduckgo', 'DuckDuckGo', 'No-key web search option focused on general web results.', 'No API Search', [], ['no-api', 'privacy', 'search']),
   tool('wikipedia', 'Wikipedia', 'No-key encyclopedia lookup for public knowledge pages.', 'No API Search', [], ['no-api', 'encyclopedia', 'search'])
 ];
@@ -209,25 +208,17 @@ const getDuckDuckGoRuntimeItem = (): ToolRuntimeItem => ({
   missingEnv: []
 });
 
-const getBingRuntimeItem = (): ToolRuntimeItem => ({
-  toolId: 'bing',
-  name: 'Bing',
-  description: 'No-key web search option for lightweight browsing-style queries.',
-  category: 'No API Search',
-  env: [],
-  tags: ['no-api', 'bing', 'search'],
-  config: {},
-  configured: true,
-  missingEnv: []
-});
-
 const getEnabledSearchRuntimeItems = (settings: ToolSettings, requested: boolean): ToolRuntimeItem[] => {
   if (!settings.searchEnabled) return [];
   if (!requested) return [];
   const installed = getInstalledSearchRuntimeItems(settings);
   const configuredInstalled = installed.filter(item => item.configured);
   if (configuredInstalled.length > 0) return configuredInstalled;
-  return [getDuckDuckGoRuntimeItem(), getBingRuntimeItem()];
+  // No provider installed: return the DuckDuckGo marker so the search gate opens.
+  // The fan-out engine filters 'duckduckgo' out of the API-tools list, so this item
+  // only unlocks the request — the free pool (parallel/brave/duckduckgo/wikipedia)
+  // runs and DuckDuckGo is served exactly once, from the pool.
+  return [getDuckDuckGoRuntimeItem()];
 };
 
 export const getEnabledToolRuntimeItems = (webSearchRequested = false): ToolRuntimeItem[] => {

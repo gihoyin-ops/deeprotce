@@ -48,6 +48,11 @@ DeepChat adalah ruang kerja percakapan berbasis lokal yang kaya fitur dan dibang
 - Pengaturan izin MCP yang mendalam, konfigurasi peralatan runtime, dan pembatasan keamanan.
 - Pengalih penyedia bawaan yang didukung secara native oleh Google GenAI SDK (model Gemini).
 
+### Pencarian Web Paralel (Tanpa API Key)
+- Setiap pencarian difan-out secara paralel ke mesin gratis tanpa kunci — Parallel (MCP ter-hosting), Brave, DuckDuckGo, dan Wikipedia.
+- Jika salah satu mesin lambat atau gagal, mesin lainnya tetap mengembalikan hasil; provider digabungkan dengan deduplikasi round-robin agar sitasi tetap beragam.
+- Provider dengan API key (Brave API, Tavily, Perplexity, Exa, SerpAPI, Google CSE, Kagi, Linkup, OpenAI-compatible) bergabung ke fan-out paralel yang sama saat dikonfigurasi di Pengaturan.
+
 ### Alur Kerja Developer & Sandbox Kode
 - Tampilan Markdown lengkap dengan dukungan rumus matematika LaTeX (KaTeX) serta render GFM.
 - Pewarnaan sintaksis menggunakan Shiki untuk meningkatkan kenyamanan membaca kode layaknya editor profesional.

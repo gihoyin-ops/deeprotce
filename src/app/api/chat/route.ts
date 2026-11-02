@@ -224,16 +224,17 @@ const getSearchSourceEvents = (sources: SearchSource[]) => {
   }];
 };
 
-const getToolRuntimeEvents = (tools: ChatToolRuntimeItem[], result: { context: string; sources: SearchSource[] }) => {
+const getToolRuntimeEvents = (tools: ChatToolRuntimeItem[], result: { context: string; sources: SearchSource[]; providersUsed: string[] }) => {
   const searchTools = tools.filter(tool => tool.toolId !== 'url-context');
   if (searchTools.length === 0) return [];
   if (result.sources.length > 0) {
+    const providers = result.providersUsed.length > 0 ? result.providersUsed.join(', ') : 'Web Search';
     return [{
       type: 'deepchat_mcp',
       id: 'web-search',
       name: 'Search',
       status: 'completed',
-      details: `${result.sources.length} source${result.sources.length === 1 ? '' : 's'} found via ${searchTools.map(tool => tool.name).join(', ')}`
+      details: `${result.sources.length} source${result.sources.length === 1 ? '' : 's'} found via ${providers}`
     }];
   }
   if (/Web Search unavailable/i.test(result.context)) {
@@ -896,7 +897,7 @@ export async function POST(req: Request) {
 
     const [mcpRuntimeResult, toolRuntimeResult] = await Promise.all([
       skipRuntimeIntegrations ? Promise.resolve({ context: '', usage: [] as MCPRuntimeUsageItem[] }) : collectMCPRuntimeContextWithUsage(runtimeMCPServers, latestUserMessage),
-      skipRuntimeIntegrations ? Promise.resolve({ context: '', sources: [] as SearchSource[] }) : collectToolRuntimeContextWithSources(runtimeTools, latestUserMessage)
+      skipRuntimeIntegrations ? Promise.resolve({ context: '', sources: [] as SearchSource[], providersUsed: [] as string[] }) : collectToolRuntimeContextWithSources(runtimeTools, latestUserMessage)
     ]);
     const mcpRuntimeContext = mcpRuntimeResult.context;
     const runtimeContext = [mcpRuntimeContext, toolRuntimeResult.context].filter(Boolean).join('\n\n');
