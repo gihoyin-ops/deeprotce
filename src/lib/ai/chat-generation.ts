@@ -1,6 +1,8 @@
 'use client';
 
 import { getChat, saveMessage, updateChatTitle } from '@/app/actions';
+import { getInjectedSystemPrompt } from '@/app/persona';
+import { saveExtractedMemories, recordChatHistoryMemory } from '@/app/memory';
 import { getEnabledMCPRuntimeServers } from '@/lib/mcp/mcp-settings';
 import { publishDeepChatNotification } from '@/lib/settings/notification-settings';
 import { getEnabledToolRuntimeItems } from '@/lib/settings/tool-settings';
@@ -377,12 +379,28 @@ const saveMemoriesFromResponse = async (chatId: string, apiMessages: MemoryApiMe
     });
     if (!res.ok) return;
     const data = await res.json();
-    if (!data?.savedCount) return;
+    const metadata = {
+      provider: typeof data?.provider === 'string' ? data.provider : undefined,
+      model: typeof data?.model === 'string' ? data.model : connection?.id,
+      connectionId: connection?.connectionId,
+      chatId,
+      userMessageId: lastUserMessage.id
+    };
+
+    let clientSavedCount = 0;
+    if (Array.isArray(data?.memories) && data.memories.length > 0) {
+      const saved = await saveExtractedMemories(data.memories, metadata);
+      clientSavedCount = saved.length;
+    }
+    await recordChatHistoryMemory(lastUserMessage.content, assistantMemoryContent, metadata);
+
+    const totalCount = clientSavedCount || data?.savedCount || 0;
+    if (!totalCount) return;
 
     const updatedMessage = {
       ...assistantMessage,
       memoriesSaved: true,
-      memoriesSavedCount: data.savedCount,
+      memoriesSavedCount: totalCount,
       memoryProvider: data.provider,
       memoryModel: data.model
     };
@@ -622,6 +640,8 @@ const formatAnalysisMarkdown = (content: string, data: CodeAnalysisResponse) => 
 };
 
 const callAnalysisModel = async (task: ChatGenerationTask, messages: ChatApiMessage[], instruction: string, useSearch: boolean) => {
+  const latestPrompt = messages[messages.length - 1]?.content || '';
+  const injectedPrompt = await getInjectedSystemPrompt('', latestPrompt);
   const res = await fetch('/api/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -629,6 +649,7 @@ const callAnalysisModel = async (task: ChatGenerationTask, messages: ChatApiMess
       messages: [{ role: 'system', content: instruction }, ...messages],
       connectionId: task.connection?.connectionId,
       modelId: task.connection?.id,
+      injectedPrompt,
       mcpServers: getEnabledMCPRuntimeServers(),
       tools: getEnabledToolRuntimeItems(useSearch),
       skipAgentLoop: true
@@ -655,6 +676,8 @@ const stripAnalysisStreamingTokens = (text: string) => {
 };
 
 const streamAnalysisModel = async (task: ChatGenerationTask, messages: ChatApiMessage[], instruction: string, useSearch: boolean, options: { baseContent?: string; stripTokens?: boolean; emit?: boolean } = {}) => {
+  const latestPrompt = messages[messages.length - 1]?.content || '';
+  const injectedPrompt = await getInjectedSystemPrompt('', latestPrompt);
   const res = await fetch('/api/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -662,6 +685,7 @@ const streamAnalysisModel = async (task: ChatGenerationTask, messages: ChatApiMe
       messages: [{ role: 'system', content: instruction }, ...messages],
       connectionId: task.connection?.connectionId,
       modelId: task.connection?.id,
+      injectedPrompt,
       mcpServers: getEnabledMCPRuntimeServers(),
       tools: getEnabledToolRuntimeItems(useSearch),
       skipAgentLoop: true
@@ -1203,6 +1227,7 @@ const runTask = async (task: ChatGenerationTask) => {
       return;
     }
     const formattedMessages = formatMessages(task.apiMessages);
+    const injectedPrompt = await getInjectedSystemPrompt('', latestUserMessage?.content || '');
     const res = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1210,6 +1235,7 @@ const runTask = async (task: ChatGenerationTask) => {
         messages: formattedMessages,
         connectionId: task.connection?.connectionId,
         modelId: task.connection?.id,
+        injectedPrompt,
         imageAspectRatio: normalizeImageAspectRatio(latestUserMessage?.imageAspectRatio),
         mcpServers: getEnabledMCPRuntimeServers(),
         tools: getEnabledToolRuntimeItems(toolDecision.useSearch)

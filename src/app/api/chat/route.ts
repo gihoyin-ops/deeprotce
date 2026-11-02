@@ -780,7 +780,7 @@ const createAgenticMCPResponse = (requestUrl: string, provider: string, payload:
 
 export async function POST(req: Request) {
   try {
-    const { messages, modelId, connectionId, mcpServers, tools, skipAgentLoop, skipRuntimeIntegrations, imageAspectRatio } = await req.json() as {
+    const { messages, modelId, connectionId, mcpServers, tools, skipAgentLoop, skipRuntimeIntegrations, imageAspectRatio, injectedPrompt } = await req.json() as {
       messages?: ChatMessage[];
       modelId?: string;
       connectionId?: string;
@@ -789,6 +789,7 @@ export async function POST(req: Request) {
       skipAgentLoop?: boolean;
       skipRuntimeIntegrations?: boolean;
       imageAspectRatio?: ImageAspectRatio;
+      injectedPrompt?: string;
     };
 
     if (!Array.isArray(messages) || (!modelId && !connectionId)) {
@@ -855,13 +856,14 @@ export async function POST(req: Request) {
 
     const integrationPrompt = [buildPlatformCapabilityPrompt(), buildIntegrationSystemPrompt(promptMCPServers, runtimeTools, runtimeContext)].filter(Boolean).join('\n\n');
     const systemIndex = messages.findIndex((m: unknown) => isChatMessageLike(m) && m.role === 'system');
+    const promptToInject = injectedPrompt || await getInjectedSystemPrompt('', latestUserMessage);
     if (systemIndex !== -1) {
       const baseSystemPrompt = [persona.memoryReferenceHistory === false ? '' : messages[systemIndex].content, integrationPrompt].filter(Boolean).join('\n\n');
-      messages[systemIndex].content = await getInjectedSystemPrompt(baseSystemPrompt, latestUserMessage);
+      messages[systemIndex].content = [promptToInject, baseSystemPrompt].filter(Boolean).join('\n\n');
     } else {
-      const injected = await getInjectedSystemPrompt(integrationPrompt, latestUserMessage);
-      if (injected) {
-        messages.unshift({ role: 'system', content: injected });
+      const combined = [promptToInject, integrationPrompt].filter(Boolean).join('\n\n');
+      if (combined) {
+        messages.unshift({ role: 'system', content: combined });
       }
     }
 
