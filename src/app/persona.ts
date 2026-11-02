@@ -1,14 +1,6 @@
-'use server';
-
-import fs from 'fs/promises';
-import path from 'path';
-import { USER_DIR, ensureDataDirectories } from '@/lib/data-directories';
+import { getPersonaClient, savePersonaClient } from '@/lib/storage/client-storage';
 import { getRelevantChatHistoryMemories, getRelevantSavedMemories } from './memory';
 
-const PERSONA_FILE = path.join(USER_DIR, 'persona.json');
-const PERSONA_CACHE_TTL_MS = 10_000;
-let cachedPersona: PersonaData | null = null;
-let cachedPersonaTimestamp = 0;
 export interface PersonaData {
   instructions: string;
   styleTone?: string;
@@ -23,73 +15,37 @@ export interface PersonaData {
   memoryReferenceHistory?: boolean;
 }
 
-export async function ensurePersonaFile() {
-  try {
-    await ensureDataDirectories();
-    try {
-      await fs.access(PERSONA_FILE);
-    } catch {
-      await fs.writeFile(PERSONA_FILE, JSON.stringify({ 
-        instructions: '', 
-        styleTone: 'default', 
-        charWarm: 'default',
-        charEnthusiastic: 'default',
-        charHeaders: 'default',
-        charEmoji: 'default',
-        aboutName: '', 
-        aboutOccupation: '', 
-        aboutMore: '',
-        memoryReferenceSaved: true,
-        memoryReferenceHistory: true
-      }, null, 2));
-    }
-  } catch {
-  }
-}
+const defaultPersona: PersonaData = {
+  instructions: '',
+  styleTone: 'Normal',
+  charWarm: 'Normal',
+  charEnthusiastic: 'Normal',
+  charHeaders: 'Normal',
+  charEmoji: 'Normal',
+  aboutName: '',
+  aboutOccupation: '',
+  aboutMore: '',
+  memoryReferenceSaved: true,
+  memoryReferenceHistory: true
+};
+
+let serverCachedPersona: PersonaData = { ...defaultPersona };
+
+export async function ensurePersonaFile() {}
 
 export async function getPersona(): Promise<PersonaData> {
-  const now = Date.now();
-  if (cachedPersona && now - cachedPersonaTimestamp < PERSONA_CACHE_TTL_MS) {
-    return cachedPersona;
+  if (typeof window !== 'undefined') {
+    return getPersonaClient();
   }
-
-  await ensurePersonaFile();
-  try {
-    const data = await fs.readFile(PERSONA_FILE, 'utf-8');
-    const parsed = JSON.parse(data) as PersonaData;
-    cachedPersona = parsed;
-    cachedPersonaTimestamp = now;
-    return parsed;
-  } catch {
-    const fallback: PersonaData = { 
-      instructions: '', 
-      styleTone: 'default', 
-      charWarm: 'default',
-      charEnthusiastic: 'default',
-      charHeaders: 'default',
-      charEmoji: 'default',
-      aboutName: '', 
-      aboutOccupation: '', 
-      aboutMore: '',
-      memoryReferenceSaved: true,
-      memoryReferenceHistory: true
-    };
-    cachedPersona = fallback;
-    cachedPersonaTimestamp = now;
-    return fallback;
-  }
+  return serverCachedPersona;
 }
 
 export async function savePersona(data: PersonaData): Promise<boolean> {
-  cachedPersona = data;
-  cachedPersonaTimestamp = Date.now();
-  await ensurePersonaFile();
-  try {
-    await fs.writeFile(PERSONA_FILE, JSON.stringify(data, null, 2));
-    return true;
-  } catch {
-    return false;
+  serverCachedPersona = { ...data };
+  if (typeof window !== 'undefined') {
+    return savePersonaClient(data);
   }
+  return true;
 }
 
 export async function getInjectedSystemPrompt(baseSystemPrompt: string = '', currentUserMessage: string = ''): Promise<string> {

@@ -13,6 +13,9 @@ interface AttachedFile {
   name: string;
   ext: string;
   previewUrl?: string;
+  dataUrl?: string;
+  content?: string;
+  size?: number;
 }
 
 interface UserProfile {
@@ -24,7 +27,13 @@ const createAttachedPreviewUrl = (file: File) => canPreviewUploadFile(file) ? UR
 const revokeAttachedPreview = (file: AttachedFile) => {
   if (file.previewUrl) URL.revokeObjectURL(file.previewUrl);
 };
-const stripAttachedPreview = (file: AttachedFile) => ({ name: file.name, ext: file.ext });
+const stripAttachedPreview = (file: AttachedFile) => ({
+  name: file.name,
+  ext: file.ext,
+  dataUrl: file.dataUrl,
+  content: file.content,
+  size: file.size
+});
 
 const homeHeadlines = [
   (name: string) => `Hello ${name}, What can I help you today?`,
@@ -122,8 +131,15 @@ export default function WelcomePage() {
 
       try {
         const res = await uploadFile(formData);
-        if (res.success) {
-          setAttachedFiles(prev => [...prev, { name: res.fileName!, ext: res.ext!, previewUrl }]);
+        if (res.success && res.fileName) {
+          setAttachedFiles(prev => [...prev, {
+            name: res.fileName!,
+            ext: res.ext || 'other',
+            previewUrl,
+            dataUrl: res.dataUrl,
+            content: res.content,
+            size: res.size
+          }]);
           toast.success(`Attached ${res.fileName}`);
         } else {
           if (previewUrl) URL.revokeObjectURL(previewUrl);

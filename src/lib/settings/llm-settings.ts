@@ -54,7 +54,9 @@ export const readLLMSettings = async (): Promise<LLMSettings> => {
     cachedLLMSettingsTimestamp = now;
     return parsed;
   } catch {
-    await fs.writeFile(LLM_SETTINGS_FILE, JSON.stringify(defaultLLMSettings, null, 2));
+    try {
+      await fs.writeFile(LLM_SETTINGS_FILE, JSON.stringify(defaultLLMSettings, null, 2));
+    } catch {}
     cachedLLMSettings = defaultLLMSettings;
     cachedLLMSettingsTimestamp = now;
     return defaultLLMSettings;
@@ -65,7 +67,9 @@ export const writeLLMSettings = async (settings: Partial<LLMSettings>) => {
   await ensureLLMSettingsDir();
   const current = await readLLMSettings();
   const next = normalizeLLMSettings({ ...current, ...settings });
-  await fs.writeFile(LLM_SETTINGS_FILE, JSON.stringify(next, null, 2));
+  try {
+    await fs.writeFile(LLM_SETTINGS_FILE, JSON.stringify(next, null, 2));
+  } catch {}
   cachedLLMSettings = next;
   cachedLLMSettingsTimestamp = Date.now();
   return next;

@@ -1,4 +1,6 @@
-import React from 'react';
+'use client';
+
+import React, { use, useEffect, useState } from 'react';
 import { getSharedChat } from '@/app/actions';
 import MarkdownRenderer from '@/components/ui/MarkdownRenderer';
 import { Bot, MessageSquare } from '@/components/ui/icons';
@@ -23,10 +25,30 @@ type SharedChat = {
   messages: SharedChatMessage[];
 };
 
-export default async function SharedChatPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const chat = await getSharedChat(id) as SharedChat | null;
+export default function SharedChatPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  const [chat, setChat] = useState<SharedChat | null>(null);
+  const [loading, setLoading] = useState(true);
 
+  useEffect(() => {
+    let active = true;
+    getSharedChat(id).then(result => {
+      if (!active) return;
+      setChat(result as SharedChat | null);
+      setLoading(false);
+    });
+    return () => {
+      active = false;
+    };
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-slate-50">
+        <div className="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+      </div>
+    );
+  }
   if (!chat) {
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-slate-50">

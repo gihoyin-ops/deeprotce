@@ -1,182 +1,100 @@
-'use server';
-
-import fs from 'fs/promises';
-import path from 'path';
-import crypto from 'crypto';
-import { tmpdir } from 'os';
-import { revalidatePath } from 'next/cache';
-import { clearChatHistory, deleteChatReferences } from './memory';
-import { readLLMSettings, writeLLMSettings, type LLMSettings } from '@/lib/settings/llm-settings';
-import { SHARE_DIR, TEMP_FILE_DIR, USER_DIR, LLM_API_DIR, ensureDataDirectories } from '@/lib/data-directories';
 import {
   createChatRecord,
-  deleteAllChatRecords,
-  deleteChatRecord,
-  deleteSharedSnapshot,
-  ensureDataStore,
   getChatRecord,
-  getSharedSnapshot,
   listChatRecords,
-  listExportData,
   listSharedLinkRecords,
   saveMessageRecord,
-  saveSharedSnapshot,
   updateChatRecord,
+  deleteChatRecord,
+  deleteAllChatRecords,
+  saveSharedSnapshot,
+  getSharedSnapshot,
+  deleteSharedSnapshot,
+  getUserProfileClient,
+  saveUserProfileClient,
+  getLLMSettingsClient,
+  saveLLMSettingsClient,
+  getConnectionsClient,
+  saveConnectionClient,
+  deleteConnectionClient,
+  deleteAllConnectionsClient,
+  uploadFileClient,
+  exportDataClient,
   type StoredAttachment,
   type StoredChat,
   type StoredMessage,
-  type UserProfileData
-} from '@/lib/db/store';
+  type UserProfileData,
+  type LLMSettings,
+  type ConnectionData
+} from '@/lib/storage/client-storage';
 import { getLiveConnections } from '@/lib/ai/live';
+import { clearChatHistory, deleteChatReferences } from './memory';
 
-export type { LLMSettings } from '@/lib/settings/llm-settings';
-
-const TEMP_FILE_ROOT = TEMP_FILE_DIR;
-const ANALYSIS_ROOT = path.join(tmpdir(), 'deepchat', 'analysis');
-const LEGACY_ANALYSIS_ROOT = path.join(process.cwd(), 'data', 'analysis');
-
-type ConnectionData = {
-  id?: string;
+export type UploadFileResult = {
+  success: boolean;
+  fileName?: string;
+  ext?: string;
+  previewUrl?: string;
+  dataUrl?: string;
+  content?: string;
+  size?: number;
+  error?: string;
 };
 
-const getStoredAttachmentPath = (file: StoredAttachment) => {
-  const name = typeof file?.name === 'string' ? file.name : '';
-  if (!name) return null;
-  const ext = typeof file?.ext === 'string' && file.ext.trim() ? file.ext : 'other';
-  const root = path.normalize(TEMP_FILE_ROOT + path.sep);
-  const filePath = path.normalize(path.join(TEMP_FILE_ROOT, ext, name));
-  if (!filePath.toLowerCase().startsWith(root.toLowerCase())) return null;
-  return filePath;
+export type {
+  StoredAttachment,
+  StoredChat,
+  StoredMessage,
+  UserProfileData,
+  LLMSettings
 };
 
-const unlinkIfExists = async (filePath: string) => {
-  try {
-    await fs.unlink(filePath);
-  } catch (error: unknown) {
-    if (!(error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT')) throw error;
+const serverMemoryChats = new Map<string, StoredChat>();
+const serverSharedSnapshots = new Map<string, StoredChat>();
+
+export async function ensureChatDir() {}
+
+export async function createChat(title = 'New Chat', attachedFiles?: StoredAttachment[]): Promise<string> {
+  if (typeof window !== 'undefined') {
+    const chat = await createChatRecord(title, attachedFiles);
+    return chat.id as string;
   }
-};
-
-const deleteChatAttachments = async (chat: StoredChat | null | undefined) => {
-  const messages = Array.isArray(chat?.messages) ? chat.messages as StoredMessage[] : [];
-  const files = [
-    ...(Array.isArray(chat?.pendingAttachedFiles) ? chat.pendingAttachedFiles as StoredAttachment[] : []),
-    ...messages.flatMap(message => Array.isArray(message?.attachedFiles) ? message.attachedFiles as StoredAttachment[] : [])
-  ] satisfies StoredAttachment[];
-  const seen = new Set<string>();
-
-  for (const file of files) {
-    const filePath = getStoredAttachmentPath(file);
-    if (!filePath || seen.has(filePath)) continue;
-    seen.add(filePath);
-    await unlinkIfExists(filePath);
-  }
-};
-
-const deleteSharedChatCopy = async (chat: StoredChat | null | undefined) => {
-  if (typeof chat?.shareId !== 'string' || !chat.shareId) return;
-  deleteSharedSnapshot(chat.shareId);
-  await unlinkIfExists(path.join(SHARE_DIR, `${chat.shareId}.json`));
-};
-
-const rmDirIfExists = async (dirPath: string) => {
-  try {
-    await fs.rm(dirPath, { recursive: true, force: true });
-  } catch (error: unknown) {
-    if (!(error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT')) throw error;
-  }
-};
-
-const collectAnalysisRunIdsFromValue = (value: unknown, runIds: Set<string>) => {
-  if (typeof value === 'string') {
-    const patterns = [
-      /"runId"\s*:\s*"([a-f0-9-]{12,})"/gi,
-      /[?&]runId=([a-f0-9-]{12,})/gi
-    ];
-    for (const pattern of patterns) {
-      let match: RegExpExecArray | null;
-      while ((match = pattern.exec(value)) !== null) {
-        runIds.add(match[1]);
-      }
-    }
-    return;
-  }
-  if (Array.isArray(value)) {
-    value.forEach(item => collectAnalysisRunIdsFromValue(item, runIds));
-    return;
-  }
-  if (value && typeof value === 'object') {
-    Object.values(value as Record<string, unknown>).forEach(item => collectAnalysisRunIdsFromValue(item, runIds));
-  }
-};
-
-const deleteChatAnalysisArtifactsInRoot = async (chat: StoredChat | null | undefined, analysisRoot: string) => {
-  const runIds = new Set<string>();
-  collectAnalysisRunIdsFromValue(chat, runIds);
-  const root = path.normalize(analysisRoot + path.sep);
-
-  for (const runId of runIds) {
-    const runPath = path.normalize(path.join(analysisRoot, runId));
-    if (!runPath.toLowerCase().startsWith(root.toLowerCase())) continue;
-    await rmDirIfExists(runPath);
-  }
-
-  let entries: string[] = [];
-  try {
-    entries = await fs.readdir(analysisRoot);
-  } catch {
-    return;
-  }
-  for (const entry of entries) {
-    const runPath = path.normalize(path.join(analysisRoot, entry));
-    if (!runPath.toLowerCase().startsWith(root.toLowerCase())) continue;
-    try {
-      const meta = JSON.parse(await fs.readFile(path.join(runPath, 'meta.json'), 'utf-8'));
-      if (meta?.chatId === chat?.id) await rmDirIfExists(runPath);
-    } catch {
-    }
-  }
-};
-
-const deleteChatAnalysisArtifacts = async (chat: StoredChat | null | undefined) => {
-  await deleteChatAnalysisArtifactsInRoot(chat, ANALYSIS_ROOT);
-  await deleteChatAnalysisArtifactsInRoot(chat, LEGACY_ANALYSIS_ROOT);
-};
-
-const normalizeMessageVersions = (message: StoredMessage) => {
-  if (!Array.isArray(message?.versions) || message.versions.length === 0) return message;
-  const versions = message.versions.map((version, index: number) => ({
-    ...version,
-    versionIndex: typeof version?.versionIndex === 'number' ? version.versionIndex : index + 1
-  }));
-  const requestedIndex = typeof message.currentVersionIndex === 'number' && Number.isInteger(message.currentVersionIndex) ? message.currentVersionIndex : versions.length - 1;
-  const currentVersionIndex = Math.min(Math.max(requestedIndex, 0), versions.length - 1);
-  const selectedVersion = versions[currentVersionIndex] || versions[versions.length - 1];
-  return {
-    ...message,
-    versions,
-    currentVersionIndex,
-    content: typeof selectedVersion?.content === 'string' ? selectedVersion.content : message.content,
-    reasoning: typeof selectedVersion?.reasoning === 'string' ? selectedVersion.reasoning : message.reasoning,
-    reasoningDuration: selectedVersion?.reasoningDuration ?? message.reasoningDuration
+  const id = `c_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+  const chat: StoredChat = {
+    id,
+    title,
+    createdAt: new Date().toISOString(),
+    archived: false,
+    isShared: false,
+    pinned: false,
+    messages: [],
+    pendingAttachedFiles: attachedFiles || [],
+    tags: []
   };
-};
-
-export async function ensureChatDir() {
-  ensureDataStore();
-}
-
-export async function createChat(title: string = 'New Chat', attachedFiles?: StoredAttachment[]) {
-  return createChatRecord(title, attachedFiles);
+  serverMemoryChats.set(id, chat);
+  return id;
 }
 
 export async function getChats() {
-  return listChatRecords(false);
+  if (typeof window !== 'undefined') {
+    return listChatRecords(false);
+  }
+  return Array.from(serverMemoryChats.values()).filter(c => !c.archived);
 }
-
 export async function getArchivedChats() {
-  return listChatRecords(true)
-    .filter((chat): chat is StoredChat & { id: string } => typeof chat.id === 'string')
+  if (typeof window !== 'undefined') {
+    const list = await listChatRecords(true);
+    return list
+      .filter((chat): chat is StoredChat & { id: string } => typeof chat.id === 'string')
+      .map(chat => ({
+        ...chat,
+        id: chat.id,
+        title: chat.title || 'New Chat',
+        createdAt: chat.createdAt || new Date().toISOString()
+      }));
+  }
+  return Array.from(serverMemoryChats.values())
+    .filter((c): c is StoredChat & { id: string } => Boolean(c.archived) && typeof c.id === 'string')
     .map(chat => ({
       ...chat,
       id: chat.id,
@@ -184,189 +102,239 @@ export async function getArchivedChats() {
       createdAt: chat.createdAt || new Date().toISOString()
     }));
 }
-
 export async function getSharedLinks() {
-  return listSharedLinkRecords();
+  if (typeof window !== 'undefined') {
+    return listSharedLinkRecords();
+  }
+  return Array.from(serverMemoryChats.values())
+    .filter(c => typeof c.shareId === 'string' && c.shareId.length > 0)
+    .map(c => ({
+      id: c.id || '',
+      shareId: c.shareId as string,
+      title: c.title || 'New Chat',
+      createdAt: c.createdAt || new Date().toISOString(),
+      messageCount: Array.isArray(c.messages) ? c.messages.length : 0
+    }));
 }
 
 export async function getChat(id: string): Promise<StoredChat | null> {
-  return getChatRecord(id);
+  if (typeof window !== 'undefined') {
+    return getChatRecord(id);
+  }
+  return serverMemoryChats.get(id) || null;
 }
 
 export async function shareChat(chatId: string) {
-  const chat = await getChat(chatId);
-  if (!chat) return null;
-
-  let shareId = typeof chat.shareId === 'string' ? chat.shareId : null;
-  const ownerProfile = await getUserProfile();
-  if (!shareId) {
-    shareId = crypto.randomBytes(16).toString('hex');
-    chat.isShared = true;
-    chat.shareId = shareId;
+  if (typeof window !== 'undefined') {
+    const chat = await getChatRecord(chatId);
+    if (!chat) return null;
+    let shareId = typeof chat.shareId === 'string' && chat.shareId ? chat.shareId : '';
+    const ownerProfile = await getUserProfile();
+    if (!shareId) {
+      shareId = `s_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      chat.isShared = true;
+      chat.shareId = shareId;
+    }
+    chat.ownerProfile = {
+      id: ownerProfile?.id || 'default',
+      name: ownerProfile?.name || 'Guest',
+      avatar: ownerProfile?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix',
+      plan: ownerProfile?.plan || ''
+    };
+    await updateChatRecord(chatId, chat);
+    await saveSharedSnapshot(shareId, chatId, chat);
+    serverSharedSnapshots.set(shareId, chat);
+    return shareId;
   }
-  chat.ownerProfile = {
-    name: ownerProfile?.name || 'Guest',
-    avatar: ownerProfile?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix'
-  };
-  updateChatRecord(chatId, chat);
-  saveSharedSnapshot(shareId, chatId, chat);
-
+  const chat = serverMemoryChats.get(chatId);
+  if (!chat) return null;
+  const shareId = typeof chat.shareId === 'string' && chat.shareId
+    ? chat.shareId
+    : `s_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+  chat.isShared = true;
+  chat.shareId = shareId;
+  serverSharedSnapshots.set(shareId, chat);
   return shareId;
 }
 
-export async function getSharedChat(shareId: string) {
-  const chat = getSharedSnapshot(shareId);
-  if (!chat) return null;
-  if (!chat.ownerProfile) {
-    const ownerProfile = await getUserProfile();
-    return {
-      ...chat,
-      ownerProfile: {
-        name: ownerProfile?.name || 'Guest',
-        avatar: ownerProfile?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix'
-      }
-    };
+export async function getSharedChat(shareId: string): Promise<StoredChat | null> {
+  if (typeof window !== 'undefined') {
+    const localShared = await getSharedSnapshot(shareId);
+    if (localShared) return localShared;
   }
-  return chat;
+  return serverSharedSnapshots.get(shareId) || null;
+}
+
+export async function deleteSharedChat(shareId: string) {
+  if (typeof window !== 'undefined') {
+    await deleteSharedSnapshot(shareId);
+  }
+  serverSharedSnapshots.delete(shareId);
+  return true;
 }
 
 export async function saveMessage(id: string, message: StoredMessage) {
-  return saveMessageRecord(id, normalizeMessageVersions(message));
+  if (typeof window !== 'undefined') {
+    return saveMessageRecord(id, message);
+  }
+  const chat = serverMemoryChats.get(id);
+  if (!chat) return null;
+  const messages = Array.isArray(chat.messages) ? [...chat.messages] : [];
+  const existingIndex = messages.findIndex(m => m.id === message.id);
+  if (existingIndex >= 0) {
+    messages[existingIndex] = { ...messages[existingIndex], ...message };
+  } else {
+    messages.push(message);
+  }
+  chat.messages = messages;
+  serverMemoryChats.set(id, chat);
+  return chat;
 }
 
 export async function updateChatTitle(id: string, title: string) {
-  const chat = updateChatRecord(id, { title });
-  revalidatePath('/');
+  if (typeof window !== 'undefined') {
+    return updateChatRecord(id, { title });
+  }
+  const chat = serverMemoryChats.get(id);
+  if (!chat) return null;
+  chat.title = title;
   return chat;
 }
 
 export async function updateChatTags(id: string, tags: string[]) {
-  const chat = updateChatRecord(id, { tags });
-  revalidatePath('/');
+  if (typeof window !== 'undefined') {
+    return updateChatRecord(id, { tags });
+  }
+  const chat = serverMemoryChats.get(id);
+  if (!chat) return null;
+  chat.tags = tags;
   return chat;
 }
 
 export async function togglePinChat(id: string) {
-  const chat = await getChat(id);
-  if (chat) {
-    const next = updateChatRecord(id, { pinned: !chat.pinned });
-    revalidatePath('/');
-    return next;
+  if (typeof window !== 'undefined') {
+    const chat = await getChatRecord(id);
+    if (chat) {
+      return updateChatRecord(id, { pinned: !chat.pinned });
+    }
+    return null;
   }
-  return null;
+  const chat = serverMemoryChats.get(id);
+  if (!chat) return null;
+  chat.pinned = !chat.pinned;
+  return chat;
 }
 
 export async function archiveChat(id: string) {
-  const chat = updateChatRecord(id, { archived: true });
-  revalidatePath('/');
+  if (typeof window !== 'undefined') {
+    return updateChatRecord(id, { archived: true });
+  }
+  const chat = serverMemoryChats.get(id);
+  if (!chat) return null;
+  chat.archived = true;
   return chat;
 }
 
 export async function archiveAllChats() {
-  try {
-    const chats = listChatRecords(false);
+  if (typeof window !== 'undefined') {
+    const chats = await listChatRecords(false);
     let count = 0;
     for (const chat of chats) {
       if (!chat.id) continue;
-      updateChatRecord(chat.id, { archived: true });
+      await updateChatRecord(chat.id, { archived: true });
       count += 1;
     }
-    revalidatePath('/');
     return { success: true, count };
-  } catch {
-    return { success: false, count: 0 };
   }
+  let count = 0;
+  for (const chat of serverMemoryChats.values()) {
+    if (!chat.archived) {
+      chat.archived = true;
+      count++;
+    }
+  }
+  return { success: true, count };
 }
 
 export async function deleteChat(id: string) {
-  try {
-    const chat = await getChat(id);
-    if (chat) {
-      await deleteChatAttachments(chat);
-      await deleteChatAnalysisArtifacts(chat);
-      await deleteSharedChatCopy(chat);
-    }
-    deleteChatRecord(id);
+  if (typeof window !== 'undefined') {
+    await deleteChatRecord(id);
     await deleteChatReferences(id);
-    revalidatePath('/');
     return true;
-  } catch {
-    return false;
   }
+  serverMemoryChats.delete(id);
+  await deleteChatReferences(id);
+  return true;
 }
 
-export async function uploadFile(formData: FormData) {
-  try {
-    const file = formData.get('file') as File;
-    if (!file) return { success: false, error: 'No file provided' };
-
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-
-    let ext = path.extname(file.name).slice(1).toLowerCase();
-    if (!ext) ext = 'other';
-
-    const uploadDir = path.join(TEMP_FILE_DIR, ext);
-    await fs.mkdir(uploadDir, { recursive: true });
-
-    const safeName = `${crypto.randomBytes(4).toString('hex')}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
-    const filePath = path.join(uploadDir, safeName);
-    
-    await fs.writeFile(filePath, buffer);
-
-    return { success: true, fileName: safeName, ext };
-  } catch (error: unknown) {
-    return { success: false, error: error instanceof Error ? error.message : 'Upload failed' };
+export async function deleteAllChats() {
+  if (typeof window !== 'undefined') {
+    await deleteAllChatRecords();
+    await clearChatHistory();
+    return true;
   }
+  serverMemoryChats.clear();
+  serverSharedSnapshots.clear();
+  await clearChatHistory();
+  return true;
 }
 
-export async function ensureUserDir() {
-  try {
-    await ensureDataDirectories();
-  } catch { }
+export async function uploadFile(formData: FormData): Promise<UploadFileResult> {
+  if (typeof window !== 'undefined') {
+    const file = formData.get('file');
+    if (file instanceof File) {
+      return uploadFileClient(file);
+    }
+    return { success: false, error: 'No file provided' };
+  }
+  return { success: false, error: 'File upload handled client side' };
 }
 
-export async function getUserProfile() {
-  await ensureUserDir();
-  try {
-    const content = await fs.readFile(path.join(USER_DIR, 'profile.json'), 'utf-8');
-    return JSON.parse(content);
-  } catch {
-    const defaultProfile = {
-      id: crypto.randomUUID(),
-      name: 'Guest',
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix',
-      plan: ''
-    };
-    await fs.writeFile(path.join(USER_DIR, 'profile.json'), JSON.stringify(defaultProfile, null, 2));
-    return defaultProfile;
+export async function ensureUserDir() {}
+
+export async function getUserProfile(): Promise<UserProfileData> {
+  if (typeof window !== 'undefined') {
+    return getUserProfileClient();
   }
+  return {
+    id: 'default',
+    name: 'Guest',
+    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix',
+    plan: ''
+  };
 }
 
 export async function saveUserProfile(profile: UserProfileData) {
-  await ensureUserDir();
-  await fs.writeFile(path.join(USER_DIR, 'profile.json'), JSON.stringify(profile, null, 2));
+  if (typeof window !== 'undefined') {
+    return saveUserProfileClient(profile);
+  }
   return profile;
 }
-
 export async function getLLMSettings(): Promise<LLMSettings> {
-  return readLLMSettings();
+  if (typeof window !== 'undefined') {
+    return getLLMSettingsClient();
+  }
+  return {
+    streamingResponse: true,
+    reasoning: false,
+    reasoningLevel: 'medium'
+  };
 }
 
-export async function saveLLMSettings(settings: Partial<LLMSettings>) {
-  return writeLLMSettings(settings);
+export async function saveLLMSettings(settings: Partial<LLMSettings>): Promise<LLMSettings> {
+  if (typeof window !== 'undefined') {
+    return saveLLMSettingsClient(settings);
+  }
+  return {
+    streamingResponse: true,
+    reasoning: false,
+    reasoningLevel: 'medium',
+    ...settings
+  };
 }
 
-const LLM_DIR = LLM_API_DIR;
-
-export async function ensureLLMDir() {
-  try {
-    await ensureDataDirectories();
-  } catch { }
-}
-
-export async function getConnections() {
-  return getLiveConnections().map(conn => ({
+export async function getConnections(): Promise<ConnectionData[]> {
+  const live = getLiveConnections().map(conn => ({
     id: conn.id,
     provider: conn.provider,
     name: conn.name || conn.provider,
@@ -376,80 +344,47 @@ export async function getConnections() {
     location: conn.location || '',
     model: conn.model || ''
   }));
+  if (typeof window !== 'undefined') {
+    const clientConns = await getConnectionsClient();
+    const liveIds = new Set(live.map(l => l.id));
+    const customOnly = clientConns.filter(c => c.id && !liveIds.has(c.id));
+    return [...live, ...customOnly];
+  }
+  return live;
 }
 
 export async function saveConnection(connection: ConnectionData) {
-  await ensureLLMDir();
-  if (!connection.id) connection.id = crypto.randomUUID();
-  await fs.writeFile(path.join(LLM_DIR, `${connection.id}.json`), JSON.stringify(connection, null, 2));
+  if (typeof window !== 'undefined') {
+    return saveConnectionClient(connection);
+  }
   return connection;
 }
 
 export async function deleteConnection(id: string) {
-  try {
-    await fs.unlink(path.join(LLM_DIR, `${id}.json`));
-    return true;
-  } catch {
-    return false;
+  if (typeof window !== 'undefined') {
+    return deleteConnectionClient(id);
   }
-}
-
-export async function deleteAllChats() {
-  try {
-    const chats = listChatRecords(false).concat(listChatRecords(true));
-    for (const chat of chats) {
-      await deleteChatAttachments(chat);
-      await deleteChatAnalysisArtifacts(chat);
-      await deleteSharedChatCopy(chat);
-    }
-    await rmDirIfExists(ANALYSIS_ROOT);
-    await rmDirIfExists(LEGACY_ANALYSIS_ROOT);
-    deleteAllChatRecords();
-    await clearChatHistory();
-    revalidatePath('/');
-    return true;
-  } catch {
-    return false;
-  }
+  return true;
 }
 
 export async function deleteAllConnections() {
-  await ensureLLMDir();
-  try {
-    const files = await fs.readdir(LLM_DIR);
-    for (const file of files) {
-      if (file.endsWith('.json')) {
-        await fs.unlink(path.join(LLM_DIR, file));
-      }
-    }
-    return true;
-  } catch {
-    return false;
+  if (typeof window !== 'undefined') {
+    return deleteAllConnectionsClient();
   }
+  return true;
 }
 
 export async function exportData() {
-  await ensureUserDir();
-  const dynamicData = listExportData();
-
-  const readJson = async (filePath: string) => {
-    try {
-      return JSON.parse(await fs.readFile(filePath, 'utf-8'));
-    } catch {
-      return null;
-    }
-  };
-
+  if (typeof window !== 'undefined') {
+    return exportDataClient();
+  }
   return {
     exportedAt: new Date().toISOString(),
-    chats: dynamicData.chats,
-    sharedChats: dynamicData.sharedChats,
-    profile: await readJson(path.join(USER_DIR, 'profile.json')),
-    persona: await readJson(path.join(USER_DIR, 'persona.json')),
-    memories: {
-      saved: dynamicData.savedMemories,
-      chatHistory: dynamicData.chatHistory
-    },
+    chats: Array.from(serverMemoryChats.values()),
+    sharedChats: Array.from(serverSharedSnapshots.values()),
+    profile: await getUserProfile(),
+    persona: { instructions: '' },
+    memories: { saved: [], chatHistory: [] },
     connections: getLiveConnections()
   };
 }

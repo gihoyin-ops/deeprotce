@@ -12,7 +12,7 @@ export const isServerless = Boolean(
 
 export const DATA_DIR = isServerless
   ? path.join(tmpdir(), 'deepchat-data')
-  : path.join(process.cwd(), 'data');
+  : path.join(/*turbopackIgnore: true*/ process.cwd(), 'data');
 export const CHAT_DIR = path.join(DATA_DIR, 'chat');
 export const SHARE_DIR = path.join(CHAT_DIR, 'sharechat');
 export const LLM_DIR = path.join(DATA_DIR, 'llm');
@@ -37,11 +37,15 @@ const DATA_DIRECTORIES = [
 ];
 
 export const ensureDataDirectoriesSync = () => {
-  for (const directory of DATA_DIRECTORIES) {
-    fs.mkdirSync(directory, { recursive: true });
-  }
+  try {
+    for (const directory of DATA_DIRECTORIES) {
+      fs.mkdirSync(directory, { recursive: true });
+    }
+  } catch {}
 };
 
 export const ensureDataDirectories = async () => {
-  await Promise.all(DATA_DIRECTORIES.map(directory => fsp.mkdir(directory, { recursive: true })));
+  try {
+    await Promise.all(DATA_DIRECTORIES.map(directory => fsp.mkdir(directory, { recursive: true })));
+  } catch {}
 };

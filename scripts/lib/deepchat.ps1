@@ -157,8 +157,7 @@ function Invoke-DeepChatStep($Label, $Command, $Arguments) {
 
 function Test-DeepChatDependenciesReady {
   $nextCmd = Join-Path $Script:DeepChatRoot "node_modules\.bin\next.cmd"
-  $sqliteModule = Join-Path $Script:DeepChatRoot "node_modules\better-sqlite3"
-  return (Test-Path $nextCmd) -and (Test-Path $sqliteModule)
+  return (Test-Path $nextCmd)
 }
 
 function Assert-DeepChatNode {
@@ -186,19 +185,11 @@ function Invoke-DeepChatPnpmInstall {
   } catch {
     Write-DeepChatLine "  Corepack is unavailable, continuing with fallback." DarkGray
   }
-  $pnpmHelp = ""
   if (Get-Command pnpm.cmd -ErrorAction SilentlyContinue) {
-    try {
-      $pnpmHelp = (& pnpm.cmd install --help) -join "`n"
-    } catch {
-      $pnpmHelp = ""
-    }
-  }
-  if ($pnpmHelp -match "allow-build") {
-    Invoke-DeepChatStep "Installing dependencies with pnpm..." "pnpm.cmd" @("install", "--allow-build=better-sqlite3")
+    Invoke-DeepChatStep "Installing dependencies with pnpm..." "pnpm.cmd" @("install")
     return
   }
-  Invoke-DeepChatStep "Installing dependencies with pnpm 10..." "npx.cmd" @("pnpm@10", "install", "--allow-build=better-sqlite3")
+  Invoke-DeepChatStep "Installing dependencies with pnpm 10..." "npx.cmd" @("pnpm@10", "install")
 }
 
 function Invoke-DeepChatBuild {

@@ -1,16 +1,15 @@
-'use server';
-
-import crypto from 'crypto';
 import {
-  clearChatHistoryRecords,
-  deleteChatHistoryForChat,
-  ensureDataStore,
-  listChatHistoryMemories,
-  listChatRecords,
-  listSavedMemories,
-  replaceChatHistoryMemories,
-  replaceSavedMemories
-} from '@/lib/db/store';
+  listSavedMemoriesClient,
+  upsertSavedMemoryClient,
+  deleteSavedMemoryClient,
+  clearSavedMemoriesClient,
+  listChatHistoryMemoriesClient,
+  upsertChatHistoryMemoryClient,
+  deleteChatReferencesClient,
+  clearChatHistoryClient,
+  type SavedMemoryRecord,
+  type ChatHistoryMemoryRecord
+} from '@/lib/storage/client-storage';
 
 const MAX_MEMORIES = 80;
 const MAX_CHAT_HISTORY = 120;
@@ -44,7 +43,7 @@ export interface ChatHistoryMemory {
 }
 
 interface MemoryInput {
-  content: string;
+  content?: string;
   category?: string;
   importance?: 'low' | 'medium' | 'high';
 }
@@ -57,35 +56,34 @@ interface MemoryMetadata {
   userMessageId?: string;
 }
 
-const defaultMemories: SavedMemory[] = [];
+let serverSavedMemories: SavedMemory[] = [];
+let serverHistoryMemories: ChatHistoryMemory[] = [];
 
 const normalizeMemoryText = (text: string) => text.toLowerCase().replace(/\s+/g, ' ').trim();
+
 const memorySynonyms: Record<string, string> = {
-  cats: 'cat',
-  kucing: 'cat',
-  catlover: 'cat',
-  likes: 'like',
-  liked: 'like',
-  loves: 'like',
-  loved: 'like',
-  suka: 'like',
-  favorite: 'like',
-  favourite: 'like',
-  prefers: 'like',
-  preferred: 'like',
-  lover: 'like',
-  owner: 'own',
-  owns: 'own',
-  name: 'name',
-  named: 'name',
-  call: 'name',
-  called: 'name'
+  stack: 'technology',
+  framework: 'technology',
+  library: 'technology',
+  repo: 'project',
+  repository: 'project',
+  app: 'project',
+  application: 'project',
+  pref: 'preference',
+  style: 'preference',
+  rule: 'instruction',
+  constraint: 'instruction',
+  guideline: 'instruction',
+  job: 'role',
+  work: 'role',
+  title: 'role',
+  name: 'identity',
+  alias: 'identity'
 };
+
 const stopWords = new Set([
-  'aku', 'saya', 'gua', 'gue', 'gw', 'lu', 'lo', 'kamu', 'anda', 'yang', 'dan', 'atau', 'ini', 'itu',
-  'di', 'ke', 'dari', 'buat', 'untuk', 'tolong', 'apa', 'gimana', 'bagaimana', 'kenapa', 'adalah',
-  'the', 'a', 'an', 'and', 'or', 'to', 'for', 'of', 'in', 'on', 'with', 'is', 'are', 'was', 'were',
-  'user', 'users', 'this', 'that', 'has', 'have', 'about'
+  'the', 'and', 'for', 'with', 'that', 'this', 'from', 'have', 'user', 'assistant', 'model', 'like', 'likes', 'want', 'wants', 'prefer', 'prefers',
+  'saya', 'aku', 'kami', 'kita', 'kamu', 'anda', 'mereka', 'yang', 'untuk', 'dengan', 'dari', 'pada', 'dalam', 'adalah', 'akan', 'bisa', 'ingin', 'suka'
 ]);
 
 const tokenizeContext = (text: string) => normalizeMemoryText(text)
@@ -95,40 +93,44 @@ const tokenizeContext = (text: string) => normalizeMemoryText(text)
 
 const hashToken = (token: string) => {
   let hash = 2166136261;
-  for (let index = 0; index < token.length; index += 1) {
-    hash ^= token.charCodeAt(index);
+  for (let i = 0; i < token.length; i++) {
+    hash ^= token.charCodeAt(i);
     hash = Math.imul(hash, 16777619);
   }
   return hash >>> 0;
 };
 
 const vectorizeText = (text: string, category: string = '') => {
-  const tokens = tokenizeContext(`${category} ${text}`).map(normalizeMemoryToken);
-  const vector = Array.from({ length: VECTOR_SIZE }, () => 0);
-  const addToken = (token: string, weight: number) => {
-    const hash = hashToken(token);
-    const index = hash % VECTOR_SIZE;
-    const sign = (hash & 1) === 0 ? 1 : -1;
-    vector[index] += sign * weight;
-  };
+  const vector = new Array(VECTOR_SIZE).fill(0);
+  const tokens = tokenizeContext(`${category} ${text}`);
+  if (tokens.length === 0) return vector;
 
-  tokens.forEach(token => addToken(token, 1));
-  for (let index = 0; index < tokens.length - 1; index += 1) {
-    addToken(`${tokens[index]} ${tokens[index + 1]}`, 1.35);
+  for (let index = 0; index < tokens.length; index++) {
+    const raw = tokens[index];
+    const canonical = memorySynonyms[raw] || raw;
+    const bucket = hashToken(canonical) % VECTOR_SIZE;
+    const sign = (hashToken(`${canonical}:sign`) % 2 === 0) ? 1 : -1;
+    const weight = 1 + (index < 4 ? 0.35 : 0);
+    vector[bucket] += sign * weight;
   }
 
-  const magnitude = Math.sqrt(vector.reduce((total, value) => total + value * value, 0));
-  if (magnitude === 0) return vector;
-  return vector.map(value => Number((value / magnitude).toFixed(6)));
+  const norm = Math.sqrt(vector.reduce((sum, value) => sum + value * value, 0));
+  if (!norm) return vector;
+  return vector.map(value => Number((value / norm).toFixed(4)));
 };
 
 const cosineSimilarity = (left?: number[], right?: number[]) => {
-  if (!left || !right || left.length !== VECTOR_SIZE || right.length !== VECTOR_SIZE) return 0;
-  let score = 0;
-  for (let index = 0; index < VECTOR_SIZE; index += 1) {
-    score += left[index] * right[index];
+  if (!Array.isArray(left) || !Array.isArray(right) || left.length !== right.length || left.length === 0) return 0;
+  let dot = 0;
+  let leftNorm = 0;
+  let rightNorm = 0;
+  for (let i = 0; i < left.length; i++) {
+    dot += left[i] * right[i];
+    leftNorm += left[i] * left[i];
+    rightNorm += right[i] * right[i];
   }
-  return score;
+  const denom = Math.sqrt(leftNorm) * Math.sqrt(rightNorm);
+  return denom ? Number((dot / denom).toFixed(4)) : 0;
 };
 
 const getSavedMemoryVector = (memory: Pick<SavedMemory, 'content' | 'category' | 'vector'>) => {
@@ -142,26 +144,14 @@ const getHistoryMemoryVector = (memory: Pick<ChatHistoryMemory, 'userMessage' | 
 };
 
 const scoreHistory = (queryTokens: string[], queryVector: number[], memory: ChatHistoryMemory, index: number) => {
-  const source = `${memory.userMessage} ${memory.assistantMessage}`;
-  const memoryTokens = new Set(tokenizeContext(source).map(normalizeMemoryToken));
-  if (queryTokens.length === 0 || memoryTokens.size === 0) return 0;
-
-  let matches = 0;
-  for (const token of queryTokens) {
-    if (memoryTokens.has(token)) matches += 1;
-  }
-
-  const overlap = matches / Math.max(queryTokens.length, 1);
+  const textTokens = tokenizeContext(`${memory.userMessage} ${memory.assistantMessage}`);
+  const overlap = getTokenOverlap(new Set(queryTokens), new Set(textTokens));
   const semantic = Math.max(0, cosineSimilarity(queryVector, getHistoryMemoryVector(memory)));
   const recency = Math.max(0, 1 - index / MAX_CHAT_HISTORY);
-  return semantic * 0.62 + overlap * 0.26 + recency * 0.12;
+  return semantic * 0.65 + overlap * 0.25 + recency * 0.1;
 };
 
-const normalizeMemoryToken = (token: string) => {
-  const clean = token.replace(/'s$/, '');
-  const singular = clean.length > 4 && clean.endsWith('s') ? clean.slice(0, -1) : clean;
-  return memorySynonyms[clean] || memorySynonyms[singular] || singular;
-};
+const normalizeMemoryToken = (token: string) => memorySynonyms[token] || token;
 
 const getMemoryTokens = (content: string, category: string = '') => new Set(
   normalizeMemoryText(`${category} ${content}`)
@@ -177,26 +167,27 @@ const getTokenOverlap = (left: Set<string>, right: Set<string>) => {
   for (const token of left) {
     if (right.has(token)) matches += 1;
   }
-  return matches / Math.min(left.size, right.size);
+  const denominator = Math.max(1, Math.min(left.size, right.size));
+  return Number((matches / denominator).toFixed(4));
 };
 
 const areSimilarSavedMemories = (left: { content: string; category?: string }, right: { content: string; category?: string }) => {
-  if (normalizeMemoryText(left.content) === normalizeMemoryText(right.content)) return true;
+  const leftNormalized = normalizeMemoryText(left.content);
+  const rightNormalized = normalizeMemoryText(right.content);
+  if (leftNormalized === rightNormalized) return true;
+  if (leftNormalized.includes(rightNormalized) || rightNormalized.includes(leftNormalized)) return true;
   const leftTokens = getMemoryTokens(left.content, left.category);
   const rightTokens = getMemoryTokens(right.content, right.category);
   const overlap = getTokenOverlap(leftTokens, rightTokens);
-  const semantic = cosineSimilarity(vectorizeText(left.content, left.category), vectorizeText(right.content, right.category));
-  if (overlap >= 0.6) return true;
-  if (semantic >= 0.88 && overlap >= 0.34) return true;
-  const bothLikeCat = leftTokens.has('cat') && rightTokens.has('cat') && (leftTokens.has('like') || rightTokens.has('like'));
-  const bothName = leftTokens.has('name') && rightTokens.has('name') && overlap >= 0.5;
-  return bothLikeCat || bothName;
+  if (overlap >= 0.72) return true;
+  const similarity = cosineSimilarity(vectorizeText(left.content, left.category || ''), vectorizeText(right.content, right.category || ''));
+  return similarity >= 0.86;
 };
 
 const importanceRank = (importance?: 'low' | 'medium' | 'high') => {
   if (importance === 'high') return 3;
-  if (importance === 'medium') return 2;
-  return 1;
+  if (importance === 'low') return 1;
+  return 2;
 };
 
 const choosePreferredMemory = (current: SavedMemory, incoming: SavedMemory) => {
@@ -204,16 +195,14 @@ const choosePreferredMemory = (current: SavedMemory, incoming: SavedMemory) => {
   const incomingRank = importanceRank(incoming.importance);
   if (incomingRank > currentRank) return incoming;
   if (incomingRank < currentRank) return current;
-  if (incoming.content.length > current.content.length + 12) return incoming;
+  if (incoming.content.length > current.content.length) return incoming;
   return current;
 };
 
 const normalizeSavedMemory = (memory: SavedMemory): SavedMemory => ({
   ...memory,
-  category: memory.category || 'General',
+  category: memory.category?.trim() || 'General',
   importance: memory.importance || 'medium',
-  createdAt: memory.createdAt || new Date().toISOString(),
-  updatedAt: memory.updatedAt || memory.createdAt || new Date().toISOString(),
   vector: getSavedMemoryVector(memory)
 });
 
@@ -223,43 +212,26 @@ const normalizeHistoryMemory = (memory: ChatHistoryMemory): ChatHistoryMemory =>
 });
 
 const dedupeSavedMemoryList = (memories: SavedMemory[]) => {
-  const deduped: SavedMemory[] = [];
+  const result: SavedMemory[] = [];
   for (const memory of memories) {
-    const index = deduped.findIndex(item => areSimilarSavedMemories(item, memory));
-    if (index === -1) {
-      deduped.push(memory);
+    const existingIndex = result.findIndex(item => areSimilarSavedMemories(item, memory));
+    if (existingIndex === -1) {
+      result.push(normalizeSavedMemory(memory));
     } else {
-      deduped[index] = choosePreferredMemory(deduped[index], memory);
+      result[existingIndex] = choosePreferredMemory(result[existingIndex], normalizeSavedMemory(memory));
     }
   }
-  return deduped;
+  return result;
 };
 
-const getExistingChatIds = async () => {
-  const chats = listChatRecords(false).concat(listChatRecords(true));
-  return new Set(chats.map(chat => chat.id).filter((id): id is string => typeof id === 'string'));
-};
-
-export async function ensureMemoryFile() {
-  ensureDataStore();
-}
+export async function ensureMemoryFile() {}
 
 export async function getSavedMemories(): Promise<SavedMemory[]> {
-  await ensureMemoryFile();
-  try {
-    const parsed = listSavedMemories() as SavedMemory[];
-    const valid = parsed
-      .filter(item => typeof item?.content === 'string' && item.content.trim())
-      .map(normalizeSavedMemory)
-      .sort((a, b) => new Date(b.updatedAt || b.createdAt || 0).getTime() - new Date(a.updatedAt || a.createdAt || 0).getTime());
-    const deduped = dedupeSavedMemoryList(valid).slice(0, MAX_MEMORIES);
-    if (parsed.some(item => !Array.isArray(item?.vector) || item.vector.length !== VECTOR_SIZE)) {
-      replaceSavedMemories(deduped);
-    }
-    return deduped;
-  } catch {
-    return [];
+  if (typeof window !== 'undefined') {
+    const list = await listSavedMemoriesClient();
+    return dedupeSavedMemoryList(list.map(normalizeSavedMemory)).slice(0, MAX_MEMORIES);
   }
+  return dedupeSavedMemoryList(serverSavedMemories).slice(0, MAX_MEMORIES);
 }
 
 const scoreSavedMemory = (queryTokens: string[], queryVector: number[], memory: SavedMemory, index: number) => {
@@ -294,7 +266,6 @@ export async function getRelevantSavedMemories(query: string, limit = 12): Promi
 }
 
 export async function saveExtractedMemories(items: MemoryInput[], metadata: MemoryMetadata = {}) {
-  await ensureMemoryFile();
   const existing = await getSavedMemories();
   const now = new Date().toISOString();
   const seen = new Set(existing.map(memory => normalizeMemoryText(memory.content)));
@@ -308,8 +279,9 @@ export async function saveExtractedMemories(items: MemoryInput[], metadata: Memo
     const normalized = normalizeMemoryText(content);
     if (seen.has(normalized)) continue;
 
+    const memoryId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `m_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
     const memory: SavedMemory = {
-      id: crypto.randomUUID(),
+      id: memoryId,
       content,
       category: item.category?.replace(/\s+/g, ' ').trim() || 'General',
       importance: item.importance || 'medium',
@@ -343,14 +315,20 @@ export async function saveExtractedMemories(items: MemoryInput[], metadata: Memo
   }
 
   if (changed) {
-    replaceSavedMemories(dedupeSavedMemoryList(next).slice(0, MAX_MEMORIES));
+    const deduped = dedupeSavedMemoryList(next).slice(0, MAX_MEMORIES);
+    if (typeof window !== 'undefined') {
+      for (const m of deduped) {
+        await upsertSavedMemoryClient(m as SavedMemoryRecord);
+      }
+    } else {
+      serverSavedMemories = deduped;
+    }
   }
 
   return saved;
 }
 
 export async function recordChatHistoryMemory(userMessage: string, assistantMessage: string, metadata: MemoryMetadata = {}) {
-  await ensureMemoryFile();
   const cleanUser = userMessage.replace(/\s+/g, ' ').trim();
   const cleanAssistant = assistantMessage.replace(/\s+/g, ' ').trim();
   if (!cleanUser || !cleanAssistant) return null;
@@ -368,8 +346,12 @@ export async function recordChatHistoryMemory(userMessage: string, assistantMess
     return false;
   });
 
+  const entryId = duplicateIndex === -1
+    ? (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `h_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`)
+    : existing[duplicateIndex].id;
+
   const entry: ChatHistoryMemory = {
-    id: duplicateIndex === -1 ? crypto.randomUUID() : existing[duplicateIndex].id,
+    id: entryId,
     chatId: metadata.chatId,
     userMessage: cleanUser.slice(0, 600),
     assistantMessage: cleanAssistant.slice(0, 900),
@@ -385,30 +367,21 @@ export async function recordChatHistoryMemory(userMessage: string, assistantMess
     ? [entry, ...existing]
     : [entry, ...existing.filter((_, index) => index !== duplicateIndex)];
 
-  replaceChatHistoryMemories(next.slice(0, MAX_CHAT_HISTORY));
+  const bounded = next.slice(0, MAX_CHAT_HISTORY);
+  if (typeof window !== 'undefined') {
+    await upsertChatHistoryMemoryClient(entry as ChatHistoryMemoryRecord);
+  } else {
+    serverHistoryMemories = bounded;
+  }
   return entry;
 }
 
 export async function getChatHistoryMemories(): Promise<ChatHistoryMemory[]> {
-  await ensureMemoryFile();
-  try {
-    const parsed = listChatHistoryMemories() as ChatHistoryMemory[];
-    const existingChatIds = await getExistingChatIds();
-    const valid = parsed
-      .filter(item => typeof item?.userMessage === 'string' && typeof item?.assistantMessage === 'string')
-      .filter(item => !existingChatIds || !item.chatId || existingChatIds.has(item.chatId))
-      .map(normalizeHistoryMemory)
-      .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-    if (
-      valid.length !== parsed.length ||
-      parsed.some(item => !Array.isArray(item?.vector) || item.vector.length !== VECTOR_SIZE)
-    ) {
-      replaceChatHistoryMemories(valid.slice(0, MAX_CHAT_HISTORY));
-    }
-    return valid;
-  } catch {
-    return [];
+  if (typeof window !== 'undefined') {
+    const list = await listChatHistoryMemoriesClient();
+    return list.map(normalizeHistoryMemory).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
   }
+  return serverHistoryMemories.map(normalizeHistoryMemory).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
 }
 
 export async function getRelevantChatHistoryMemories(query: string, limit = 8): Promise<ChatHistoryMemory[]> {
@@ -430,43 +403,33 @@ export async function getRelevantChatHistoryMemories(query: string, limit = 8): 
 }
 
 export async function deleteSavedMemory(id: string) {
-  await ensureMemoryFile();
-  try {
-    const memories = await getSavedMemories();
-    const next = memories.filter(memory => memory.id !== id);
-    replaceSavedMemories(next);
-    return true;
-  } catch {
-    return false;
+  if (typeof window !== 'undefined') {
+    return deleteSavedMemoryClient(id);
   }
+  serverSavedMemories = serverSavedMemories.filter(m => m.id !== id);
+  return true;
 }
 
 export async function clearSavedMemories() {
-  await ensureMemoryFile();
-  try {
-    replaceSavedMemories(defaultMemories);
-    return true;
-  } catch {
-    return false;
+  if (typeof window !== 'undefined') {
+    return clearSavedMemoriesClient();
   }
+  serverSavedMemories = [];
+  return true;
 }
 
 export async function clearChatHistory() {
-  await ensureMemoryFile();
-  try {
-    clearChatHistoryRecords();
-    return true;
-  } catch {
-    return false;
+  if (typeof window !== 'undefined') {
+    return clearChatHistoryClient();
   }
+  serverHistoryMemories = [];
+  return true;
 }
 
 export async function deleteChatReferences(chatId: string) {
-  await ensureMemoryFile();
-  try {
-    deleteChatHistoryForChat(chatId);
-    return true;
-  } catch {
-    return false;
+  if (typeof window !== 'undefined') {
+    return deleteChatReferencesClient(chatId);
   }
+  serverHistoryMemories = serverHistoryMemories.filter(m => m.chatId !== chatId);
+  return true;
 }

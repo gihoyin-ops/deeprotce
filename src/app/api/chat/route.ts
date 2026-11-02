@@ -35,7 +35,6 @@ import {
 import { buildClarificationInstruction, parseAgentClarification } from '@/lib/agent/agent-clarification';
 import { isImageGenerationModel } from '@/lib/images/image-generation';
 import { normalizeImageAspectRatio, type ImageAspectRatio } from '@/lib/images/image-aspect-ratio';
-import { saveGeneratedImage } from '@/lib/images/generated-images';
 import { TEMP_FILE_DIR as TEMP_FILE_ROOT } from '@/lib/data-directories';
 import fs from 'fs/promises';
 import path from 'path';
@@ -51,6 +50,10 @@ const DONE_BYTES = encoder.encode('data: [DONE]\n\n');
 type AttachedFileInput = {
   name?: unknown;
   ext?: unknown;
+  content?: string;
+  dataUrl?: string;
+  base64?: string;
+  size?: number;
 };
 
 type ChatMessage = {
@@ -80,6 +83,7 @@ type AttachmentPayload =
       mimeType: string;
       size: number;
       text: string;
+      dataUrl?: string;
     }
   | {
       kind: 'binary';
@@ -88,6 +92,7 @@ type AttachmentPayload =
       filePath: string;
       mimeType: string;
       size: number;
+      dataUrl?: string;
     }
   | {
       kind: 'missing';
@@ -96,6 +101,7 @@ type AttachmentPayload =
       mimeType: string;
       size: number;
       error: string;
+      dataUrl?: string;
     };
 
 const MIME_BY_EXT: Record<string, string> = {
@@ -302,15 +308,18 @@ const imageOutputToMarkdown = (images: GeneratedImageOutput[], text = '') => [
 const materializeGeneratedImages = async (images: GeneratedImageOutput[]) => {
   const materialized: GeneratedImageOutput[] = [];
   for (const image of images) {
-    if (!image.base64) {
+    if (image.url) {
       materialized.push(image);
       continue;
     }
-    materialized.push({
-      ...image,
-      base64: undefined,
-      url: await saveGeneratedImage(image.base64, image.mimeType)
-    });
+    if (image.base64) {
+      materialized.push({
+        ...image,
+        url: `data:${image.mimeType || 'image/png'};base64,${image.base64}`
+      });
+      continue;
+    }
+    materialized.push(image);
   }
   return materialized;
 };
@@ -436,31 +445,68 @@ const resolveAttachedFilePath = (file: AttachedFileInput) => {
 };
 
 const readAttachment = async (file: AttachedFileInput): Promise<AttachmentPayload> => {
-  const { name, ext, filePath } = resolveAttachedFilePath(file);
+  const name = typeof file?.name === 'string' ? file.name : 'attachment';
+  const ext = normalizeExt(file);
   const mimeType = MIME_BY_EXT[ext] || 'application/octet-stream';
-  const stat = await fs.stat(filePath);
   const isText = isTextAttachment(ext, mimeType);
 
-  if (isText) {
+  if (typeof file?.content === 'string') {
+    return {
+      name,
+      ext,
+      filePath: '',
+      mimeType,
+      size: typeof file?.size === 'number' ? file.size : Buffer.byteLength(file.content),
+      kind: 'text',
+      text: file.content
+    };
+  }
+
+  if (typeof file?.dataUrl === 'string' || typeof file?.base64 === 'string') {
+    const dataUrl = file.dataUrl || `data:${mimeType};base64,${file.base64}`;
+    return {
+      name,
+      ext,
+      filePath: '',
+      mimeType,
+      size: typeof file?.size === 'number' ? file.size : 0,
+      kind: 'binary',
+      dataUrl
+    };
+  }
+
+  try {
+    const { filePath } = resolveAttachedFilePath(file);
+    const stat = await fs.stat(filePath);
+    if (isText) {
+      return {
+        name,
+        ext,
+        filePath,
+        mimeType,
+        size: stat.size,
+        kind: 'text',
+        text: await fs.readFile(filePath, 'utf-8')
+      };
+    }
     return {
       name,
       ext,
       filePath,
       mimeType,
       size: stat.size,
-      kind: 'text',
-      text: await fs.readFile(filePath, 'utf-8')
+      kind: 'binary'
+    };
+  } catch (err) {
+    return {
+      name,
+      ext,
+      mimeType,
+      size: 0,
+      kind: 'missing',
+      error: getErrorMessage(err)
     };
   }
-
-  return {
-    name,
-    ext,
-    filePath,
-    mimeType,
-    size: stat.size,
-    kind: 'binary'
-  };
 };
 
 const getMessageAttachments = async (message: ChatMessage): Promise<AttachmentPayload[]> => {
@@ -531,12 +577,19 @@ const buildOpenAICompatibleMessages = async (messages: ChatMessage[], providerNa
         continue;
       }
 
-      const base64 = await fs.readFile(attachment.filePath);
-      const dataUrl = `data:${attachment.mimeType};base64,${base64.toString('base64')}`;
-      parts.push({
-        type: 'image_url',
-        image_url: mistralTarget ? dataUrl : { url: dataUrl }
-      });
+      let dataUrl = attachment.dataUrl || '';
+      if (!dataUrl && attachment.filePath) {
+        try {
+          const base64 = await fs.readFile(attachment.filePath);
+          dataUrl = `data:${attachment.mimeType};base64,${base64.toString('base64')}`;
+        } catch {}
+      }
+      if (dataUrl) {
+        parts.push({
+          type: 'image_url',
+          image_url: mistralTarget ? dataUrl : { url: dataUrl }
+        });
+      }
     }
 
     if (unsupportedFiles.length > 0) {

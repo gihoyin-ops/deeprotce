@@ -155,7 +155,7 @@ dc_step() {
 }
 
 dc_deps_ready() {
-  [ -x "$DEEPCHAT_ROOT/node_modules/.bin/next" ] && [ -d "$DEEPCHAT_ROOT/node_modules/better-sqlite3" ]
+  [ -x "$DEEPCHAT_ROOT/node_modules/.bin/next" ]
 }
 
 dc_pnpm_install() {
@@ -167,10 +167,10 @@ dc_pnpm_install() {
   if command -v corepack >/dev/null 2>&1; then
     dc_step "Enabling Corepack..." corepack enable || true
   fi
-  if command -v pnpm >/dev/null 2>&1 && pnpm install --help 2>/dev/null | grep -q -- "--allow-build"; then
-    dc_step "Installing dependencies with pnpm..." pnpm install --allow-build=better-sqlite3
+  if command -v pnpm >/dev/null 2>&1; then
+    dc_step "Installing dependencies with pnpm..." pnpm install
   else
-    dc_step "Installing dependencies with pnpm 10..." npx pnpm@10 install --allow-build=better-sqlite3
+    dc_step "Installing dependencies with pnpm 10..." npx pnpm@10 install
   fi
 }
 
