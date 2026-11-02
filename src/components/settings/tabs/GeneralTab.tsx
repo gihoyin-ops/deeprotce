@@ -53,7 +53,7 @@ function MobileGeneralSettings({ settings, onChange }: GeneralTabProps) {
         <div className="space-y-[6px]">
           <MobileGeneralSelectRow
             label="Appearance"
-            icon="proicons:dark-theme"
+            icon="/icons/monitor.svg"
             value={settings.appearance}
             options={MOBILE_APPEARANCE_OPTIONS}
             position="top"
@@ -61,7 +61,7 @@ function MobileGeneralSettings({ settings, onChange }: GeneralTabProps) {
           />
           <MobileGeneralSelectRow
             label="Contrast"
-            icon="proicons:contrast"
+            icon="/icons/sliders-horizontal.svg"
             value={settings.contrast}
             options={CONTRAST_OPTIONS}
             position="middle"
@@ -69,7 +69,7 @@ function MobileGeneralSettings({ settings, onChange }: GeneralTabProps) {
           />
           <MobileGeneralSelectRow
             label="Accent color"
-            icon="carbon:color-palette"
+            icon="/icons/palette.svg"
             value={settings.accentColor}
             options={ACCENT_COLOR_OPTIONS}
             position="bottom"
