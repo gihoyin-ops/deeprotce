@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import NextImage from 'next/image';
-import { ArrowLeft, ChevronDown, User } from '@/components/ui/icons';
+import { ArrowLeft, ChevronDown, User, Check, Edit3 } from '@/components/ui/icons';
 import { type DropdownOption } from '@/components/ui/CustomDropdown';
 import { mobileSettingsSections } from './constants';
 import type { SettingsIconSource, SettingsTab, UserProfile } from './types';
@@ -20,7 +20,7 @@ export function MobileGeneralSelectRow({ label, icon, value, options, position, 
     <div className="relative">
       <div className={`${getMobileItemRadiusClass(position)} flex h-[51px] w-full items-center justify-between bg-[#d9d9d9] px-4 text-black dark:bg-slate-800 dark:text-slate-100`}>
         <div className="flex min-w-0 items-center gap-[13px]">
-          <IconMask icon={icon} source="iconify" className="h-[18px] w-[18px] shrink-0" />
+          <IconMask icon={icon} source="local" className="h-[18px] w-[18px] shrink-0" />
           <span className="truncate text-[12px] font-semibold leading-none">{label}</span>
         </div>
         <MobileGeneralDropdown
@@ -74,7 +74,7 @@ export function MobileProfileSettings({ profile, setProfile, isLoading, fileInpu
             )}
           </div>
           <span className="absolute bottom-1 right-1 flex h-7 w-7 items-center justify-center rounded-full bg-[#efeeee] text-black shadow-sm">
-            <IconMask icon="material-symbols:edit-rounded" source="iconify" className="h-[15px] w-[15px]" />
+            <Edit3 className="h-[15px] w-[15px]" strokeWidth={2.5} />
           </span>
         </button>
         <input
@@ -103,7 +103,7 @@ export function MobileProfileSettings({ profile, setProfile, isLoading, fileInpu
               placeholder="Name"
             />
             <button type="button" onClick={() => handleEditAction('name')} className="ml-3 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-black dark:text-slate-300">
-              <IconMask icon={editingField === 'name' ? 'material-symbols:check-rounded' : 'material-symbols:edit-rounded'} source="iconify" className="h-[18px] w-[18px]" />
+              {editingField === 'name' ? <Check className="h-[18px] w-[18px] text-emerald-600" strokeWidth={2.5} /> : <Edit3 className="h-[18px] w-[18px]" strokeWidth={2.5} />}
             </button>
           </div>
           <div className={`${getMobileItemRadiusClass('bottom')} flex h-[51px] items-center justify-between bg-[#d9d9d9] px-4 text-black dark:bg-slate-800 dark:text-slate-100`}>
@@ -123,7 +123,7 @@ export function MobileProfileSettings({ profile, setProfile, isLoading, fileInpu
               />
             </div>
             <button type="button" onClick={() => handleEditAction('username')} className="ml-3 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-black dark:text-slate-300">
-              <IconMask icon={editingField === 'username' ? 'material-symbols:check-rounded' : 'material-symbols:edit-rounded'} source="iconify" className="h-[18px] w-[18px]" />
+              {editingField === 'username' ? <Check className="h-[18px] w-[18px] text-emerald-600" strokeWidth={2.5} /> : <Edit3 className="h-[18px] w-[18px]" strokeWidth={2.5} />}
             </button>
           </div>
         </div>
@@ -181,8 +181,22 @@ export function MobileGeneralDropdown({ value, options, onChange, menuClassName 
 }
 
 
-export function IconMask({ icon, source, className = 'h-5 w-5' }: { icon: string, source: SettingsIconSource, className?: string }) {
-  const url = source === 'iconify' ? `https://api.iconify.design/${icon}.svg` : icon;
+const LOCAL_ICON_FALLBACKS: Record<string, string> = {
+  'material-symbols:settings-rounded': '/icons/settings.svg',
+  'solar:user-bold': '/icons/user.svg',
+  'solar:bell-bold': '/icons/bell.svg',
+  'tdesign:ai-tool-filled': '/icons/sliders-horizontal.svg',
+  'mdi:database-cog': '/icons/database.svg',
+  'fluent:storage-24-filled': '/icons/archive.svg',
+  'material-symbols:edit-rounded': '/icons/edit-3.svg',
+  'material-symbols:check-rounded': '/icons/check.svg',
+  'proicons:dark-theme': '/icons/monitor.svg',
+  'proicons:contrast': '/icons/sliders-horizontal.svg',
+  'carbon:color-palette': '/icons/palette.svg',
+  'lucide:languages': '/icons/globe.svg'
+};
+export function IconMask({ icon, className = 'h-5 w-5' }: { icon: string, source?: SettingsIconSource, className?: string }) {
+  const url = LOCAL_ICON_FALLBACKS[icon] || (icon.startsWith('/') ? icon : `/icons/${icon}.svg`);
   return (
     <span
       aria-hidden="true"
@@ -200,7 +214,6 @@ export function IconMask({ icon, source, className = 'h-5 w-5' }: { icon: string
     />
   );
 }
-
 export function MobileSettingsHome({ profile, onClose, onOpenTab, hidden }: { profile: UserProfile, onClose: () => void, onOpenTab: (tab: SettingsTab) => void, hidden: boolean }) {
   return (
     <div className={`${hidden ? 'hidden' : 'flex'} h-full flex-col bg-white px-3 pb-6 pt-2 sm:hidden`}>

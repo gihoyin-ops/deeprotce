@@ -75,19 +75,19 @@ export const mobileSettingsSections: MobileSettingsMenuSection[] = [
   {
     title: 'Settings',
     items: [
-      { tab: 'general', label: 'General', icon: 'material-symbols:settings-rounded', source: 'iconify' },
-      { tab: 'profile', label: 'My Profile', icon: 'solar:user-bold', source: 'iconify' },
-      { tab: 'notifications', label: 'Notification', icon: 'solar:bell-bold', source: 'iconify' }
+      { tab: 'general', label: 'General', icon: '/icons/settings.svg', source: 'local' },
+      { tab: 'profile', label: 'My Profile', icon: '/icons/user.svg', source: 'local' },
+      { tab: 'notifications', label: 'Notification', icon: '/icons/bell.svg', source: 'local' }
     ]
   },
   {
     title: 'Model & Services',
     items: [
-      { tab: 'tools', label: 'Tools Configuration', icon: 'tdesign:ai-tool-filled', source: 'iconify' },
+      { tab: 'tools', label: 'Tools Configuration', icon: '/icons/sliders-horizontal.svg', source: 'local' },
       { tab: 'agent', label: 'Agent', icon: '/icons/agent.svg', source: 'local' },
       { tab: 'personality', label: 'Personalization', icon: '/icons/personalization.svg', source: 'local' },
-      { tab: 'data', label: 'Data control', icon: 'mdi:database-cog', source: 'iconify' },
-      { tab: 'storage', label: 'Storage', icon: 'fluent:storage-24-filled', source: 'iconify' }
+      { tab: 'data', label: 'Data control', icon: '/icons/database.svg', source: 'local' },
+      { tab: 'storage', label: 'Storage', icon: '/icons/archive.svg', source: 'local' }
     ]
   }
 ];

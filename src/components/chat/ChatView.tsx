@@ -20,7 +20,7 @@ import { normalizeImageAspectRatio, type ImageAspectRatio } from '@/lib/images/i
 import { defaultComposerToolState, loadComposerToolState, saveComposerToolState } from '@/lib/agent/composer-tool-state';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  Check, ChevronDown, ChevronRight, BrainCircuit, ChevronLeft, X, Cpu, Code2
+  Check, ChevronDown, ChevronRight, BrainCircuit, ChevronLeft, X, Cpu, Code2, Copy, RefreshCw, Edit3, ThumbsUp, ThumbsDown, Globe
 } from '@/components/ui/icons';
 import toast from 'react-hot-toast';
 
@@ -1107,7 +1107,7 @@ function SearchUsageSection({ usage, searchSources = [] }: { usage: MCPUsageItem
                 >
                   <span className="mb-2 flex min-w-0 items-center gap-2">
                     <span className="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-50 ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-700">
-                      <Image src={getSearchFaviconUrl(source)} alt="" width={16} height={16} unoptimized className="h-4 w-4 rounded-sm" />
+                      <SearchFavicon source={source} />
                     </span>
                     <span className="min-w-0 truncate text-xs font-bold text-slate-500 group-hover:text-slate-700 dark:text-slate-300 dark:group-hover:text-slate-100">{source.displayUrl || getSearchHost(source.url)}</span>
                   </span>
@@ -1127,6 +1127,24 @@ function SearchUsageSection({ usage, searchSources = [] }: { usage: MCPUsageItem
         </div>
       )}
     </div>
+  );
+}
+
+function SearchFavicon({ source }: { source: SearchSource }) {
+  const [error, setError] = useState(false);
+  if (error) {
+    return <Globe className="h-3.5 w-3.5 text-slate-400" />;
+  }
+  return (
+    <Image
+      src={getSearchFaviconUrl(source)}
+      alt=""
+      width={16}
+      height={16}
+      unoptimized
+      onError={() => setError(true)}
+      className="h-4 w-4 rounded-sm"
+    />
   );
 }
 
@@ -1339,43 +1357,9 @@ function MessageActionButton({ label, tooltip = label, disabled, className, onCl
   );
 }
 
-function IconifyActionIcon({ icon, className = 'h-4 w-4' }: { icon: string; className?: string }) {
-  return (
-    <span
-      aria-hidden="true"
-      className={`inline-block shrink-0 ${className} bg-current`}
-      style={{
-        WebkitMaskImage: `url("https://api.iconify.design/${icon}.svg")`,
-        maskImage: `url("https://api.iconify.design/${icon}.svg")`,
-        WebkitMaskRepeat: 'no-repeat',
-        maskRepeat: 'no-repeat',
-        WebkitMaskPosition: 'center',
-        maskPosition: 'center',
-        WebkitMaskSize: 'contain',
-        maskSize: 'contain'
-      }}
-    />
-  );
-}
-
 function CopyActionIcon({ copied, className = 'h-4 w-4' }: { copied: boolean; className?: string }) {
   if (copied) return <Check className={`${className} text-emerald-500`} strokeWidth={2.5} />;
-  return (
-    <span
-      aria-hidden="true"
-      className={`inline-block shrink-0 ${className} bg-current`}
-      style={{
-        WebkitMaskImage: 'url("/icons/copy.svg")',
-        maskImage: 'url("/icons/copy.svg")',
-        WebkitMaskRepeat: 'no-repeat',
-        maskRepeat: 'no-repeat',
-        WebkitMaskPosition: 'center',
-        maskPosition: 'center',
-        WebkitMaskSize: 'contain',
-        maskSize: 'contain'
-      }}
-    />
-  );
+  return <Copy className={className} strokeWidth={2} />;
 }
 
 const MessageBubble = React.memo(function MessageBubble({ message, onRegenerate, onSwitchVersion, canEditUserMessage = false, onEditUserMessage, isMobileActionsOpen = false, onActivateMobileActions }: MessageBubbleProps) {
@@ -1546,7 +1530,7 @@ const MessageBubble = React.memo(function MessageBubble({ message, onRegenerate,
                 onClick={startUserEdit}
                 className="inline-flex items-center justify-center rounded-full p-1 text-[#aaa0a0] transition-colors hover:text-black"
               >
-                <IconifyActionIcon icon="mynaui:edit-solid" className="h-4 w-4" />
+                <Edit3 className="h-4 w-4" strokeWidth={2} />
               </MessageActionButton>
             )}
           </div>
@@ -1593,14 +1577,14 @@ const MessageBubble = React.memo(function MessageBubble({ message, onRegenerate,
               tooltip="Like response"
               className="inline-flex items-center justify-center rounded-full p-1 text-[#aaa0a0] transition-colors hover:text-black"
             >
-              <IconifyActionIcon icon="solar:like-bold" className="h-4 w-4" />
+              <ThumbsUp className="h-4 w-4" strokeWidth={2} />
             </MessageActionButton>
             <MessageActionButton
               label="Dislike response"
               tooltip="Dislike response"
               className="inline-flex items-center justify-center rounded-full p-1 text-[#aaa0a0] transition-colors hover:text-black"
             >
-              <IconifyActionIcon icon="solar:dislike-bold" className="h-4 w-4" />
+              <ThumbsDown className="h-4 w-4" strokeWidth={2} />
             </MessageActionButton>
             {onRegenerate && (
               <MessageActionButton
@@ -1609,7 +1593,7 @@ const MessageBubble = React.memo(function MessageBubble({ message, onRegenerate,
                 onClick={onRegenerate}
                 className="inline-flex items-center justify-center rounded-full p-1 text-[#aaa0a0] transition-colors hover:text-black"
               >
-                <IconifyActionIcon icon="octicon:loop-16" className="h-4 w-4" />
+                <RefreshCw className="h-4 w-4" strokeWidth={2} />
               </MessageActionButton>
             )}
           </div>
