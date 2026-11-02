@@ -56,9 +56,14 @@ export const streamWithAiLog = (body: ReadableStream<Uint8Array> | null, payload
   if (!body || !isAiLogEnabled()) return body;
   const decoder = new TextDecoder();
   let raw = '';
+  let capped = false;
   return body.pipeThrough(new TransformStream<Uint8Array, Uint8Array>({
     transform(chunk, controller) {
-      raw += decoder.decode(chunk, { stream: true });
+      // untrusted stream; stop accumulating past the cap to bound function memory
+      if (!capped) {
+        raw += decoder.decode(chunk, { stream: true });
+        if (raw.length > 2 * 1024 * 1024) capped = true;
+      }
       controller.enqueue(chunk);
     },
     flush() {

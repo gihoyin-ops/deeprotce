@@ -132,28 +132,19 @@ html[data-appearance="dark"] .code-preview-code ::selection {
   will-change: transform;
 }
 
-.deepchat-analysis-shell {
+.deepchat-panel-shell {
   transform-origin: 18px 18px;
-  animation: deepchat-analysis-shell-in 360ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: deepchat-panel-shell-in 360ms cubic-bezier(0.16, 1, 0.36, 1) both;
 }
 
-.deepchat-analysis-dropdown {
+.deepchat-panel-dropdown {
   transform-origin: top center;
-  animation: deepchat-analysis-dropdown-in 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: deepchat-panel-dropdown-in 420ms cubic-bezier(0.16, 1, 0.36, 1) both;
 }
 
 .deepchat-subtle-analyzing {
   animation: deepchat-subtle-analyzing 1.8s ease-in-out infinite;
   text-shadow: 0 0 18px rgba(148, 163, 184, 0.28);
-}
-
-.deepchat-subtle-analyzing-dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 999px;
-  background: currentColor;
-  opacity: 0.54;
-  animation: deepchat-subtle-analyzing-dot 1.15s ease-in-out infinite;
 }
 
 @keyframes deepchat-code-spin {
@@ -166,7 +157,7 @@ html[data-appearance="dark"] .code-preview-code ::selection {
   }
 }
 
-@keyframes deepchat-analysis-shell-in {
+@keyframes deepchat-panel-shell-in {
   0% {
     opacity: 0;
     transform: translateY(8px) scale(0.96);
@@ -186,7 +177,7 @@ html[data-appearance="dark"] .code-preview-code ::selection {
   }
 }
 
-@keyframes deepchat-analysis-dropdown-in {
+@keyframes deepchat-panel-dropdown-in {
   0% {
     opacity: 0;
     clip-path: inset(0 0 100% 0 round 14px);
@@ -218,18 +209,6 @@ html[data-appearance="dark"] .code-preview-code ::selection {
   50% {
     opacity: 0.96;
     filter: drop-shadow(0 0 8px rgba(148, 163, 184, 0.3));
-  }
-}
-
-@keyframes deepchat-subtle-analyzing-dot {
-  0%, 100% {
-    transform: scale(0.78);
-    opacity: 0.34;
-  }
-
-  50% {
-    transform: scale(1);
-    opacity: 0.78;
   }
 }
 

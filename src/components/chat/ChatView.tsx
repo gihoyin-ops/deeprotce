@@ -20,7 +20,7 @@ import { normalizeImageAspectRatio, type ImageAspectRatio } from '@/lib/images/i
 import { defaultComposerToolState, loadComposerToolState, saveComposerToolState } from '@/lib/agent/composer-tool-state';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  Check, ChevronDown, ChevronRight, BrainCircuit, ChevronLeft, X, Cpu, Code2, Copy, RefreshCw, Edit3, ThumbsUp, ThumbsDown, Globe
+  Check, ChevronDown, ChevronRight, BrainCircuit, ChevronLeft, X, Cpu, Copy, RefreshCw, Edit3, ThumbsUp, ThumbsDown, Globe
 } from '@/components/ui/icons';
 import toast from 'react-hot-toast';
 
@@ -900,16 +900,12 @@ function ReasoningSection({ content, isStreaming = false, duration }: { content:
 function MCPUsageSection({ notice, usage = [], searchSources = [] }: { notice?: string, usage?: MCPUsageItem[], searchSources?: SearchSource[] }) {
   const [isExpanded, setIsExpanded] = useState(false);
   if (!notice && usage.length === 0) return null;
-  if (!notice && usage.length === 1 && usage[0].id === 'code-execution') {
-    return <CodeExecutionUsageSection usage={usage[0]} />;
-  }
   if (!notice && usage.length === 1 && isSearchUsage(usage[0])) {
     return <SearchUsageSection usage={usage[0]} searchSources={searchSources} />;
   }
 
   const searchUsage = usage.find(isSearchUsage);
   const panelUsage = usage.filter(item => !isSearchUsage(item));
-  const singlePanelCodeUsage = panelUsage.length === 1 && panelUsage[0].id === 'code-execution';
 
   const names = panelUsage.map(item => item.name).join(', ');
   const hasRunning = panelUsage.some(item => item.status === 'running');
@@ -924,8 +920,7 @@ function MCPUsageSection({ notice, usage = [], searchSources = [] }: { notice?: 
         </div>
       )}
       {searchUsage && <SearchUsageSection usage={searchUsage} searchSources={searchSources} />}
-      {singlePanelCodeUsage && <CodeExecutionUsageSection usage={panelUsage[0]} />}
-      {panelUsage.length > 0 && !singlePanelCodeUsage && (
+      {panelUsage.length > 0 && (
         <div className="overflow-hidden rounded-2xl border border-indigo-100 bg-indigo-50/70 shadow-sm">
           <button
             type="button"
@@ -1094,7 +1089,7 @@ function SearchUsageSection({ usage, searchSources = [] }: { usage: MCPUsageItem
         {hasDropdown && (isExpanded ? <ChevronDown className="ml-1 h-3.5 w-3.5" /> : <ChevronRight className="ml-1 h-3.5 w-3.5" />)}
       </button>
       {isExpanded && hasDropdown && (
-        <div className="deepchat-analysis-dropdown mt-2 max-w-[min(720px,calc(100vw-3rem))] rounded-2xl border border-slate-100 bg-slate-50/70 px-3 py-2 text-xs font-semibold leading-relaxed text-slate-500 shadow-sm">
+        <div className="deepchat-panel-dropdown mt-2 max-w-[min(720px,calc(100vw-3rem))] rounded-2xl border border-slate-100 bg-slate-50/70 px-3 py-2 text-xs font-semibold leading-relaxed text-slate-500 shadow-sm">
           {searchSources.length > 0 ? (
             <div className="grid auto-cols-[minmax(190px,240px)] grid-flow-col gap-2 overflow-x-auto pb-1 custom-scrollbar">
               {searchSources.map((source, index) => (
@@ -1175,63 +1170,6 @@ function getSearchHost(url: string) {
   }
 }
 
-function CodeExecutionUsageSection({ usage }: { usage: MCPUsageItem }) {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const isRunning = usage.status === 'running';
-  const isError = usage.status === 'error';
-  if (usage.status === 'completed') return null;
-  const details = getCodeExecutionDisplayDetails(usage);
-  const title = isError ? 'Code execution error' : 'Analyzing';
-
-  return (
-    <div className="mb-3 ml-1 max-w-full">
-      <button
-        type="button"
-        onClick={() => setIsExpanded(open => !open)}
-        className={`inline-flex items-center gap-1.5 rounded-full px-1 py-0.5 text-sm font-semibold transition-colors ${isError ? 'text-red-400 hover:text-red-500' : 'deepchat-subtle-analyzing text-slate-400 hover:text-slate-500'}`}
-      >
-        {isError && <Code2 className="h-3.5 w-3.5" />}
-        <span>{title}</span>
-        {isRunning && <span className="deepchat-subtle-analyzing-dot" />}
-        {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-      </button>
-      {isExpanded && (
-        <div className="deepchat-analysis-dropdown mt-2 max-w-xl rounded-2xl border border-slate-100 bg-slate-50/70 px-3 py-2 text-xs font-semibold leading-relaxed text-slate-500 shadow-sm">
-          {details.map((item) => (
-            <div key={item} className="flex gap-2 py-0.5">
-              <span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${isError ? 'bg-red-300' : 'bg-slate-300'}`} />
-              <span>{item}</span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function getCodeExecutionDisplayDetails(usage: MCPUsageItem) {
-  const fallback = usage.status === 'error'
-    ? ['The analysis runner could not finish. Technical details are available from the analysis button.']
-    : ['Preparing the analysis.'];
-  if (!usage.details) return fallback;
-  try {
-    const parsed = JSON.parse(usage.details) as unknown;
-    if (!parsed || typeof parsed !== 'object') return fallback;
-    const value = parsed as Record<string, unknown>;
-    const stdout = typeof value.stdout === 'string' ? value.stdout : '';
-    const stderr = typeof value.stderr === 'string' ? value.stderr : '';
-    if (usage.status === 'error') return fallback;
-    if (/Running Excel engine/i.test(stdout)) return ['Running the Excel engine.', 'Building sheets, formulas, styles, and preview values.'];
-    if (/workbook|spreadsheet|excel/i.test(stdout)) return ['Preparing the spreadsheet workbook.'];
-    if (/Retrying Python analysis/i.test(stdout) || stderr.trim()) return ['Repairing the generated analysis and trying again.'];
-    if (/Running Python analysis/i.test(stdout)) return ['Running calculations in the isolated Python workspace.', 'The first run can take longer while the local runtime warms up.'];
-    if (/Asking the model/i.test(stdout)) return ['Planning the analysis and preparing the code.'];
-    if (/completed/i.test(stdout)) return ['Analysis completed.'];
-    return fallback;
-  } catch {
-    return fallback;
-  }
-}
 
 type MessageBubbleProps = {
   message: ChatMessage;
@@ -1403,9 +1341,8 @@ const MessageBubble = React.memo(function MessageBubble({ message, onRegenerate,
   const hasVersions = message.versions && message.versions.length > 1;
   const totalVersions = message.versions?.length || 1;
   const currentIdx = Math.min(Math.max(message.currentVersionIndex || 0, 0), totalVersions - 1);
-  const visibleMCPUsage = message.isStopped ? (message.mcpUsage || []).filter(item => !(item.id === 'code-execution' && item.status === 'running')) : (message.mcpUsage || []);
+  const visibleMCPUsage = message.mcpUsage || [];
   const hasMCPUsage = !isUser && visibleMCPUsage.length > 0;
-  const hasActiveCodeExecution = !isUser && message.isStreaming === true && Boolean(visibleMCPUsage.some(item => item.id === 'code-execution' && item.status === 'running'));
   const mcpOffset = typeof message.mcpContentOffset === 'number' ? Math.min(Math.max(message.mcpContentOffset, 0), (message.content || '').length) : undefined;
   const preMCPContent = hasMCPUsage && mcpOffset !== undefined ? (message.content || '').slice(0, mcpOffset).trim() : '';
   const postMCPContent = hasMCPUsage && mcpOffset !== undefined ? (message.content || '').slice(mcpOffset).trim() : '';
@@ -1497,9 +1434,9 @@ const MessageBubble = React.memo(function MessageBubble({ message, onRegenerate,
               <MarkdownRenderer content={postMCPContent || standardContent || ''} isStreaming={message.isStreaming} searchSources={message.searchSources} />
             )}
           </div>
-        ) : message.isStreaming && !message.reasoning && !hasActiveCodeExecution && message.generationMode === 'image' ? (
+        ) : message.isStreaming && !message.reasoning && message.generationMode === 'image' ? (
           <ImageGenerationLoader />
-        ) : message.isStreaming && !message.reasoning && !hasActiveCodeExecution && (
+        ) : message.isStreaming && !message.reasoning && (
           <div className="flex min-h-8 w-fit items-center px-1 py-2">
             <div className="flex space-x-1.5">
               <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>

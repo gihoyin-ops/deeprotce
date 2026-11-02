@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getLiveLiteConnection, getLiveChatConnection } from '@/lib/ai/live';
+import { isAiLogEnabled } from '@/lib/ai/ai-logs';
+import { MAX_TITLE_PROMPT_CHARS } from '@/lib/security/limits';
 
 export const runtime = 'nodejs';
 export const maxDuration = 15;
@@ -38,6 +40,17 @@ const cleanTitle = (raw: string) => raw
   .slice(0, 7)
   .join(' ');
 
+// upstream body text must never reach the client; map status classes to sanitized constants
+const upstreamTitleError = (status: number) => {
+  if (status === 401 || status === 403) {
+    return NextResponse.json({ error: 'upstream auth error' }, { status: 400 });
+  }
+  if (status === 408 || status === 429) {
+    return NextResponse.json({ error: 'upstream busy' }, { status: 503 });
+  }
+  return NextResponse.json({ error: 'upstream error', status }, { status: 502 });
+};
+
 type TitleModelResponse = {
   choices?: { message?: { content?: string } }[];
 };
@@ -45,14 +58,15 @@ type TitleModelResponse = {
 export async function POST(req: Request) {
   let promptForFallback = '';
   try {
-    const { prompt, modelId } = await req.json() as {
+    const body = await req.json() as {
       prompt?: string;
-      modelId?: string;
       connectionId?: string;
     };
+    // client sends raw chat text; hard cap prompt size for the LLM call
+    const prompt = typeof body.prompt === 'string' ? body.prompt.slice(0, MAX_TITLE_PROMPT_CHARS) : '';
     promptForFallback = prompt || '';
 
-    if (!prompt || typeof prompt !== 'string') {
+    if (!prompt) {
       return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
     }
 
@@ -64,6 +78,7 @@ export async function POST(req: Request) {
     const sysMsg = "Create a specific chat title from the user's message. Output only a concise 3-6 word title. Never output New Chat, Untitled Chat, Chat Title, quotes, markdown, or explanations.";
 
     const url = `${conn.baseUrl}/v1/chat/completions`;
+    // server env model only; a client-supplied modelId could target arbitrary provider models
     const res = await fetch(url, {
       method: 'POST',
       headers: {
@@ -71,7 +86,7 @@ export async function POST(req: Request) {
         Authorization: `Bearer ${conn.apiKey}`
       },
       body: JSON.stringify({
-        model: conn.model || modelId || 'gpt-4o-mini',
+        model: conn.model || 'gpt-4o-mini',
         messages: [
           { role: 'system', content: sysMsg },
           { role: 'user', content: prompt }
@@ -83,13 +98,23 @@ export async function POST(req: Request) {
       signal: AbortSignal.timeout(3500)
     });
 
-    if (res.ok) {
-      const data = await res.json() as TitleModelResponse;
-      const rawTitle = data.choices?.[0]?.message?.content || '';
-      const title = cleanTitle(rawTitle);
-      if (title && !isGenericTitle(title)) {
-        return NextResponse.json({ title });
+    if (!res.ok) {
+      let upstreamBody = '';
+      try {
+        upstreamBody = await res.text();
+      } catch {
       }
+      if (isAiLogEnabled()) {
+        console.error(`[chat-title] upstream ${res.status}: ${upstreamBody.slice(0, 2000)}`);
+      }
+      return upstreamTitleError(res.status);
+    }
+
+    const data = await res.json() as TitleModelResponse;
+    const rawTitle = data.choices?.[0]?.message?.content || '';
+    const title = cleanTitle(rawTitle);
+    if (title && !isGenericTitle(title)) {
+      return NextResponse.json({ title });
     }
 
     return NextResponse.json({ title: buildFallbackTitle(promptForFallback) });

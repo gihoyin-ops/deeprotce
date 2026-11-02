@@ -2,8 +2,6 @@
 
 export type SettingsTab = 'general' | 'profile' | 'personality' | 'notifications' | 'tools' | 'agent' | 'data' | 'storage';
 
-export type VerifyStepStatus = 'pending' | 'loading' | 'success' | 'error';
-
 export type CropArea = { x: number; y: number; width: number; height: number };
 
 export interface UserProfile {
@@ -11,17 +9,6 @@ export interface UserProfile {
   name: string;
   avatar: string;
   plan: string;
-}
-
-export interface Connection {
-  id: string;
-  provider: string;
-  name: string;
-  apiKey: string;
-  baseUrl: string;
-  projectId: string;
-  location: string;
-  model: string;
 }
 
 export interface SharedLinkItem {
@@ -38,22 +25,6 @@ export interface ArchivedChatItem {
   createdAt: string;
   messages?: unknown[];
 }
-
-export interface ModelItem {
-  id: string;
-  name?: string;
-  badge?: string;
-}
-
-export interface ModelCategory {
-  category: string;
-  models: ModelItem[];
-}
-
-export type ModelEntry = ModelItem | ModelCategory;
-export type ModelCollection = ModelEntry[];
-
-export type VerifySteps = Record<'nonStream' | 'stream', VerifyStepStatus>;
 
 export type ConfirmAction = 'deleteChats' | 'deleteConnections';
 
@@ -104,11 +75,4 @@ export interface PersonaState {
   aboutMore: string;
   memoryReferenceSaved: boolean;
   memoryReferenceHistory: boolean;
-}
-
-// llm settings draft state
-export interface LLMDraft {
-  streamingResponse: boolean;
-  reasoning: boolean;
-  reasoningLevel: 'minimal' | 'low' | 'medium' | 'high' | 'heavy';
 }

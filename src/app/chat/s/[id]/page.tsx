@@ -7,6 +7,7 @@ import { Bot, MessageSquare } from '@/components/ui/icons';
 import Link from 'next/link';
 import TryDeepChatCTA from '@/components/ui/TryDeepChatCTA';
 import Image from 'next/image';
+import { safeAvatarSource } from '@/lib/utils';
 
 type SharedChatMessage = {
   id: string;
@@ -65,7 +66,7 @@ export default function SharedChatPage({ params }: { params: Promise<{ id: strin
   }
 
   const ownerProfile = chat.ownerProfile || {};
-  const ownerAvatar = ownerProfile.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix';
+  const ownerAvatar = safeAvatarSource(ownerProfile.avatar);
   const ownerName = ownerProfile.name || 'User';
 
   return (

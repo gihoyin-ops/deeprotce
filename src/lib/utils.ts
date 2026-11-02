@@ -15,6 +15,19 @@ export function useClientOnly<T>(value: T, defaultValue: T): T {
   return mounted ? value : defaultValue;
 }
 
+export const escapeScriptClose = (value: string) => value.replace(/<\/script/gi, '<\\/script');
+
+export const safeAvatarSource = (value: string | undefined): string => {
+  const fallback = 'https://api.dicebear.com/7.x/initials/svg?seed=Guest';
+  if (!value) return fallback;
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol.toLowerCase() === 'https:' && parsed.hostname !== '' ? value : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
 export function ClientOnly({ children, fallback = null }: { children: React.ReactNode, fallback?: React.ReactNode }) {
   const mounted = useIsMounted();
 

@@ -31,6 +31,7 @@ import {
   loadGeneralSettings,
   subscribeGeneralSettings
 } from '@/lib/settings/general-settings';
+import { safeAvatarSource } from '@/lib/utils';
 
 const SettingsModal = dynamic(() => import('./SettingsModal'), {
   ssr: false,
@@ -501,7 +502,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const renderProfileMenu = () => (
     <div className="fixed left-4 right-4 top-16 z-50 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-300/30 sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-3 sm:w-72">
       <div className="flex items-center gap-3 border-b border-slate-100 px-4 py-4">
-        <Image src={profile.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix'} alt="User" width={44} height={44} unoptimized className="h-11 w-11 rounded-full border border-slate-200 bg-slate-100 object-cover" />
+        <Image src={safeAvatarSource(profile.avatar)} alt="User" width={44} height={44} unoptimized className="h-11 w-11 rounded-full border border-slate-200 bg-slate-100 object-cover" />
         <div className="min-w-0">
           <p className="truncate text-sm font-extrabold text-slate-800">{profile.name || 'Guest'}</p>
           <p className="truncate text-xs font-medium text-slate-400">{profile.plan || 'No Plan'}</p>
@@ -639,7 +640,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 }}
               >
                 <button onClick={() => { setProfileMenuOpen(open => !open); setNotificationOpen(false); }} className="block rounded-full">
-                  <Image src={profile.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix'} alt="User" width={40} height={40} unoptimized className="w-10 h-10 rounded-full border border-slate-200 cursor-pointer object-cover hover:ring-2 hover:ring-indigo-500/30 transition-all shadow-sm" />
+                  <Image src={safeAvatarSource(profile.avatar)} alt="User" width={40} height={40} unoptimized className="w-10 h-10 rounded-full border border-slate-200 cursor-pointer object-cover hover:ring-2 hover:ring-indigo-500/30 transition-all shadow-sm" />
                 </button>
                 {isProfileMenuOpen && renderProfileMenu()}
               </div>

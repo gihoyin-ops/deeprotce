@@ -26,7 +26,6 @@ export interface InstalledTool {
 
 export interface ToolSettings {
   searchEnabled: boolean;
-  codeExecutionEnabled: boolean;
   urlContextEnabled: boolean;
   installed: InstalledTool[];
 }
@@ -69,7 +68,6 @@ export const TOOL_CATALOG: ToolCatalogItem[] = [
 
 export const defaultToolSettings: ToolSettings = {
   searchEnabled: true,
-  codeExecutionEnabled: true,
   urlContextEnabled: true,
   installed: []
 };
@@ -110,6 +108,7 @@ const normalizeInstalledTool = (value: unknown): InstalledTool | null => {
 
 const normalizeSettings = (settings: unknown): ToolSettings => {
   if (!isRecord(settings)) return defaultToolSettings;
+  // legacy persisted keys from older clients are dropped by the selective reads below
   const installed = Array.isArray(settings.installed)
     ? settings.installed.map(normalizeInstalledTool).filter((item): item is InstalledTool => Boolean(item))
     : [];
@@ -118,7 +117,6 @@ const normalizeSettings = (settings: unknown): ToolSettings => {
   const selectedInstalled = selectedTool ? [selectedTool] : [];
   return {
     searchEnabled: typeof settings.searchEnabled === 'boolean' ? settings.searchEnabled : true,
-    codeExecutionEnabled: typeof settings.codeExecutionEnabled === 'boolean' ? settings.codeExecutionEnabled : true,
     urlContextEnabled: typeof settings.urlContextEnabled === 'boolean' ? settings.urlContextEnabled : true,
     installed: selectedInstalled
   };
@@ -179,7 +177,7 @@ export const updateToolConfig = (installedId: string, config: Record<string, str
   });
 };
 
-export const updateToolFeatureSettings = (patch: Partial<Pick<ToolSettings, 'searchEnabled' | 'codeExecutionEnabled' | 'urlContextEnabled'>>) => {
+export const updateToolFeatureSettings = (patch: Partial<Pick<ToolSettings, 'searchEnabled' | 'urlContextEnabled'>>) => {
   const current = loadToolSettings();
   return saveToolSettings({ ...current, ...patch });
 };

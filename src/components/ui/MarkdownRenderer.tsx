@@ -10,10 +10,8 @@ import { createHighlighter, Highlighter } from 'shiki';
 import 'katex/dist/katex.min.css';
 import { ClientOnly } from '@/lib/utils';
 import CodePreview from '@/components/ui/CodePreview';
-import DataAnalysisResult, { DataAnalysisActions } from '@/components/ui/DataAnalysisResult';
 
 let highlighterPromise: Promise<Highlighter> | null = null;
-const ANALYSIS_ACTIONS_INLINE_PREFIX = 'deepchat-analysis-actions:';
 
 interface MarkdownRendererProps {
   content: string;
@@ -89,12 +87,6 @@ const MarkdownRenderer = React.memo(function MarkdownRenderer({ content, isStrea
               if (!isInline) {
                 const value = String(children).replace(/\n$/, '');
                 return <CodeBlock language={language} value={value} highlighter={highlighter} isStreaming={isCodeBlockStreaming(streamingCodeFence, node, language, value)} />;
-              }
-
-              const inlineValue = getChildrenText(children);
-              if (inlineValue.startsWith(ANALYSIS_ACTIONS_INLINE_PREFIX)) {
-                const value = decodeAnalysisPayload(inlineValue.slice(ANALYSIS_ACTIONS_INLINE_PREFIX.length));
-                return value ? <DataAnalysisActions value={value} /> : null;
               }
 
               return (
@@ -384,9 +376,10 @@ function formatMarkdownHref(url: string) {
 
 function transformMarkdownUrl(url: string) {
   const value = url.trim();
+  // Deny by default so schemes like javascript:, vbscript: and protocol-relative hosts never reach a rendered attribute
   if (/^data:image\/(?:png|jpe?g|webp|gif);base64,[a-z0-9+/=\s]+$/i.test(value)) return value.replace(/\s/g, '');
-  if (/^(https?:|mailto:|irc:|ircs:|xmpp:)/i.test(value)) return value;
-  if (/^(#|\/(?!\/)|\.\/|\.\.\/)/.test(value)) return value;
+  if (/^(https?:|mailto:)/i.test(value)) return value;
+  if (/^(?:\.\.\/|\.\/|\/)?[\w~-]+[\w.\/-]*$/.test(value)) return value;
   return '';
 }
 
@@ -399,10 +392,6 @@ function normalizeUrl(url: string) {
   } catch {
     return url.replace(/[#?].*$/, '').replace(/\/$/, '').toLowerCase();
   }
-}
-
-function getChildrenText(children: React.ReactNode) {
-  return React.Children.toArray(children).map(item => typeof item === 'string' || typeof item === 'number' ? String(item) : '').join('').trim();
 }
 
 function getCitationLabel(source: SearchSource) {
@@ -426,22 +415,18 @@ function getSourceHost(url: string) {
   }
 }
 
-function decodeAnalysisPayload(value: string) {
-  try {
-    const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
-    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
-    const binary = window.atob(padded);
-    const bytes = Uint8Array.from(binary, char => char.charCodeAt(0));
-    return new TextDecoder().decode(bytes);
-  } catch {
-    return '';
-  }
-}
-
 function CodeBlock({ language, value, highlighter, isStreaming }: { language: string, value: string, highlighter: Highlighter | null, isStreaming: boolean }) {
-  if (language === 'deepchat-analysis') return <DataAnalysisResult value={value} />;
-  if (language === 'deepchat-analysis-actions') return <DataAnalysisActions value={value} />;
-  return <CodePreview language={language} value={value} highlighter={highlighter} isStreaming={isStreaming} />;
+  // Legacy model analysis fences arrive without a runnable language and must render as inert code only
+  let displayLanguage = language;
+  if (language.startsWith('deepchat-')) {
+    displayLanguage = 'text';
+    try {
+      const parsed = JSON.parse(value);
+      if (parsed && typeof parsed === 'object') displayLanguage = 'json';
+    } catch {
+    }
+  }
+  return <CodePreview language={displayLanguage} value={value} highlighter={highlighter} isStreaming={isStreaming} />;
 }
 
 export default MarkdownRenderer;

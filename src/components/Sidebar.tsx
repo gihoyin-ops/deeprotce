@@ -15,6 +15,7 @@ import Tooltip from './ui/Tooltip';
 import { DeepChatLogoMark } from './brand';
 import type { SettingsTab } from './SettingsModal';
 import { deepchatQueryKeys } from '@/lib/query-keys';
+import { safeAvatarSource } from '@/lib/utils';
 
 type SidebarSettingsTab = Extract<SettingsTab, 'general' | 'profile' | 'personality'>;
 
@@ -137,7 +138,7 @@ export default function Sidebar({ isOpen, setIsOpen, isMobileOpen, setMobileOpen
 
   const renderProfile = (variant: 'expanded' | 'mobile', refIndex: number) => {
     const isExpanded = variant === 'expanded';
-    const avatarSrc = profile.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix';
+    const avatarSrc = safeAvatarSource(profile.avatar);
     return (
     <div className="relative" ref={(node) => { profileMenuRefs.current[refIndex] = node; }}>
       <button
@@ -190,7 +191,7 @@ export default function Sidebar({ isOpen, setIsOpen, isMobileOpen, setMobileOpen
   };
 
   const renderMobileProfilePill = () => {
-    const avatarSrc = profile.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix';
+    const avatarSrc = safeAvatarSource(profile.avatar);
     return (
       <div className="relative" ref={(node) => { profileMenuRefs.current[1] = node; }}>
         <div className="flex h-8 items-center gap-1 rounded-full bg-[#e7e5e5] px-1.5">
@@ -271,7 +272,7 @@ export default function Sidebar({ isOpen, setIsOpen, isMobileOpen, setMobileOpen
               className="flex h-8 w-8 items-center justify-center rounded-full transition-transform hover:scale-105 active:scale-95"
               aria-label="Profile"
             >
-              <Image src={profile.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix'} alt="User" width={28} height={28} unoptimized className="h-7 w-7 rounded-full object-cover" />
+              <Image src={safeAvatarSource(profile.avatar)} alt="User" width={28} height={28} unoptimized className="h-7 w-7 rounded-full object-cover" />
             </button>
           </div>
         </div>

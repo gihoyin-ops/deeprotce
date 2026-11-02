@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getConnections } from '@/app/actions';
-import { getInjectedSystemPrompt, getPersona } from '@/app/persona';
+import { getPersona } from '@/app/persona';
 import {
   getChatCompletionsUrl,
   getCleanBaseUrl,
@@ -17,6 +17,7 @@ import {
   getLiveChatConnection,
   getLiveLiteConnection,
   getLiveImageConfig,
+  getLiveModels,
   LIVE_CHAT_CONNECTION_ID,
   LIVE_LITE_CONNECTION_ID
 } from '@/lib/ai/live';
@@ -32,6 +33,8 @@ import {
   type SearchSource,
   type MCPRuntimeUsageItem
 } from '@/lib/mcp/mcp-runtime';
+import { assertEgressUrl } from '@/lib/security/url-guard';
+import { validateChatBody } from '@/lib/security/limits';
 import { buildClarificationInstruction, parseAgentClarification } from '@/lib/agent/agent-clarification';
 import { isImageGenerationModel } from '@/lib/images/image-generation';
 import { normalizeImageAspectRatio, type ImageAspectRatio } from '@/lib/images/image-aspect-ratio';
@@ -365,7 +368,9 @@ const inlineRemoteGeneratedImages = async (images: GeneratedImageOutput[]) => {
       continue;
     }
     try {
-      const response = await fetch(image.url);
+      // provider-supplied URL; refuse private/metadata targets before fetching
+      await assertEgressUrl(image.url);
+      const response = await fetch(image.url, { signal: AbortSignal.timeout(15000) });
       if (!response.ok) {
         inlined.push(image);
         continue;
@@ -375,7 +380,12 @@ const inlineRemoteGeneratedImages = async (images: GeneratedImageOutput[]) => {
         inlined.push(image);
         continue;
       }
-      const bytes = Buffer.from(await response.arrayBuffer()).toString('base64');
+      const buffer = await response.arrayBuffer();
+      if (buffer.byteLength > 15 * 1024 * 1024) {
+        inlined.push(image);
+        continue;
+      }
+      const bytes = Buffer.from(buffer).toString('base64');
       inlined.push({ ...image, mimeType, base64: bytes, url: undefined });
     } catch {
       inlined.push(image);
@@ -635,6 +645,29 @@ const getRouteResponseError = async (response: Response) => {
   return `Request failed with status ${response.status}`;
 };
 
+// upstream body text must never reach the client; map status classes to sanitized constants
+const upstreamSseError = (status: number) => {
+  if (status === 401 || status === 403) return 'upstream auth error';
+  if (status === 408 || status === 429) return 'upstream busy';
+  return 'upstream error';
+};
+
+const upstreamErrorResponse = (status: number) => {
+  if (status === 401 || status === 403) {
+    return NextResponse.json({ error: 'upstream auth error' }, { status: 400 });
+  }
+  if (status === 408 || status === 429) {
+    return NextResponse.json({ error: 'upstream busy' }, { status: 503 });
+  }
+  return NextResponse.json({ error: 'upstream error', status }, { status: 502 });
+};
+
+const logUpstreamFailure = (status: number, detail: string) => {
+  if (isAiLogEnabled()) {
+    console.error(`[chat] upstream ${status}: ${detail.slice(0, 2000)}`);
+  }
+};
+
 const withSystemInstruction = (messages: ChatMessage[], instruction: string): ChatMessage[] => {
   const nextMessages = messages.map(message => ({ ...message }));
   const systemIndex = nextMessages.findIndex(message => message.role === 'system');
@@ -651,15 +684,14 @@ const withSystemInstruction = (messages: ChatMessage[], instruction: string): Ch
 const buildPlatformCapabilityPrompt = () => [
   'DeepChat platform capabilities:',
   '- Search can gather fresh web facts and source-aware context when enabled by the router or user.',
-  '- Code Execution can run isolated Python for data analysis, calculations, forecasts, charts, downloadable Excel workbooks, spreadsheet previews, and generated artifacts.',
-  '- If runtime context or tool orchestration is active, do not say the platform cannot create downloadable Excel files, charts, or artifacts.',
-  '- Do not ask the user which internal tool to use. Continue naturally and let DeepChat route tools.',
-  '- If a task needs an artifact and the relevant runtime tool is active, speak as if the platform will produce it, not as if the user must manually build it.'
+  '- Do not ask the user which internal tool to use. Continue naturally and let DeepChat route tools.'
 ].join('\n');
 
 const pipeSseResponse = async (controller: ReadableStreamDefaultController<Uint8Array>, response: Response) => {
   if (!response.ok || !response.body) {
-    controller.enqueue(encoder.encode(sse({ error: await getRouteResponseError(response) })));
+    const upstreamBody = await getRouteResponseError(response);
+    logUpstreamFailure(response.status, upstreamBody);
+    controller.enqueue(encoder.encode(sse({ error: upstreamSseError(response.status) })));
     return;
   }
   const reader = response.body.getReader();
@@ -692,15 +724,23 @@ const createAgenticMCPResponse = (requestUrl: string, provider: string, payload:
     })
   });
   const getStreamText = async (response: Response) => {
-    if (!response.ok || !response.body) throw new Error(await getRouteResponseError(response));
+    if (!response.ok || !response.body) {
+      const upstreamBody = await getRouteResponseError(response);
+      logUpstreamFailure(response.status, upstreamBody);
+      throw new Error(upstreamSseError(response.status));
+    }
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
     let text = '';
+    let truncated = false;
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
+      // untrusted self-POST stream; stop accumulating past the cap to bound function memory
+      if (truncated) continue;
       buffer += decoder.decode(value, { stream: true });
+      if (buffer.length > 5 * 1024 * 1024) truncated = true;
       const lines = buffer.split('\n');
       buffer = lines.pop() || '';
       for (const line of lines) {
@@ -780,7 +820,7 @@ const createAgenticMCPResponse = (requestUrl: string, provider: string, payload:
 
 export async function POST(req: Request) {
   try {
-    const { messages, modelId, connectionId, mcpServers, tools, skipAgentLoop, skipRuntimeIntegrations, imageAspectRatio, injectedPrompt } = await req.json() as {
+    const payload = (await req.json()) as {
       messages?: ChatMessage[];
       modelId?: string;
       connectionId?: string;
@@ -791,6 +831,12 @@ export async function POST(req: Request) {
       imageAspectRatio?: ImageAspectRatio;
       injectedPrompt?: string;
     };
+    const { messages, modelId, connectionId, mcpServers, tools, skipAgentLoop, skipRuntimeIntegrations, imageAspectRatio, injectedPrompt } = payload;
+
+    const violation = validateChatBody(payload);
+    if (violation) {
+      return NextResponse.json({ error: violation }, { status: 400 });
+    }
 
     if (!Array.isArray(messages) || (!modelId && !connectionId)) {
       return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
@@ -817,10 +863,14 @@ export async function POST(req: Request) {
     const latestUser = getLatestUserMessage(messages);
     const requestedImageGeneration = latestUser?.imageGenerationEnabled === true;
     const requestedAspectRatio = normalizeImageAspectRatio(imageAspectRatio || latestUser?.imageAspectRatio);
-    const selectedRequestModel = modelId || conn.model;
+
+    // client modelId is untrusted; only env-provisioned live models may reach the provider
+    const allowedModels = new Set(getLiveModels().map(m => m.id));
+    const requestedModel = typeof modelId === 'string' ? modelId.trim() : '';
+    const selectedRequestModel = requestedModel && allowedModels.has(requestedModel) ? requestedModel : conn.model;
 
     const liveImageConfig = getLiveImageConfig();
-    const defaultImageModel = liveImageConfig?.model || 'gpt-image-2.5-sunburst';
+    const defaultImageModel = liveImageConfig?.model || '';
     const imageFallbackModel = requestedImageGeneration && !isImageGenerationModel(selectedRequestModel)
       ? defaultImageModel
       : '';
@@ -841,7 +891,7 @@ export async function POST(req: Request) {
     const runtimeTools = skipRuntimeIntegrations ? [] : normalizeChatTools(tools);
 
     if (!skipAgentLoop && runtimeMCPServers.length > 0 && getMCPRuntimeCandidateServers(runtimeMCPServers, latestUserMessage).length > 0) {
-      return createAgenticMCPResponse(req.url, p, { modelId, connectionId }, messages, runtimeMCPServers, runtimeTools, latestUserMessage);
+      return createAgenticMCPResponse(req.url, p, { modelId: selectedModel, connectionId: conn.id }, messages, runtimeMCPServers, runtimeTools, latestUserMessage);
     }
 
     const [mcpRuntimeResult, toolRuntimeResult] = await Promise.all([
@@ -856,7 +906,8 @@ export async function POST(req: Request) {
 
     const integrationPrompt = [buildPlatformCapabilityPrompt(), buildIntegrationSystemPrompt(promptMCPServers, runtimeTools, runtimeContext)].filter(Boolean).join('\n\n');
     const systemIndex = messages.findIndex((m: unknown) => isChatMessageLike(m) && m.role === 'system');
-    const promptToInject = injectedPrompt || await getInjectedSystemPrompt('', latestUserMessage);
+    // client composes persona/memory itself; server must not fabricate system prompt from state
+    const promptToInject = typeof injectedPrompt === 'string' ? injectedPrompt : '';
     if (systemIndex !== -1) {
       const baseSystemPrompt = [persona.memoryReferenceHistory === false ? '' : messages[systemIndex].content, integrationPrompt].filter(Boolean).join('\n\n');
       messages[systemIndex].content = [promptToInject, baseSystemPrompt].filter(Boolean).join('\n\n');
@@ -876,21 +927,26 @@ export async function POST(req: Request) {
 
     if (requestedImageGeneration || isImageGenerationModel(selectedModel)) {
       const liveImage = getLiveImageConfig();
-      const useLiveImage = Boolean(liveImage && (!conn || conn.id === LIVE_CHAT_CONNECTION_ID || conn.id === LIVE_LITE_CONNECTION_ID || !cleanBase));
-      const imageBase = useLiveImage && liveImage ? liveImage.baseUrl : (cleanBase || liveImage?.baseUrl || '');
-      const imageKey = useLiveImage && liveImage ? liveImage.apiKey : (conn.apiKey || liveImage?.apiKey || '');
+      // server image endpoint is env-provisioned only; client strings must not select base or model
+      if (!liveImage) {
+        return NextResponse.json({ error: 'Image generation requires server image config' }, { status: 400 });
+      }
       const prompt = getImageGenerationPrompt(messages);
-      const imageModel = selectedModel && isImageGenerationModel(selectedModel) ? selectedModel : (liveImage?.model || 'gpt-image-2.5-sunburst');
+      const imageModel = liveImage.model;
       const body = getOpenAIImageRequestBody(imageModel, prompt, requestedAspectRatio);
-      const res = await fetch(`${imageBase}/v1/images/generations`, {
+      const res = await fetch(`${liveImage.baseUrl}/v1/images/generations`, {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
-          Authorization: `Bearer ${imageKey}`
+          Authorization: `Bearer ${liveImage.apiKey}`
         },
         body: JSON.stringify(body)
       });
-      if (!res.ok) throw new Error(await getRouteResponseError(res));
+      if (!res.ok) {
+        const upstreamBody = await getRouteResponseError(res);
+        logUpstreamFailure(res.status, upstreamBody);
+        throw new Error(upstreamSseError(res.status));
+      }
       const data = await res.json();
       const images = await inlineRemoteGeneratedImages(getOpenAIGeneratedImages(data));
       if (images.length === 0) {
@@ -908,7 +964,7 @@ export async function POST(req: Request) {
       Authorization: `Bearer ${conn.apiKey}`
     };
     const body = applyOpenAICompatibleReasoning({
-      model: selectedModel || modelId || conn.model,
+      model: selectedModel || conn.model,
       messages: openAICompatibleMessages,
       stream: isStream
     }, llmSettings);
@@ -920,8 +976,9 @@ export async function POST(req: Request) {
     });
 
     if (!res.ok) {
-      const errText = await res.text();
-      return NextResponse.json({ error: `API Error: ${res.status} ${errText}` }, { status: res.status });
+      const upstreamBody = await getRouteResponseError(res);
+      logUpstreamFailure(res.status, upstreamBody);
+      return upstreamErrorResponse(res.status);
     }
 
     if (!isStream) {

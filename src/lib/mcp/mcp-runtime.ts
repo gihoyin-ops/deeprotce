@@ -1,11 +1,10 @@
 import { execFile } from 'child_process';
-import dns from 'dns/promises';
 import fs from 'fs/promises';
-import net from 'net';
 import path from 'path';
 import { promisify } from 'util';
 import { parseGeneratedClarificationAnswerContent } from '@/lib/agent/agent-clarification';
 import { DATA_DIR } from '@/lib/data-directories';
+import { assertEgressUrl } from '@/lib/security/url-guard';
 
 export interface ChatMCPRuntimeServer {
   serverId: string;
@@ -294,38 +293,6 @@ export const collectMCPRuntimeContext = async (servers: ChatMCPRuntimeServer[], 
   return result.context;
 };
 
-const isPrivateIPv4 = (address: string) => {
-  const parts = address.split('.').map(Number);
-  if (parts.length !== 4 || parts.some(part => Number.isNaN(part))) return true;
-  const [a, b] = parts;
-  return a === 0 || a === 10 || a === 127 || a === 100 && b >= 64 && b <= 127 || a === 169 && b === 254 || a === 172 && b >= 16 && b <= 31 || a === 192 && (b === 0 || b === 168) || a === 198 && (b === 18 || b === 19 || b === 51) || a === 203 && b === 0 || a >= 224;
-};
-
-const isPrivateIPv6 = (address: string) => {
-  const value = address.toLowerCase();
-  return value === '::' || value === '::1' || value.startsWith('fc') || value.startsWith('fd') || value.startsWith('fe80:') || value.startsWith('2001:db8:');
-};
-
-const isBlockedAddress = (address: string) => {
-  const version = net.isIP(address);
-  if (version === 4) return isPrivateIPv4(address);
-  if (version === 6) return isPrivateIPv6(address);
-  return true;
-};
-
-const assertSafeUrl = async (rawUrl: string) => {
-  const parsed = new URL(rawUrl);
-  if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('Only HTTP and HTTPS links are supported');
-  const hostname = parsed.hostname.toLowerCase();
-  if (hostname === 'localhost' || hostname.endsWith('.localhost') || hostname.endsWith('.local')) throw new Error('Local URLs are not allowed');
-  if (net.isIP(hostname) && isBlockedAddress(hostname)) throw new Error('Private network URLs are not allowed');
-  if (!net.isIP(hostname)) {
-    const records = await dns.lookup(hostname, { all: true, verbatim: true });
-    if (records.length === 0 || records.some(record => isBlockedAddress(record.address))) throw new Error('Private network URLs are not allowed');
-  }
-  return parsed;
-};
-
 const extractUrls = (text: string) => {
   const matches = text.match(/https?:\/\/[^\s<>"']+/gi) || [];
   return Array.from(new Set(matches.map(url => url.replace(/[),.;!?]+$/g, '')))).slice(0, MAX_URL_CONTEXT_URLS);
@@ -345,7 +312,7 @@ const htmlToText = (text: string) => text
   .trim();
 
 const fetchUrlText = async (rawUrl: string, redirects = 0): Promise<{ url: string; text: string }> => {
-  const parsed = await assertSafeUrl(rawUrl);
+  const parsed = new URL(await assertEgressUrl(rawUrl));
   const response = await fetch(parsed.toString(), {
     redirect: 'manual',
     signal: AbortSignal.timeout(8000),
@@ -613,6 +580,8 @@ const searchOpenAICompatible = async (query: string, tool: ChatToolRuntimeItem) 
   const baseUrl = tool.config.OPENAI_COMPATIBLE_SEARCH_BASE_URL?.replace(/\/+$/, '');
   const apiKey = tool.config.OPENAI_COMPATIBLE_SEARCH_API_KEY;
   if (!baseUrl || !apiKey) throw new Error('OpenAI compatible search configuration is missing');
+  // client-configured base URL; refuse private/metadata targets before the key is sent
+  await assertEgressUrl(baseUrl);
   const data = await getJson(baseUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },

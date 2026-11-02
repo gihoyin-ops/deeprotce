@@ -1,6 +1,7 @@
 import ts from 'typescript';
 import { browserScriptLanguages, normalizeCodeLanguage } from '@/lib/code/code-runner-detection';
-import { buildCssPreviewMarkup, extractWebPreviewSource, isWebPreviewCode } from '@/lib/code/code-web-preview';
+import { buildCssPreviewMarkup, extractWebPreviewSource } from '@/lib/code/code-web-preview';
+import { escapeScriptClose } from '@/lib/utils';
 
 const previewScrollbarStyle = `
 <style>
@@ -32,6 +33,7 @@ html {
 }
 </style>`;
 
+// targetOrigin stays '*' because the sandboxed frame has an opaque origin; the random per-mount previewId nonce is what authenticates console entries
 const getConsoleBridge = (previewId: string) => `
 <script>
 (() => {
@@ -375,7 +377,7 @@ const buildJsxDocument = (code: string, language: string, previewId: string) => 
     },
     fileName: `preview.${language}`
   }).outputText;
-  return `<!doctype html><html><head><meta charset="utf-8">${previewScrollbarStyle}${getConsoleBridge(previewId)}<style>html,body,#root{margin:0;min-height:100%;background:#ffffff;font-family:Arial,sans-serif}</style></head><body><div id="root"></div>${utilityRuntime}${miniRuntime}<script>${transpiled}
+  return `<!doctype html><html><head><meta charset="utf-8">${previewScrollbarStyle}${getConsoleBridge(previewId)}<style>html,body,#root{margin:0;min-height:100%;background:#ffffff;font-family:Arial,sans-serif}</style></head><body><div id="root"></div>${utilityRuntime}${miniRuntime}<script>${escapeScriptClose(transpiled)}
 if (typeof ${componentName} === 'function') {
   mount(${componentName});
 }
@@ -399,7 +401,7 @@ const buildHtmlDocument = (code: string, previewId: string) => {
   if (/<html[\s>]/i.test(code)) {
     return code.replace(/<html([^>]*)>/i, `<html$1><head><meta charset="utf-8">${bridge}${utilityRuntime}</head>`);
   }
-  return `<!doctype html><html><head><meta charset="utf-8">${bridge}${utilityRuntime}<style>html,body{margin:0;min-height:100%;background:#ffffff;font-family:Arial,sans-serif}</style></head><body>${code}</body></html>`;
+  return `<!doctype html><html><head><meta charset="utf-8">${bridge}${utilityRuntime}<style>html,body{margin:0;min-height:100%;background:#ffffff;font-family:Arial,sans-serif}</style></head><body>${escapeScriptClose(code)}</body></html>`;
 };
 
 export const buildPreviewDocument = (code: string, language: string, previewId: string) => {
@@ -407,7 +409,7 @@ export const buildPreviewDocument = (code: string, language: string, previewId: 
   const normalizedLanguage = normalizeCodeLanguage(language);
   const extracted = extractWebPreviewSource(code, normalizedLanguage);
   if (extracted.kind === 'svg') {
-    return `<!doctype html><html><head><meta charset="utf-8">${bridge}<style>html,body{margin:0;min-height:100%;display:grid;place-items:center;background:#ffffff}svg{max-width:100%;height:auto}</style></head><body>${extracted.code}</body></html>`;
+    return `<!doctype html><html><head><meta charset="utf-8">${bridge}<style>html,body{margin:0;min-height:100%;display:grid;place-items:center;background:#ffffff}svg{max-width:100%;height:auto}</style></head><body>${escapeScriptClose(extracted.code)}</body></html>`;
   }
   if (extracted.kind === 'css') {
     return buildHtmlDocument(buildCssPreviewMarkup(extracted.code), previewId);
@@ -420,11 +422,7 @@ export const buildPreviewDocument = (code: string, language: string, previewId: 
   }
   if (browserScriptLanguages.has(normalizedLanguage)) {
     const executableCode = normalizedLanguage === 'typescript' || normalizedLanguage === 'ts' ? transformTypeScriptForRunner(code) : code;
-    return `<!doctype html><html><head><meta charset="utf-8">${bridge}<style>html,body{margin:0;min-height:100%;background:#ffffff}</style></head><body><script type="module">${executableCode}<\/script></body></html>`;
+    return `<!doctype html><html><head><meta charset="utf-8">${bridge}<style>html,body{margin:0;min-height:100%;background:#ffffff}</style></head><body><script type="module">${escapeScriptClose(executableCode)}<\/script></body></html>`;
   }
-  return `<!doctype html><html><head><meta charset="utf-8">${bridge}</head><body>${code}</body></html>`;
-};
-
-export const isPreviewLanguage = (language: string, code: string) => {
-  return isWebPreviewCode(language, code);
+  return `<!doctype html><html><head><meta charset="utf-8">${bridge}</head><body>${escapeScriptClose(code)}</body></html>`;
 };

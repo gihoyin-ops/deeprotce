@@ -6,7 +6,7 @@ import type {
   UserProfileData,
   SavedMemoryRecord,
   ChatHistoryMemoryRecord
-} from '@/lib/db/store';
+} from './types';
 import type { PersonaData } from '@/app/persona';
 import type { LLMSettings } from '@/lib/settings/llm-settings';
 
@@ -434,12 +434,6 @@ export const getLLMSettingsClient = async (): Promise<LLMSettings> => {
     try {
       const fromDb = await idbGet<{ key: string; value: LLMSettings }>('settings', 'llm_settings');
       if (fromDb?.value) return { ...defaultSettings, ...fromDb.value };
-      const fromLs = localStorage.getItem('deepchat-llm-settings');
-      if (fromLs) {
-        const parsed = JSON.parse(fromLs);
-        await idbSet('settings', { key: 'llm_settings', value: parsed });
-        return { ...defaultSettings, ...parsed };
-      }
     } catch {}
   }
   return defaultSettings;
@@ -451,7 +445,6 @@ export const saveLLMSettingsClient = async (settings: Partial<LLMSettings>): Pro
   if (typeof window !== 'undefined') {
     try {
       await idbSet('settings', { key: 'llm_settings', value: updated });
-      localStorage.setItem('deepchat-llm-settings', JSON.stringify(updated));
     } catch {}
   }
   return updated;
@@ -462,14 +455,6 @@ export const getConnectionsClient = async (): Promise<ConnectionData[]> => {
     try {
       const fromDb = await idbGet<{ key: string; value: ConnectionData[] }>('settings', 'connections');
       if (Array.isArray(fromDb?.value)) return fromDb.value;
-      const fromLs = localStorage.getItem('deepchat-connections');
-      if (fromLs) {
-        const parsed = JSON.parse(fromLs);
-        if (Array.isArray(parsed)) {
-          await idbSet('settings', { key: 'connections', value: parsed });
-          return parsed;
-        }
-      }
     } catch {}
   }
   return [];
@@ -485,7 +470,6 @@ export const saveConnectionClient = async (connection: ConnectionData): Promise<
   if (typeof window !== 'undefined') {
     try {
       await idbSet('settings', { key: 'connections', value: updated });
-      localStorage.setItem('deepchat-connections', JSON.stringify(updated));
     } catch {}
   }
   return normalized;
@@ -497,7 +481,6 @@ export const deleteConnectionClient = async (id: string): Promise<boolean> => {
   if (typeof window !== 'undefined') {
     try {
       await idbSet('settings', { key: 'connections', value: updated });
-      localStorage.setItem('deepchat-connections', JSON.stringify(updated));
       return true;
     } catch {}
   }
@@ -508,7 +491,6 @@ export const deleteAllConnectionsClient = async (): Promise<boolean> => {
   if (typeof window !== 'undefined') {
     try {
       await idbSet('settings', { key: 'connections', value: [] });
-      localStorage.removeItem('deepchat-connections');
       return true;
     } catch {}
   }

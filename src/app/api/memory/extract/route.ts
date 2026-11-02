@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getPersona } from '@/app/persona';
 import { getLiveLiteConnection } from '@/lib/ai/live';
-import { recordChatHistoryMemory, saveExtractedMemories, type SavedMemory } from '@/app/memory';
+import { isAiLogEnabled } from '@/lib/ai/ai-logs';
+import { MAX_EXTRACT_MESSAGE_CHARS } from '@/lib/security/limits';
 
 export const runtime = 'nodejs';
 export const maxDuration = 15;
@@ -107,6 +108,13 @@ const extractExplicitMemoryFallback = (userMessage: string) => {
   return [];
 };
 
+// upstream body text must never reach the client; map status classes like the chat route
+const extractErrorResponse = (status: number) => {
+  if (status === 401 || status === 403) return NextResponse.json({ error: 'extraction failed' }, { status: 400 });
+  if (status === 408 || status === 429) return NextResponse.json({ error: 'extraction failed' }, { status: 503 });
+  return NextResponse.json({ error: 'extraction failed' }, { status: 502 });
+};
+
 const callMemoryModel = async (conn: { baseUrl: string; apiKey: string; model?: string }, model: string, prompt: string) => {
   const url = `${conn.baseUrl}/v1/chat/completions`;
   const res = await fetch(url, {
@@ -125,14 +133,24 @@ const callMemoryModel = async (conn: { baseUrl: string; apiKey: string; model?: 
     }),
     signal: AbortSignal.timeout(4000)
   });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) {
+    let upstreamBody = '';
+    try {
+      upstreamBody = await res.text();
+    } catch {
+    }
+    if (isAiLogEnabled()) {
+      console.error(`[memory-extract] upstream ${res.status}: ${upstreamBody.slice(0, 2000)}`);
+    }
+    throw res;
+  }
   const data = await res.json() as { choices?: { message?: { content?: string } }[] };
   return data?.choices?.[0]?.message?.content || '';
 };
 
 export async function POST(req: Request) {
   try {
-    const { userMessage, assistantMessage, modelId, chatId, userMessageId } = await req.json();
+    const { userMessage, assistantMessage } = await req.json();
 
     // Fast pre-filter: return immediately without any DB or network calls
     if (!userMessage || typeof userMessage !== 'string' || !hasDurableSignal(userMessage) || !shouldRunSavedMemoryExtraction(userMessage)) {
@@ -154,20 +172,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ savedCount: 0, memories: [] });
     }
 
-    const model = modelId || conn.model || 'gpt-4o-mini';
-    const metadata = {
-      provider: conn.provider,
-      model,
-      connectionId: conn.id,
-      chatId,
-      userMessageId
-    };
+    // server env model only; client modelId must not select the extraction model
+    const model = conn.model || 'gpt-4o-mini';
 
-    let saved: SavedMemory[] = [];
+    // server stores nothing; client persists saved memories in IndexedDB from this response
+    let saved: NormalizedExtractedMemory[] = [];
     if (persona.memoryReferenceSaved !== false) {
       let extracted: NormalizedExtractedMemory[] = [];
+      // bound LLM prompt size before the existing buildPrompt slices
+      const boundedUserMessage = userMessage.slice(0, MAX_EXTRACT_MESSAGE_CHARS);
+      const boundedAssistantMessage = (assistantMessage || '').slice(0, MAX_EXTRACT_MESSAGE_CHARS);
       try {
-        const raw = await callMemoryModel(conn, model, buildPrompt(userMessage, assistantMessage));
+        const raw = await callMemoryModel(conn, model, buildPrompt(boundedUserMessage, boundedAssistantMessage));
         extracted = parseJsonArray(raw)
           .map((item: ExtractedMemoryCandidate) => {
             const importance: 'low' | 'medium' | 'high' =
@@ -180,28 +196,26 @@ export async function POST(req: Request) {
               importance
             };
           })
-          .filter(item => isUsefulMemoryCandidate(item, userMessage));
-      } catch {
-        extracted = [];
+          .filter(item => isUsefulMemoryCandidate(item, boundedUserMessage));
+      } catch (error) {
+        const status = error instanceof Response && typeof error.status === 'number' ? error.status : 502;
+        if (isAiLogEnabled()) {
+          console.error(`[memory-extract] extraction failed: ${error instanceof Error ? error.message : 'unknown error'}`);
+        }
+        return extractErrorResponse(status);
       }
 
       if (extracted.length === 0) {
-        extracted = extractExplicitMemoryFallback(userMessage);
+        extracted = extractExplicitMemoryFallback(boundedUserMessage);
       }
 
-      extracted = extracted.filter(item => isUsefulMemoryCandidate(item, userMessage));
-      saved = await saveExtractedMemories(extracted, metadata);
+      saved = extracted.filter(item => isUsefulMemoryCandidate(item, boundedUserMessage));
     }
-
-    const historySaved = persona.memoryReferenceHistory === false
-      ? null
-      : await recordChatHistoryMemory(userMessage, assistantMessage, metadata);
 
     return NextResponse.json({
       savedCount: saved.length,
       savedMemoryCount: saved.length,
       memories: saved,
-      historySaved: Boolean(historySaved),
       provider: conn.provider,
       model
     });

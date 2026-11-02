@@ -56,9 +56,6 @@ interface MemoryMetadata {
   userMessageId?: string;
 }
 
-let serverSavedMemories: SavedMemory[] = [];
-let serverHistoryMemories: ChatHistoryMemory[] = [];
-
 const normalizeMemoryText = (text: string) => text.toLowerCase().replace(/\s+/g, ' ').trim();
 
 const memorySynonyms: Record<string, string> = {
@@ -227,11 +224,9 @@ const dedupeSavedMemoryList = (memories: SavedMemory[]) => {
 export async function ensureMemoryFile() {}
 
 export async function getSavedMemories(): Promise<SavedMemory[]> {
-  if (typeof window !== 'undefined') {
-    const list = await listSavedMemoriesClient();
-    return dedupeSavedMemoryList(list.map(normalizeSavedMemory)).slice(0, MAX_MEMORIES);
-  }
-  return dedupeSavedMemoryList(serverSavedMemories).slice(0, MAX_MEMORIES);
+  if (typeof window === 'undefined') return [];
+  const list = await listSavedMemoriesClient();
+  return dedupeSavedMemoryList(list.map(normalizeSavedMemory)).slice(0, MAX_MEMORIES);
 }
 
 const scoreSavedMemory = (queryTokens: string[], queryVector: number[], memory: SavedMemory, index: number) => {
@@ -266,6 +261,8 @@ export async function getRelevantSavedMemories(query: string, limit = 12): Promi
 }
 
 export async function saveExtractedMemories(items: MemoryInput[], metadata: MemoryMetadata = {}) {
+  // server no longer persists memories; client IndexedDB is the only store
+  if (typeof window === 'undefined') return [];
   const existing = await getSavedMemories();
   const now = new Date().toISOString();
   const seen = new Set(existing.map(memory => normalizeMemoryText(memory.content)));
@@ -316,12 +313,8 @@ export async function saveExtractedMemories(items: MemoryInput[], metadata: Memo
 
   if (changed) {
     const deduped = dedupeSavedMemoryList(next).slice(0, MAX_MEMORIES);
-    if (typeof window !== 'undefined') {
-      for (const m of deduped) {
-        await upsertSavedMemoryClient(m as SavedMemoryRecord);
-      }
-    } else {
-      serverSavedMemories = deduped;
+    for (const m of deduped) {
+      await upsertSavedMemoryClient(m as SavedMemoryRecord);
     }
   }
 
@@ -329,6 +322,8 @@ export async function saveExtractedMemories(items: MemoryInput[], metadata: Memo
 }
 
 export async function recordChatHistoryMemory(userMessage: string, assistantMessage: string, metadata: MemoryMetadata = {}) {
+  // server no longer persists memories; client IndexedDB is the only store
+  if (typeof window === 'undefined') return null;
   const cleanUser = userMessage.replace(/\s+/g, ' ').trim();
   const cleanAssistant = assistantMessage.replace(/\s+/g, ' ').trim();
   if (!cleanUser || !cleanAssistant) return null;
@@ -363,25 +358,14 @@ export async function recordChatHistoryMemory(userMessage: string, assistantMess
     vector: vectorizeText(`${cleanUser} ${cleanAssistant}`)
   };
 
-  const next = duplicateIndex === -1
-    ? [entry, ...existing]
-    : [entry, ...existing.filter((_, index) => index !== duplicateIndex)];
-
-  const bounded = next.slice(0, MAX_CHAT_HISTORY);
-  if (typeof window !== 'undefined') {
-    await upsertChatHistoryMemoryClient(entry as ChatHistoryMemoryRecord);
-  } else {
-    serverHistoryMemories = bounded;
-  }
+  await upsertChatHistoryMemoryClient(entry as ChatHistoryMemoryRecord);
   return entry;
 }
 
 export async function getChatHistoryMemories(): Promise<ChatHistoryMemory[]> {
-  if (typeof window !== 'undefined') {
-    const list = await listChatHistoryMemoriesClient();
-    return list.map(normalizeHistoryMemory).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-  }
-  return serverHistoryMemories.map(normalizeHistoryMemory).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+  if (typeof window === 'undefined') return [];
+  const list = await listChatHistoryMemoriesClient();
+  return list.map(normalizeHistoryMemory).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
 }
 
 export async function getRelevantChatHistoryMemories(query: string, limit = 8): Promise<ChatHistoryMemory[]> {
@@ -403,33 +387,21 @@ export async function getRelevantChatHistoryMemories(query: string, limit = 8): 
 }
 
 export async function deleteSavedMemory(id: string) {
-  if (typeof window !== 'undefined') {
-    return deleteSavedMemoryClient(id);
-  }
-  serverSavedMemories = serverSavedMemories.filter(m => m.id !== id);
-  return true;
+  if (typeof window === 'undefined') return false;
+  return deleteSavedMemoryClient(id);
 }
 
 export async function clearSavedMemories() {
-  if (typeof window !== 'undefined') {
-    return clearSavedMemoriesClient();
-  }
-  serverSavedMemories = [];
-  return true;
+  if (typeof window === 'undefined') return false;
+  return clearSavedMemoriesClient();
 }
 
 export async function clearChatHistory() {
-  if (typeof window !== 'undefined') {
-    return clearChatHistoryClient();
-  }
-  serverHistoryMemories = [];
-  return true;
+  if (typeof window === 'undefined') return false;
+  return clearChatHistoryClient();
 }
 
 export async function deleteChatReferences(chatId: string) {
-  if (typeof window !== 'undefined') {
-    return deleteChatReferencesClient(chatId);
-  }
-  serverHistoryMemories = serverHistoryMemories.filter(m => m.chatId !== chatId);
-  return true;
+  if (typeof window === 'undefined') return false;
+  return deleteChatReferencesClient(chatId);
 }

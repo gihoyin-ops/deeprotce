@@ -402,7 +402,7 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
     });
   };
 
-  const updateToolFeatures = (patch: Partial<Pick<ToolSettings, 'searchEnabled' | 'codeExecutionEnabled' | 'urlContextEnabled'>>) => setToolSettings(updateToolFeatureSettings(patch));
+  const updateToolFeatures = (patch: Partial<Pick<ToolSettings, 'searchEnabled' | 'urlContextEnabled'>>) => setToolSettings(updateToolFeatureSettings(patch));
 
   // data control
   const openMemories = async () => {
