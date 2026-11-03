@@ -2,6 +2,15 @@
 
 | Claim / UI Token | Source | Verification |
 | --- | --- | --- |
+| Search couldn't return sources for this query. The engines run in parallel and the ones below didn't make it — the answer below is based on what the model knows. New searches will try again automatically. | Code (ChatView SearchUsageSection) | verified |
+| Rate limited · {engine} has reached its rate limit for now. It recovers automatically in a few minutes. | Code (search engine failureFromError) | verified |
+| Timed out · {engine} took too long to respond this time. It will try again on the next search. | Code (search engine failureFromError) | verified |
+| Offline · Could not reach {engine}. Check your internet connection and try again. | Code (search engine failureFromError) | verified |
+| Unavailable · {engine} could not be used for this search. It will try again on the next search. | Code (search engine failureFromError) | verified |
+| Resting after a failure · {engine} had a recent failure and is resting temporarily. It will try again on the next search. | Code (search engine noticeForSkipped) | verified |
+| Paused · {engine} is unavailable right now. It will try again on the next search. | Code (search engine noticeForSkipped) | verified |
+| The search engines could not return results for this query. | Code (search engine unavailable context) | verified |
+| {engine} paused for this search | Code (search engine buildFailureLines) | verified |
 | 0% | Source: User | verified |
 | 38% | Source: User | verified |
 | 50% | Source: User | verified |

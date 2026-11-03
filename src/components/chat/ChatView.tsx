@@ -1144,11 +1144,12 @@ function SearchUsageSection({ usage, searchSources = [] }: { usage: MCPUsageItem
   const [isExpanded, setIsExpanded] = useState(false);
   const isError = usage.status === 'error';
   const isRunning = usage.status === 'running';
+  const providerDetails = usage.providerDetails || [];
   const sourceCount = searchSources.length > 0 ? String(searchSources.length) : getSearchSourceCount(usage);
   const sourceText = sourceCount ? `${sourceCount} source${sourceCount === '1' ? '' : 's'}` : '';
   const title = isError ? 'Search error' : isRunning ? `Searching${sourceCount ? ` ${sourceCount}` : ''}` : `Searched${sourceText ? ` ${sourceText}` : ''}`;
-  const details = getSearchDisplayDetails(usage, sourceCount);
-  const hasDropdown = isError || searchSources.length > 0 || details.length > 0;
+  const detailLines = getSearchDisplayDetails(usage, sourceCount);
+  const hasDropdown = isError || searchSources.length > 0 || providerDetails.length > 0 || detailLines.length > 0;
 
   return (
     <div className="mb-3 ml-1 max-w-full">
@@ -1156,16 +1157,16 @@ function SearchUsageSection({ usage, searchSources = [] }: { usage: MCPUsageItem
         type="button"
         disabled={!hasDropdown}
         onClick={() => setIsExpanded(open => !open)}
-        className={`inline-flex items-center gap-0.5 rounded-full px-1 py-0.5 text-sm font-semibold transition-colors disabled:cursor-default ${isError ? 'text-red-400 hover:text-red-500' : isRunning ? 'deepchat-subtle-analyzing text-slate-400 hover:text-slate-500' : 'text-slate-400 hover:text-slate-500'}`}
+        className={`inline-flex items-center gap-0.5 rounded-full px-1 py-0.5 text-sm font-semibold transition-colors disabled:cursor-default ${isError ? 'text-amber-500 dark:text-amber-400' : isRunning ? 'deepchat-subtle-analyzing text-slate-400 hover:text-slate-500 dark:text-slate-500' : 'text-slate-400 hover:text-slate-500 dark:text-slate-500 dark:hover:text-slate-400'}`}
       >
         <span>{title}</span>
         {!isError && isRunning && <AnimatedSearchDots />}
         {hasDropdown && (isExpanded ? <ChevronDown className="ml-1 h-3.5 w-3.5" /> : <ChevronRight className="ml-1 h-3.5 w-3.5" />)}
       </button>
       {isExpanded && hasDropdown && (
-        <div className="deepchat-panel-dropdown mt-2 max-w-[min(720px,calc(100vw-3rem))] rounded-2xl border border-slate-100 bg-slate-50/70 px-3 py-2 text-xs font-semibold leading-relaxed text-slate-500 shadow-sm">
-          {searchSources.length > 0 ? (
-            <div className="grid auto-cols-[minmax(190px,240px)] grid-flow-col gap-2 overflow-x-auto pb-1 custom-scrollbar">
+        <div className="deepchat-panel-dropdown mt-2 max-w-[min(720px,calc(100vw-3rem))] overflow-hidden rounded-2xl border border-slate-200 bg-white text-xs font-semibold leading-relaxed text-slate-500 shadow-sm dark:border-slate-700/70 dark:bg-slate-900 dark:text-slate-400">
+          {searchSources.length > 0 && (
+            <div className="grid auto-cols-[minmax(190px,240px)] grid-flow-col gap-2 overflow-x-auto p-3 pb-2 custom-scrollbar">
               {searchSources.map((source, index) => (
                 <a
                   key={`${source.url}-${index}`}
@@ -1185,13 +1186,31 @@ function SearchUsageSection({ usage, searchSources = [] }: { usage: MCPUsageItem
                 </a>
               ))}
             </div>
-          ) : (
-            details.map((item) => (
-              <div key={item} className="flex gap-2 py-0.5">
-                <span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${isError ? 'bg-red-300' : 'bg-slate-300'}`} />
-                <span>{item}</span>
-              </div>
-            ))
+          )}
+          {(providerDetails.length > 0 || detailLines.length > 0) && (
+            <div className={`space-y-2 px-3 py-2.5 ${searchSources.length > 0 ? 'border-t border-slate-100 dark:border-slate-800' : ''}`}>
+              {isError && (
+                <p className="font-bold text-slate-700 dark:text-slate-200">
+                  Search couldn&apos;t return sources for this query. The engines run in parallel and the ones below didn&apos;t make it — the answer below is based on what the model knows. New searches will try again automatically.
+                </p>
+              )}
+              {providerDetails.map(detail => (
+                <div key={`${detail.providerId}-${detail.statusLabel}`} className="flex items-start gap-2">
+                  <span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${detail.status === 'failed' ? 'bg-amber-400 dark:bg-amber-400' : 'bg-slate-300 dark:bg-slate-600'}`} />
+                  <span className="min-w-0">
+                    <span className="font-extrabold text-slate-700 dark:text-slate-200">{detail.providerName}</span>
+                    <span className="font-bold text-slate-400 dark:text-slate-500"> — {detail.statusLabel}</span>
+                    {detail.hint && <span className="mt-0.5 block font-medium text-slate-500 dark:text-slate-400">{detail.hint}</span>}
+                  </span>
+                </div>
+              ))}
+              {providerDetails.length === 0 && detailLines.map(item => (
+                <div key={item} className="flex gap-2">
+                  <span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${isError ? 'bg-amber-400 dark:bg-amber-400' : 'bg-slate-300 dark:bg-slate-600'}`} />
+                  <span className="font-semibold text-slate-500 dark:text-slate-400">{item}</span>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       )}
@@ -1226,6 +1245,9 @@ function getSearchSourceCount(usage: MCPUsageItem) {
 }
 
 function getSearchDisplayDetails(usage: MCPUsageItem, sourceCount: string) {
+  // structured provider rows already explain the outcome; the legacy one-line
+  // summary would just repeat them, so it only shows for older saved messages
+  if (usage.providerDetails && usage.providerDetails.length > 0) return [];
   if (usage.status === 'error') return [usage.details || 'Search failed.'];
   if (sourceCount) return [`${sourceCount} result${sourceCount === '1' ? '' : 's'} found.`];
   if (usage.details) return [usage.details];

@@ -59,11 +59,22 @@ interface ChatMessageVersion {
   [key: string]: unknown;
 }
 
+export interface MCPUsageProviderDetail {
+  providerId: string;
+  providerName: string;
+  status: 'failed' | 'resting';
+  kind: 'rate-limited' | 'unreachable' | 'timeout' | 'unavailable' | 'cooling';
+  statusLabel: string;
+  hint: string;
+  httpStatus?: number;
+}
+
 export interface MCPUsageItem {
   id: string;
   name: string;
   status: 'running' | 'completed' | 'error';
   details?: string;
+  providerDetails?: MCPUsageProviderDetail[];
 }
 
 interface StoredChatMessage extends MemoryAssistantMessage {
@@ -426,6 +437,30 @@ const getGeminiText = (json: Record<string, unknown>) => {
   return parts.map(part => isRecord(part) ? getString(part.text) : '').join('');
 };
 
+const providerKindFromRaw = (raw: string): MCPUsageProviderDetail['kind'] =>
+  raw === 'rate-limited' || raw === 'unreachable' || raw === 'timeout' || raw === 'cooling' ? raw : 'unavailable';
+
+const normalizeProviderDetails = (value: unknown): MCPUsageProviderDetail[] | undefined => {
+  if (!Array.isArray(value)) return undefined;
+  const details: MCPUsageProviderDetail[] = [];
+  for (const item of value) {
+    if (!isRecord(item)) continue;
+    const providerName = getString(item.providerName) || getString(item.name);
+    if (!providerName) continue;
+    const itemStatus = getString(item.status);
+    details.push({
+      providerId: getString(item.providerId) || providerName,
+      providerName,
+      status: itemStatus === 'failed' ? 'failed' : 'resting',
+      kind: providerKindFromRaw(getString(item.kind) || 'unavailable'),
+      statusLabel: getString(item.statusLabel) || (itemStatus === 'failed' ? 'Unusable' : 'Paused'),
+      hint: getString(item.hint),
+      httpStatus: typeof item.httpStatus === 'number' ? item.httpStatus : undefined
+    });
+  }
+  return details.length > 0 ? details : undefined;
+};
+
 const normalizeMCPUsageEvent = (json: Record<string, unknown>): MCPUsageItem | null => {
   const id = getString(json.id);
   const name = getString(json.name);
@@ -436,7 +471,8 @@ const normalizeMCPUsageEvent = (json: Record<string, unknown>): MCPUsageItem | n
     id,
     name,
     status,
-    details: getString(json.details)
+    details: getString(json.details),
+    providerDetails: normalizeProviderDetails(json.providerDetails)
   };
 };
 

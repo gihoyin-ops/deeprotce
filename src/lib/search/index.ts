@@ -3,6 +3,7 @@ export { searchParallel } from './providers/mcp';
 export { searchBrave, searchDuckDuckGo, searchWikipedia } from './providers/html';
 export { mergeProviderResults, normalizeSearchSource, getHost } from './merge';
 export {
+  type ProviderFailure, type ProviderNotice,
   type SearchSource,
   type SearchProviderResult,
   type SearchRuntimeItem,

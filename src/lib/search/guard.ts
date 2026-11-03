@@ -49,3 +49,6 @@ export const markFailure = (key: string) => {
 export const markSuccess = (key: string) => {
   states.delete(key);
 };
+
+// returns the failure count a provider is backing off (0 when active)
+export const failureCount = (key: string): number => states.get(key)?.failures || 0;

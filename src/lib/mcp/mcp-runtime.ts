@@ -5,9 +5,9 @@ import { promisify } from 'util';
 import { parseGeneratedClarificationAnswerContent } from '@/lib/agent/agent-clarification';
 import { DATA_DIR } from '@/lib/data-directories';
 import { extractUrlContent } from '@/lib/search/extract';
-import { runWebSearch, type SearchSource } from '@/lib/search';
+import { runWebSearch, type ProviderFailure, type ProviderNotice, type SearchSource } from '@/lib/search';
 
-export type { SearchSource };
+export type { ProviderFailure, ProviderNotice, SearchSource };
 
 export interface ChatMCPRuntimeServer {
   serverId: string;
@@ -293,9 +293,9 @@ const extractUrls = (text: string) => {
 
 const collectSearchContext = async (tools: ChatToolRuntimeItem[], prompt: string) => {
   const searchTools = tools.filter(tool => tool.toolId !== 'url-context');
-  if (searchTools.length === 0) return { context: '', sources: [] as SearchSource[], providersUsed: [] as string[] };
+  if (searchTools.length === 0) return { context: '', sources: [] as SearchSource[], providersUsed: [] as string[], providerFailures: [] as ProviderFailure[], providerNotices: [] as ProviderNotice[] };
   const runtimePrompt = sanitizeMCPPrompt(prompt).replace(/\s+/g, ' ').trim();
-  if (!runtimePrompt) return { context: '', sources: [] as SearchSource[], providersUsed: [] as string[] };
+  if (!runtimePrompt) return { context: '', sources: [] as SearchSource[], providersUsed: [] as string[], providerFailures: [] as ProviderFailure[], providerNotices: [] as ProviderNotice[] };
   return runWebSearch(searchTools, runtimePrompt);
 };
 
@@ -326,7 +326,9 @@ export const collectToolRuntimeContextWithSources = async (tools: ChatToolRuntim
   return {
     context: context.length > 0 ? context.join('\n\n') : '',
     sources: search.sources,
-    providersUsed: search.providersUsed
+    providersUsed: search.providersUsed,
+    providerFailures: search.providerFailures,
+    providerNotices: search.providerNotices
   };
 };
 

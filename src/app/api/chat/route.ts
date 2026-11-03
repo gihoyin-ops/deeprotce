@@ -31,6 +31,8 @@ import {
   type ChatMCPRuntimeServer,
   type ChatToolRuntimeItem,
   type SearchSource,
+  type ProviderFailure,
+  type ProviderNotice,
   type MCPRuntimeUsageItem
 } from '@/lib/mcp/mcp-runtime';
 import { assertEgressUrl } from '@/lib/security/url-guard';
@@ -224,9 +226,10 @@ const getSearchSourceEvents = (sources: SearchSource[]) => {
   }];
 };
 
-const getToolRuntimeEvents = (tools: ChatToolRuntimeItem[], result: { context: string; sources: SearchSource[]; providersUsed: string[] }) => {
+const getToolRuntimeEvents = (tools: ChatToolRuntimeItem[], result: { context: string; sources: SearchSource[]; providersUsed: string[]; providerFailures?: ProviderFailure[]; providerNotices?: ProviderNotice[] }) => {
   const searchTools = tools.filter(tool => tool.toolId !== 'url-context');
   if (searchTools.length === 0) return [];
+  const providerDetails = [...(result.providerFailures || []), ...(result.providerNotices || [])];
   if (result.sources.length > 0) {
     const providers = result.providersUsed.length > 0 ? result.providersUsed.join(', ') : 'Web Search';
     return [{
@@ -234,7 +237,10 @@ const getToolRuntimeEvents = (tools: ChatToolRuntimeItem[], result: { context: s
       id: 'web-search',
       name: 'Search',
       status: 'completed',
-      details: `${result.sources.length} source${result.sources.length === 1 ? '' : 's'} found via ${providers}`
+      details: providerDetails.length > 0
+        ? `${result.sources.length} source${result.sources.length === 1 ? '' : 's'} found via ${providers} (${providerDetails.length} engine${providerDetails.length === 1 ? '' : 's'} unavailable)`
+        : `${result.sources.length} source${result.sources.length === 1 ? '' : 's'} found via ${providers}`,
+      providerDetails
     }];
   }
   if (/Web Search unavailable/i.test(result.context)) {
@@ -243,7 +249,10 @@ const getToolRuntimeEvents = (tools: ChatToolRuntimeItem[], result: { context: s
       id: 'web-search',
       name: 'Search',
       status: 'error',
-      details: result.context.replace(/^Web Search unavailable\s*/i, '').trim() || 'Search did not return usable sources.'
+      details: providerDetails.length > 0
+        ? `No sources found. ${providerDetails.length} engine${providerDetails.length === 1 ? ' was' : 's were'} unavailable for this query.`
+        : 'Search did not return usable sources.',
+      providerDetails
     }];
   }
   return [{
@@ -251,7 +260,8 @@ const getToolRuntimeEvents = (tools: ChatToolRuntimeItem[], result: { context: s
     id: 'web-search',
     name: 'Search',
     status: 'completed',
-    details: 'Search was requested but no source context was returned.'
+    details: 'Search was requested but no source context was returned.',
+    providerDetails
   }];
 };
 
@@ -897,7 +907,7 @@ export async function POST(req: Request) {
 
     const [mcpRuntimeResult, toolRuntimeResult] = await Promise.all([
       skipRuntimeIntegrations ? Promise.resolve({ context: '', usage: [] as MCPRuntimeUsageItem[] }) : collectMCPRuntimeContextWithUsage(runtimeMCPServers, latestUserMessage),
-      skipRuntimeIntegrations ? Promise.resolve({ context: '', sources: [] as SearchSource[], providersUsed: [] as string[] }) : collectToolRuntimeContextWithSources(runtimeTools, latestUserMessage)
+      skipRuntimeIntegrations ? Promise.resolve({ context: '', sources: [] as SearchSource[], providersUsed: [] as string[], providerFailures: [] as ProviderFailure[], providerNotices: [] as ProviderNotice[] }) : collectToolRuntimeContextWithSources(runtimeTools, latestUserMessage)
     ]);
     const mcpRuntimeContext = mcpRuntimeResult.context;
     const runtimeContext = [mcpRuntimeContext, toolRuntimeResult.context].filter(Boolean).join('\n\n');
