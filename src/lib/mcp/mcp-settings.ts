@@ -155,14 +155,26 @@ export const MCP_CATALOG: MCPCatalogServer[] = [
   mcp('huggingface', 'Hugging Face', 'Search models, datasets, spaces, and inference endpoints.', 'AI', 'online', 'huggingface-mcp-server', ['HUGGINGFACE_API_TOKEN'], ['models', 'datasets', 'online'])
 ];
 
-const getDefaultInstalledMCPServers = (): InstalledMCPServer[] => MCP_CATALOG.map(server => ({
-  ...server,
-  id: `${server.id}-default`,
-  serverId: server.id,
-  config: {},
-  enabled: true,
-  installedAt: '1970-01-01T00:00:00.000Z'
-}));
+// Default install ships only two serverless-safe servers: no env vars,
+// nothing executed server-side (code and fs/exec collectors are specific to
+// 'filesystem' and 'git', so these can neither cause uploads), and both useful
+// in the host function (clock time + planning scaffold).
+// Everything else stays in MCP_CATALOG and is installable from Browse —
+// auto-installing all of it bloats every chat body, and the "N enabled servers
+// ready" counter becomes meaningless because most require configuration.
+const DEFAULT_MCP_SERVER_IDS = ['time', 'sequential-thinking'] as const;
+
+const getDefaultInstalledMCPServers = (): InstalledMCPServer[] => DEFAULT_MCP_SERVER_IDS
+  .map((id) => MCP_CATALOG.find(server => server.id === id))
+  .filter((server): server is MCPCatalogServer => server !== undefined)
+  .map(server => ({
+    ...server,
+    id: `${server.id}-default`,
+    serverId: server.id,
+    config: {},
+    enabled: true,
+    installedAt: '1970-01-01T00:00:00.000Z'
+  }));
 
 export const defaultMCPSettings: MCPSettings = {
   installed: getDefaultInstalledMCPServers(),
