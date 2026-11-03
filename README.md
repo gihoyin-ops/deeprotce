@@ -62,6 +62,11 @@ DeepChat is a feature-rich, local-first conversational workspace built with Next
 - Complete local persistence powered by SQLite via better-sqlite3 and type-safe schema mapping via Drizzle ORM.
 - Private document directories where chats, logs, generated files, and profile details remain strictly on your local machine.
 
+### Like / Dislike Feedback With Reasons
+- Every finished assistant message carries working Like and Dislike actions. Likes are a quick toggle; Dislike opens a "Share feedback" sheet with selectable reason chips, an optional details field, and a Submit button.
+- Reason chips are context-aware: a normal answer gets chips such as "Incorrect or incomplete", "Not what I asked for", and "Safety or legal concern", while an errored response gets an error-specific list led by "Always Error Response".
+- Votes persist on the local machine in `data/deepchat-feedback.sqlite` (with a browser-side mirror for the session), so feedback can be inspected per chat/message later.
+
 ---
 
 ## Screenshots

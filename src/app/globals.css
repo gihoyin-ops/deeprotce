@@ -838,6 +838,21 @@ select {
   font: inherit;
 }
 
+/* base-layer affordance: enabled controls say they are clickable */
+a,
+button:not(:disabled),
+summary,
+select,
+label[for],
+[role='button']:not([aria-disabled='true']) {
+  cursor: pointer;
+}
+
+button:disabled,
+[role='button'][aria-disabled='true'] {
+  cursor: not-allowed;
+}
+
 img,
 svg,
 video,

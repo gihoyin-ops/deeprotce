@@ -15,12 +15,14 @@ import {
   subscribeChatGeneration
 } from '@/lib/ai/chat-generation';
 import { formatClarificationAnswer, isGeneratedClarificationAnswerContent, parseAgentClarification, type AgentClarification, type AgentClarificationAnswer, type AgentClarificationOption } from '@/lib/agent/agent-clarification';
+import { DISLIKE_REASONS, ERROR_DISLIKE_REASONS, getFeedbackMap, subscribeFeedback, submitMessageFeedback } from '@/lib/feedback/message-feedback';
+import { FeedbackDialog } from '@/components/chat/FeedbackDialog';
 import { IMAGE_GENERATION_STATUS_TEXTS, getGenerationMode, type GenerationMode } from '@/lib/images/image-generation';
 import { normalizeImageAspectRatio, type ImageAspectRatio } from '@/lib/images/image-aspect-ratio';
 import { defaultComposerToolState, loadComposerToolState, saveComposerToolState } from '@/lib/agent/composer-tool-state';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  Check, ChevronDown, ChevronRight, BrainCircuit, ChevronLeft, X, Cpu, Copy, RefreshCw, Edit3, ThumbsUp, ThumbsDown, Globe
+  Check, CheckCircle2, ChevronDown, ChevronRight, BrainCircuit, ChevronLeft, X, Cpu, Copy, RefreshCw, Edit3, ThumbsUp, ThumbsDown, Globe
 } from '@/components/ui/icons';
 import toast from 'react-hot-toast';
 
@@ -219,7 +221,68 @@ export default function ChatView({ chatId }: { chatId: string }) {
   const [activeUserMsgId, setActiveUserMsgId] = useState<string | null>(null);
   const [activeMobileActionMsgId, setActiveMobileActionMsgId] = useState<string | null>(null);
   const [composerReserve, setComposerReserve] = useState(160);
+  const [feedbackMap, setFeedbackMap] = useState(() => getFeedbackMap());
+  const [feedbackTarget, setFeedbackTarget] = useState<{ messageId: string; isError: boolean } | null>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
+
+  // Keep the in-memory vote map in sync across tabs and after each submit.
+  useEffect(() => subscribeFeedback(() => setFeedbackMap(getFeedbackMap())), [chatId]);
+
+  const feedbackFor = (messageId: string) => feedbackMap[`${chatId}:${messageId}`];
+
+  const handleRemoveFeedback = useCallback(async (messageId: string) => {
+    const removed = await submitMessageFeedback(chatId, messageId, null, [], '');
+    if (removed) toast('Feedback removed', { icon: <CheckCircle2 className="h-5 w-5 text-emerald-500" /> });
+    return removed;
+  }, [chatId]);
+
+  const handleToolbarFeedback = useCallback((messageId: string, rating: 'like' | 'dislike') => {
+    const current = feedbackMap[`${chatId}:${messageId}`]?.rating ?? null;
+    if (rating === 'like') {
+      // Re-clicking the active like withdraws the vote; otherwise cast it.
+      if (current === 'like') {
+        void handleRemoveFeedback(messageId);
+      } else {
+        void (async () => {
+          const ok = await submitMessageFeedback(chatId, messageId, 'like');
+          if (ok) toast('Thank you! Your feedback has been saved.', { icon: <CheckCircle2 className="h-5 w-5 text-emerald-500" /> });
+        })();
+      }
+      return;
+    }
+    // Dislike always opens the ChatGPT-style sheet: it is preselected as
+    // dislike, restores a prior dislike annotation, and the sheet's
+    // "Remove feedback" action clears an existing vote.
+    const message = messagesRef.current.find(item => item.id === messageId);
+    setFeedbackTarget({ messageId, isError: message?.isError === true });
+  }, [chatId, feedbackMap, handleRemoveFeedback, messagesRef]);
+
+  const handleDialogFeedbackSubmit = useCallback(async (messageId: string, rating: 'like' | 'dislike', reasons: string[], details: string) => {
+    const ok = await submitMessageFeedback(chatId, messageId, rating, reasons, details);
+    if (ok) toast('Thank you! Your feedback has been saved.', { icon: <CheckCircle2 className="h-5 w-5 text-emerald-500" /> });
+    else toast('Feedback kept on this device. Saving failed.', { icon: '⚠️' });
+    return ok;
+  }, [chatId]);
+
+  const [feedbackClosing, setFeedbackClosing] = useState(false);
+  const closeFeedbackDialog = useCallback(() => {
+    const target = feedbackTarget;
+    setFeedbackClosing(true);
+    window.setTimeout(() => {
+      if (target) {
+        // Return focus to the control that opened the sheet.
+        const msgEl = document.getElementById(`msg-${target.messageId}`);
+        const opener = msgEl ? Array.from(msgEl.querySelectorAll('button')).find(b => /dislike/i.test(b.getAttribute('aria-label') || '')) : null;
+        opener?.focus();
+      }
+      setFeedbackTarget(null);
+      setFeedbackClosing(false);
+    }, 180);
+  }, [feedbackTarget]);
+
+  const handleMessageFeedback = useCallback((messageId: string, rating: 'like' | 'dislike') => {
+    handleToolbarFeedback(messageId, rating);
+  }, [handleToolbarFeedback]);
 
   const handleFilesUpload = async (files: File[]) => {
     if (files.length === 0) return;
@@ -774,6 +837,9 @@ export default function ChatView({ chatId }: { chatId: string }) {
               onEditUserMessage={(content) => handleEditUserMessage(msg.id, content)}
               isMobileActionsOpen={activeMobileActionMsgId === msg.id}
               onActivateMobileActions={() => setActiveMobileActionMsgId(msg.id)}
+              feedbackRating={feedbackFor(msg.id)?.rating ?? null}
+              onLike={msg.role === 'assistant' && !msg.isStreaming ? () => handleMessageFeedback(msg.id, 'like') : undefined}
+              onDislike={msg.role === 'assistant' && !msg.isStreaming ? () => handleMessageFeedback(msg.id, 'dislike') : undefined}
             />
           ))}
 
@@ -846,6 +912,23 @@ export default function ChatView({ chatId }: { chatId: string }) {
           </div>
         </div>
       </div>
+
+      {feedbackTarget && (
+        <FeedbackDialog
+          open
+          closing={feedbackClosing}
+          messageKind={feedbackTarget.isError ? 'error' : 'normal'}
+          dislikeReasons={feedbackTarget.isError ? ERROR_DISLIKE_REASONS : DISLIKE_REASONS}
+          presetRating="dislike"
+          storedRating={feedbackFor(feedbackTarget.messageId)?.rating ?? null}
+          initialReasons={feedbackFor(feedbackTarget.messageId)?.rating === 'dislike' ? (feedbackFor(feedbackTarget.messageId)?.reasons ?? []) : []}
+          initialDetails={feedbackFor(feedbackTarget.messageId)?.rating === 'dislike' ? (feedbackFor(feedbackTarget.messageId)?.details ?? '') : ''}
+          initialPersisted={feedbackFor(feedbackTarget.messageId)?.persisted ?? false}
+          onClose={closeFeedbackDialog}
+          onSubmit={(rating, reasons, details) => handleDialogFeedbackSubmit(feedbackTarget.messageId, rating, reasons, details)}
+          onRemove={() => handleRemoveFeedback(feedbackTarget.messageId)}
+        />
+      )}
     </div>
   );
 }
@@ -1179,6 +1262,9 @@ type MessageBubbleProps = {
   onEditUserMessage?: (content: string) => Promise<boolean>;
   isMobileActionsOpen?: boolean;
   onActivateMobileActions?: () => void;
+  feedbackRating?: 'like' | 'dislike' | null;
+  onLike?: () => void;
+  onDislike?: () => void;
 };
 
 function MemorySavedBadge({ memoryKey }: { memoryKey: string }) {
@@ -1300,7 +1386,7 @@ function CopyActionIcon({ copied, className = 'h-4 w-4' }: { copied: boolean; cl
   return <Copy className={className} strokeWidth={2} />;
 }
 
-const MessageBubble = React.memo(function MessageBubble({ message, onRegenerate, onSwitchVersion, canEditUserMessage = false, onEditUserMessage, isMobileActionsOpen = false, onActivateMobileActions }: MessageBubbleProps) {
+const MessageBubble = React.memo(function MessageBubble({ message, onRegenerate, onSwitchVersion, canEditUserMessage = false, onEditUserMessage, isMobileActionsOpen = false, onActivateMobileActions, feedbackRating = null, onLike, onDislike }: MessageBubbleProps) {
   const isUser = message.role === 'user';
   const [copied, setCopied] = useState(false);
   const [isEditingUserMessage, setIsEditingUserMessage] = useState(false);
@@ -1509,20 +1595,26 @@ const MessageBubble = React.memo(function MessageBubble({ message, onRegenerate,
             >
               <CopyActionIcon copied={copied} className="h-4 w-4" />
             </MessageActionButton>
-            <MessageActionButton
-              label="Like response"
-              tooltip="Like response"
-              className="inline-flex items-center justify-center rounded-full p-1 text-[#aaa0a0] transition-colors hover:text-black"
-            >
-              <ThumbsUp className="h-4 w-4" strokeWidth={2} />
-            </MessageActionButton>
-            <MessageActionButton
-              label="Dislike response"
-              tooltip="Dislike response"
-              className="inline-flex items-center justify-center rounded-full p-1 text-[#aaa0a0] transition-colors hover:text-black"
-            >
-              <ThumbsDown className="h-4 w-4" strokeWidth={2} />
-            </MessageActionButton>
+            {!isUser && (
+              <>
+                <MessageActionButton
+                  label={feedbackRating === 'like' ? 'Remove like' : 'Like response'}
+                  tooltip={feedbackRating === 'like' ? 'Remove like' : 'Like response'}
+                  onClick={onLike}
+                  className={`relative inline-flex items-center justify-center rounded-full p-1 transition-colors after:absolute after:-inset-1 after:content-[''] ${feedbackRating === 'like' ? 'text-[var(--deepchat-accent)] dark:text-[var(--deepchat-accent-text)]' : 'text-[#aaa0a0] hover:text-black'}`}
+                >
+                  <ThumbsUp className="h-4 w-4" strokeWidth={feedbackRating === 'like' ? 2.5 : 2} />
+                </MessageActionButton>
+                <MessageActionButton
+                  label={feedbackRating === 'dislike' ? 'Edit dislike feedback' : 'Dislike response'}
+                  tooltip={feedbackRating === 'dislike' ? 'Share more feedback' : 'Share feedback about this response'}
+                  onClick={onDislike}
+                  className={`relative inline-flex items-center justify-center rounded-full p-1 transition-colors after:absolute after:-inset-1 after:content-[''] ${feedbackRating === 'dislike' ? 'text-[var(--deepchat-accent)] dark:text-[var(--deepchat-accent-text)]' : 'text-[#aaa0a0] hover:text-black'}`}
+                >
+                  <ThumbsDown className="h-4 w-4" strokeWidth={feedbackRating === 'dislike' ? 2.5 : 2} />
+                </MessageActionButton>
+              </>
+            )}
             {onRegenerate && (
               <MessageActionButton
                 label="Regenerate response"
@@ -1538,4 +1630,4 @@ const MessageBubble = React.memo(function MessageBubble({ message, onRegenerate,
       </div>
     </div>
   );
-}, (prev, next) => prev.message === next.message && prev.canEditUserMessage === next.canEditUserMessage && prev.onEditUserMessage === next.onEditUserMessage && prev.isMobileActionsOpen === next.isMobileActionsOpen);
+}, (prev, next) => prev.message === next.message && prev.canEditUserMessage === next.canEditUserMessage && prev.onEditUserMessage === next.onEditUserMessage && prev.isMobileActionsOpen === next.isMobileActionsOpen && prev.feedbackRating === next.feedbackRating);

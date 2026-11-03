@@ -441,6 +441,14 @@ html[data-appearance="dark"] .code-preview-code ::selection {
     animation-duration: 1ms !important;
     transition-duration: 1ms !important;
   }
+
+  /* decorative entrances and pulses stop; activity spinners stay (they carry state) */
+  .animate-in,
+  .animate-pulse,
+  .animate-bounce,
+  .animate-ping {
+    animation: none !important;
+  }
 }
 
 @keyframes deepchat-modal-backdrop-in {
