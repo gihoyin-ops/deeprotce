@@ -63,8 +63,8 @@ DeepChat adalah ruang kerja percakapan berbasis lokal yang kaya fitur dan dibang
 - Direktori data pribadi di mana obrolan, log, berkas temporer, dan profil pengguna tetap berada sepenuhnya di komputer Anda.
 
 ### Like / Dislike Dengan Alasan (Share Feedback)
-- Setiap pesan asisten yang selesai memiliki aksi Like dan Dislike yang berfungsi. Like berupa toggle cepat; klik Dislike membuka lembar "Share feedback" berisi pilihan alasan (chip), kolom detail opsional, dan tombol Submit.
-- Chip alasan disesuaikan dengan konteks: jawaban biasa mendapat chip seperti "Incorrect or incomplete", "Not what I asked for", dan "Safety or legal concern", sedangkan respons yang error mendapat daftar khusus yang dipimpin oleh "Always Error Response".
+- Setiap pesan asisten yang selesai memiliki tombol Like dan Dislike yang berfungsi; masing-masing menampilkan ikon terisi (fill) setelah suara tersimpan.
+- Keduanya membuka lembar "Share feedback" yang sama; tombol yang Anda ketuk menentukan arahnya. Chip alasan otomatis sesuai jenis pesan: jawaban biasa mendapat chip seperti "Incorrect or incomplete", "Not what I asked for", dan "Safety or legal concern", sedangkan respons yang error mendapat daftar khusus yang dipimpin oleh "Always Error Response".
 - Suara (vote) disimpan secara lokal di `data/deepchat-feedback.sqlite` (dengan cadangan di penyimpanan browser untuk sesinya), sehingga setiap masukan dapat diperiksa per percakapan/pesan.
 
 ---
