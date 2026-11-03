@@ -1,8 +1,11 @@
 import type { NextConfig } from "next";
 
-// no script-src on purpose: the sandboxed srcDoc iframe in
-// components/ui/CodePreview.tsx executes user preview code whose scripts are
-// governed by that document's own CSP; a page-level script-src would kill them
+// script-src-elem (not script-src) so only element scripts are governed:
+// Next's SSR/Hydration output carries inline bootstrap scripts (Turbopack
+// preinit + RSC flight data), and the sandboxed srcDoc iframe in
+// components/ui/CodePreview.tsx inherits this policy for its preview scripts.
+// There are no inline on* event-handler attributes (React attaches listeners
+// via addEventListener), so script-src-attr is locked to 'none'.
 const nextConfig: NextConfig = {
   async headers() {
     return [
@@ -12,7 +15,7 @@ const nextConfig: NextConfig = {
           {
             key: 'Content-Security-Policy',
             value:
-              "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' blob:; font-src 'self' data:; connect-src 'self' https:; frame-ancestors 'self'; object-src 'none'; base-uri 'self'"
+              "default-src 'self'; script-src-elem 'self' 'unsafe-inline'; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' blob:; font-src 'self' data:; connect-src 'self' https:; frame-ancestors 'self'; object-src 'none'; base-uri 'self'"
           },
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
