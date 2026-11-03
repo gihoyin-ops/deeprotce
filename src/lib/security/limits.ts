@@ -3,10 +3,11 @@ export const MAX_MESSAGE_CHARS = 50_000;
 export const MAX_TOTAL_CONTENT_CHARS = 200_000;
 export const MAX_ATTACHMENTS = 4;
 export const MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024;
-// A fresh client sends every catalog entry (MCP_CATALOG, ~89 servers, all
-// defaulted to enabled). Keep this large enough for the whole catalog plus
-// headroom for growth; the 12MB body cap below is the real size backstop for
-// runaway arrays, so this is a "finite and sane" ceiling, not a tight budget.
+// Ceiling for how many MCP entries a single request may carry. Fresh
+// profiles send the small default set; large counts only come from
+// hand-crafted or legacy payloads. Keep this generous with headroom so no
+// legit profile ever 400s; the 12MB body cap below is the real size
+// backstop for runaway arrays.
 export const MAX_MCP_SERVERS = 128;
 export const MAX_TOOLS = 5;
 export const MAX_BODY_BYTES = 12 * 1024 * 1024;

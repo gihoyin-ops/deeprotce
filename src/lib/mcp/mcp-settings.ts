@@ -157,12 +157,20 @@ export const MCP_CATALOG: MCPCatalogServer[] = [
 
 // Default install ships only two serverless-safe servers: no env vars,
 // nothing executed server-side (code and fs/exec collectors are specific to
-// 'filesystem' and 'git', so these can neither cause uploads), and both useful
-// in the host function (clock time + planning scaffold).
-// Everything else stays in MCP_CATALOG and is installable from Browse —
-// auto-installing all of it bloats every chat body, and the "N enabled servers
-// ready" counter becomes meaningless because most require configuration.
+// 'filesystem' and 'git', so these can neither run malicious commands), and
+// both are useful on the hosted function (clock time + planning scaffold).
+// The rest of MCP_CATALOG stays in the code; the MCP settings tab is not
+// currently wired into the Settings modal, so the installed-set per profile
+// resolves to exactly this default.
+// Auto-installing all of it bloated every chat body, and the "N enabled
+// servers ready" counter was meaningless (most need configuration).
 const DEFAULT_MCP_SERVER_IDS = ['time', 'sequential-thinking'] as const;
+const AUTO_DEFAULT_INSTALLED_AT = '1970-01-01T00:00:00.000Z';
+// v2: prune unconfigured auto-installed entries from profiles persisted under
+// v1 (which defaulted all 89 catalog servers to enabled). The epoch sentinel
+// marks auto-installs; real user installs/toggles carry real timestamps and
+// are preserved, as is any entry with actual configuration (API keys etc.).
+const CURRENT_CATALOG_VERSION = 2;
 
 const getDefaultInstalledMCPServers = (): InstalledMCPServer[] => DEFAULT_MCP_SERVER_IDS
   .map((id) => MCP_CATALOG.find(server => server.id === id))
@@ -173,12 +181,12 @@ const getDefaultInstalledMCPServers = (): InstalledMCPServer[] => DEFAULT_MCP_SE
     serverId: server.id,
     config: {},
     enabled: true,
-    installedAt: '1970-01-01T00:00:00.000Z'
+    installedAt: AUTO_DEFAULT_INSTALLED_AT
   }));
 
 export const defaultMCPSettings: MCPSettings = {
   installed: getDefaultInstalledMCPServers(),
-  catalogVersion: 1
+  catalogVersion: CURRENT_CATALOG_VERSION
 };
 
 const SETTINGS_KEY = 'deepchat-mcp-settings';
@@ -221,16 +229,26 @@ const normalizeInstalledServer = (value: unknown): InstalledMCPServer | null => 
 
 const normalizeSettings = (settings: unknown): MCPSettings => {
   if (!isRecord(settings)) return defaultMCPSettings;
+  const savedVersion = typeof settings.catalogVersion === 'number' ? settings.catalogVersion : 0;
   const installed = Array.isArray(settings.installed)
     ? settings.installed.map(normalizeInstalledServer).filter((server): server is InstalledMCPServer => Boolean(server))
     : [];
-  const shouldMigrateCatalog = settings.catalogVersion !== 1;
-  const mergedInstalled = shouldMigrateCatalog ? [
-    ...installed,
-    ...getDefaultInstalledMCPServers().filter(server => !installed.some(current => current.serverId === server.serverId))
-  ] : installed;
+  let mergedInstalled: InstalledMCPServer[] = installed;
+  if (savedVersion !== CURRENT_CATALOG_VERSION) {
+    // v1 profiles auto-installed all catalog entries; drop the unconfigured
+    // auto-installs (epoch sentinel) while keeping anything the user genuinely
+    // set up (real timestamp:Browse install/toggle) or gave a config (API key).
+    const kept = installed.filter(server =>
+      server.installedAt !== AUTO_DEFAULT_INSTALLED_AT || Object.keys(server.config).length > 0
+    );
+    const defaults = getDefaultInstalledMCPServers().map(server => {
+      const previous = installed.find(current => current.serverId === server.serverId);
+      return previous ? { ...server, enabled: previous.enabled } : server;
+    }).filter(server => !kept.some(current => current.serverId === server.serverId));
+    mergedInstalled = [...kept, ...defaults];
+  }
   const uniqueInstalled = mergedInstalled.filter((server, index, list) => list.findIndex(item => item.serverId === server.serverId) === index);
-  return { installed: uniqueInstalled, catalogVersion: 1 };
+  return { installed: uniqueInstalled, catalogVersion: CURRENT_CATALOG_VERSION };
 };
 
 export const loadMCPSettings = () => {
