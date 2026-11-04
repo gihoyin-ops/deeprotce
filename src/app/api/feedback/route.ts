@@ -46,14 +46,56 @@ const getDb = (): DatabaseSync | null => {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         chat_id TEXT NOT NULL,
         message_id TEXT NOT NULL,
+        version_index INTEGER NOT NULL DEFAULT 1,
         rating TEXT NOT NULL,
         reasons_json TEXT,
         details_json TEXT,
         submit_ts TEXT NOT NULL,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
-        UNIQUE (chat_id, message_id, rating)
+        UNIQUE (chat_id, message_id, version_index, rating)
       );`);
+
+      // Ensure version_index exists and is part of the unique index on existing tables
+      const columns = db.prepare('PRAGMA table_info(feedback)').all() as Array<{ name: string }>;
+      const hasVersion = columns.some(c => c.name === 'version_index');
+      if (!hasVersion) {
+        db.exec('ALTER TABLE feedback ADD COLUMN version_index INTEGER NOT NULL DEFAULT 1;');
+      }
+
+      const indexList = db.prepare('PRAGMA index_list(feedback)').all() as Array<{ name: string; unique: number }>;
+      let needsReindex = false;
+      for (const idx of indexList) {
+        if (idx.unique) {
+          const cols = db.prepare(`PRAGMA index_info(${idx.name})`).all() as Array<{ name: string }>;
+          if (cols.length === 3 && cols.every(c => ['chat_id', 'message_id', 'rating'].includes(c.name))) {
+            needsReindex = true;
+            break;
+          }
+        }
+      }
+
+      if (needsReindex) {
+        db.exec(`
+          CREATE TABLE feedback_v2 (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            chat_id TEXT NOT NULL,
+            message_id TEXT NOT NULL,
+            version_index INTEGER NOT NULL DEFAULT 1,
+            rating TEXT NOT NULL,
+            reasons_json TEXT,
+            details_json TEXT,
+            submit_ts TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            UNIQUE (chat_id, message_id, version_index, rating)
+          );
+          INSERT INTO feedback_v2 (id, chat_id, message_id, version_index, rating, reasons_json, details_json, submit_ts, created_at, updated_at)
+          SELECT id, chat_id, message_id, COALESCE(version_index, 1), rating, reasons_json, details_json, submit_ts, created_at, updated_at FROM feedback;
+          DROP TABLE feedback;
+          ALTER TABLE feedback_v2 RENAME TO feedback;
+        `);
+      }
     }
     return db;
   } catch {
@@ -87,13 +129,14 @@ const storeUnavailable = () => NextResponse.json({ ok: false, error: 'feedback s
 export async function GET() {
   const database = getDb();
   if (!database) return storeUnavailable();
-  const rows = database.prepare('SELECT id, chat_id, message_id, rating, reasons_json, details_json, submit_ts, created_at, updated_at FROM feedback ORDER BY id DESC LIMIT 200').all() as Record<string, unknown>[];
+  const rows = database.prepare('SELECT id, chat_id, message_id, version_index, rating, reasons_json, details_json, submit_ts, created_at, updated_at FROM feedback ORDER BY id DESC LIMIT 200').all() as Record<string, unknown>[];
   return NextResponse.json({
     ok: true,
     feedback: rows.map(row => ({
       id: row.id as number,
       chatId: row.chat_id as string,
       messageId: row.message_id as string,
+      versionIndex: (row.version_index as number) || 1,
       rating: row.rating as string,
       reasons: typeof row.reasons_json === 'string' ? JSON.parse(row.reasons_json) : [],
       details: typeof row.details_json === 'string' ? JSON.parse(row.details_json) : '',
@@ -111,6 +154,8 @@ export async function POST(request: Request) {
     const messageId = normalizeString(body.messageId, 100);
     const rating = normalizeString(body.rating, 16);
     const remove = body.remove === true;
+    const rawVersion = typeof body.versionIndex === 'number' ? body.versionIndex : Number(body.versionIndex);
+    const versionIndex = Number.isInteger(rawVersion) && rawVersion > 0 ? rawVersion : 1;
 
     if (!chatId || !messageId || (!remove && (rating !== 'like' && rating !== 'dislike'))) {
       return NextResponse.json({ ok: false, error: 'chatId, messageId and rating ("like" or "dislike") are required' });
@@ -121,21 +166,21 @@ export async function POST(request: Request) {
 
     const now = new Date().toISOString();
     if (remove) {
-      // Removing a vote clears both sides so the message is neutral again.
-      database.prepare('DELETE FROM feedback WHERE chat_id = ? AND message_id = ?').run(chatId, messageId);
-      return NextResponse.json({ ok: true, persisted: true, removed: true, savedAt: now });
+      // Removing a vote clears both directions for this specific version.
+      database.prepare('DELETE FROM feedback WHERE chat_id = ? AND message_id = ? AND version_index = ?').run(chatId, messageId, versionIndex);
+      return NextResponse.json({ ok: true, persisted: true, removed: true, savedAt: now, versionIndex });
     }
 
     const reasons = parseReasons(body.reasons, rating === 'like' ? LIKE_REASONS : DISLIKE_REASONS);
     const details = normalizeString(body.details, 2000);
     if (rating === 'like') {
-      // Liking flips a previous dislike: the dislike row (with its reasons) is retired.
-      database.prepare('DELETE FROM feedback WHERE chat_id = ? AND message_id = ? AND rating = \'dislike\'').run(chatId, messageId);
+      // Liking flips a previous dislike on this version: the dislike row is retired.
+      database.prepare('DELETE FROM feedback WHERE chat_id = ? AND message_id = ? AND version_index = ? AND rating = \'dislike\'').run(chatId, messageId, versionIndex);
     }
     database.prepare(`
-      INSERT INTO feedback (chat_id, message_id, rating, reasons_json, details_json, submit_ts, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT (chat_id, message_id, rating) DO UPDATE SET
+      INSERT INTO feedback (chat_id, message_id, version_index, rating, reasons_json, details_json, submit_ts, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT (chat_id, message_id, version_index, rating) DO UPDATE SET
         reasons_json = COALESCE(excluded.reasons_json, feedback.reasons_json),
         details_json = COALESCE(excluded.details_json, feedback.details_json),
         submit_ts = excluded.submit_ts,
@@ -143,6 +188,7 @@ export async function POST(request: Request) {
     `).run(
       chatId,
       messageId,
+      versionIndex,
       rating,
       reasons.length > 0 ? JSON.stringify(reasons) : null,
       details.length > 0 ? JSON.stringify(details) : null,
@@ -151,12 +197,12 @@ export async function POST(request: Request) {
       now
     );
 
-    // A dislike vote after an existing like removes the like, so a message carries one direction.
+    // A dislike vote after an existing like removes the like for this version.
     if (rating === 'dislike') {
-      database.prepare('DELETE FROM feedback WHERE chat_id = ? AND message_id = ? AND rating = \'like\'').run(chatId, messageId);
+      database.prepare('DELETE FROM feedback WHERE chat_id = ? AND message_id = ? AND version_index = ? AND rating = \'like\'').run(chatId, messageId, versionIndex);
     }
 
-    return NextResponse.json({ ok: true, persisted: true, savedAt: now });
+    return NextResponse.json({ ok: true, persisted: true, savedAt: now, versionIndex });
   } catch (error) {
     if (error instanceof SyntaxError) {
       return NextResponse.json({ ok: false, error: 'invalid JSON body' });

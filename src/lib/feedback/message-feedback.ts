@@ -13,6 +13,7 @@ export interface FeedbackRecord {
   details: string;
   savedAt: string;
   persisted: boolean;
+  versionIndex: number;
 }
 
 export type FeedbackMap = Record<string, FeedbackRecord>;
@@ -45,7 +46,8 @@ export const LIKE_REASONS: readonly string[] = [
   'Other'
 ];
 
-const keyFor = (chatId: string, messageId: string) => `${chatId}:${messageId}`;
+export const feedbackKey = (chatId: string, messageId: string, versionIndex = 1): string =>
+  `${chatId}:${messageId}:${Math.max(1, versionIndex)}`;
 
 const readStored = (): FeedbackMap => {
   if (typeof window === 'undefined') return {};
@@ -59,12 +61,16 @@ const readStored = (): FeedbackMap => {
       if (typeof value !== 'object' || value === null) continue;
       const record = value as Record<string, unknown>;
       if (record.rating !== 'like' && record.rating !== 'dislike') continue;
-      out[key] = {
+      const parsedVersion = typeof record.versionIndex === 'number' && record.versionIndex > 0 ? record.versionIndex : 1;
+      const parts = key.split(':');
+      const normalizedKey = parts.length >= 3 ? key : `${key}:${parsedVersion}`;
+      out[normalizedKey] = {
         rating: record.rating,
         reasons: Array.isArray(record.reasons) ? record.reasons.filter((reason): reason is string => typeof reason === 'string') : [],
         details: typeof record.details === 'string' ? record.details : '',
         savedAt: typeof record.savedAt === 'string' ? record.savedAt : new Date().toISOString(),
-        persisted: record.persisted === true
+        persisted: record.persisted === true,
+        versionIndex: parsedVersion
       };
     }
     return out;
@@ -83,6 +89,21 @@ const writeStored = (map: FeedbackMap) => {
 };
 
 export const getFeedbackMap = (): FeedbackMap => readStored();
+
+export const getFeedbackForVersion = (
+  map: FeedbackMap,
+  chatId: string,
+  messageId: string,
+  versionIndex = 1
+): FeedbackRecord | null => {
+  const normVersion = Math.max(1, versionIndex);
+  const key = feedbackKey(chatId, messageId, normVersion);
+  if (map[key]) return map[key];
+  if (normVersion === 1 && map[`${chatId}:${messageId}`]) {
+    return map[`${chatId}:${messageId}`];
+  }
+  return null;
+};
 
 export const subscribeFeedback = (callback: (map: FeedbackMap) => void): (() => void) => {
   const local = () => callback(readStored());
@@ -107,14 +128,17 @@ export const submitMessageFeedback = async (
   messageId: string,
   rating: MessageRating | null,
   reasons: string[] = [],
-  details = ''
+  details = '',
+  versionIndex = 1
 ): Promise<boolean> => {
-  const key = keyFor(chatId, messageId);
+  const normVersion = Math.max(1, versionIndex);
+  const key = feedbackKey(chatId, messageId, normVersion);
   const map = readStored();
   const previous = map[key];
 
   if (rating === null) {
     delete map[key];
+    if (normVersion === 1) delete map[`${chatId}:${messageId}`];
     writeStored(map);
     notifyChange();
   } else {
@@ -125,7 +149,8 @@ export const submitMessageFeedback = async (
       reasons: reasons.length > 0 ? reasons : previous?.rating === rating ? previous.reasons : [],
       details: details.length > 0 ? details : previous?.rating === rating ? previous.details : '',
       savedAt: new Date().toISOString(),
-      persisted: true
+      persisted: true,
+      versionIndex: normVersion
     };
     map[key] = saved;
     writeStored(map);
@@ -136,14 +161,26 @@ export const submitMessageFeedback = async (
     const response = await fetch('/api/feedback', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chatId, messageId, rating, remove: rating === null, reasons, details })
+      body: JSON.stringify({
+        chatId,
+        messageId,
+        versionIndex: normVersion,
+        rating,
+        remove: rating === null,
+        reasons,
+        details
+      })
     });
     const result = (await response.json()) as { ok?: boolean };
     const persisted = response.ok && result.ok === true;
     const freshMap = readStored();
     const current = freshMap[key];
-    if (rating === null) delete freshMap[key];
-    else if (current) freshMap[key] = { ...current, persisted };
+    if (rating === null) {
+      delete freshMap[key];
+      if (normVersion === 1) delete freshMap[`${chatId}:${messageId}`];
+    } else if (current) {
+      freshMap[key] = { ...current, persisted };
+    }
     writeStored(freshMap);
     notifyChange();
     return persisted;

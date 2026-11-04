@@ -65,7 +65,7 @@ DeepChat is a feature-rich, local-first conversational workspace built with Next
 ### Like / Dislike Feedback With Reasons
 - Every finished assistant message carries working Like and Dislike buttons, each shown as a filled icon once that vote is saved.
 - Both open the same "Share feedback" sheet; the button you tapped preselects the direction. Picking a reason chip and a message kind is automatic: normal answers get chips such as "Incorrect or incomplete", "Not what I asked for", and "Safety or legal concern", while an errored response gets an error-specific list led by "Always Error Response".
-- Votes persist on the local machine in `data/deepchat-feedback.sqlite` (with a browser-side mirror for the session), so feedback can be inspected per chat/message later.
+- Votes persist per message version on the local machine in `data/deepchat-feedback.sqlite` (with a browser-side mirror for the session), so regenerating a response provides a fresh neutral state while preserving feedback on previous versions.
 
 ---
 

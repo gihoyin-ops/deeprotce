@@ -15,7 +15,7 @@ import {
   subscribeChatGeneration
 } from '@/lib/ai/chat-generation';
 import { formatClarificationAnswer, isGeneratedClarificationAnswerContent, parseAgentClarification, type AgentClarification, type AgentClarificationAnswer, type AgentClarificationOption } from '@/lib/agent/agent-clarification';
-import { DISLIKE_REASONS, ERROR_DISLIKE_REASONS, LIKE_REASONS, getFeedbackMap, subscribeFeedback, submitMessageFeedback, type MessageRating } from '@/lib/feedback/message-feedback';
+import { DISLIKE_REASONS, ERROR_DISLIKE_REASONS, LIKE_REASONS, getFeedbackMap, getFeedbackForVersion, subscribeFeedback, submitMessageFeedback, type MessageRating } from '@/lib/feedback/message-feedback';
 import { FeedbackDialog } from '@/components/chat/FeedbackDialog';
 import { IMAGE_GENERATION_STATUS_TEXTS, getGenerationMode, type GenerationMode } from '@/lib/images/image-generation';
 import { normalizeImageAspectRatio, type ImageAspectRatio } from '@/lib/images/image-aspect-ratio';
@@ -222,16 +222,17 @@ export default function ChatView({ chatId }: { chatId: string }) {
   const [activeMobileActionMsgId, setActiveMobileActionMsgId] = useState<string | null>(null);
   const [composerReserve, setComposerReserve] = useState(160);
   const [feedbackMap, setFeedbackMap] = useState(() => getFeedbackMap());
-  const [feedbackTarget, setFeedbackTarget] = useState<{ messageId: string; isError: boolean; rating: 'like' | 'dislike' } | null>(null);
+  const [feedbackTarget, setFeedbackTarget] = useState<{ messageId: string; isError: boolean; rating: 'like' | 'dislike'; versionIndex: number } | null>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
 
   // Keep the in-memory vote map in sync across tabs and after each submit.
   useEffect(() => subscribeFeedback(() => setFeedbackMap(getFeedbackMap())), [chatId]);
 
-  const feedbackFor = (messageId: string) => feedbackMap[`${chatId}:${messageId}`];
+  const feedbackFor = useCallback((messageId: string, versionIndex = 1) =>
+    getFeedbackForVersion(feedbackMap, chatId, messageId, versionIndex), [chatId, feedbackMap]);
 
-  const handleRemoveFeedback = useCallback(async (messageId: string) => {
-    const removed = await submitMessageFeedback(chatId, messageId, null, [], '');
+  const handleRemoveFeedback = useCallback(async (messageId: string, versionIndex = 1) => {
+    const removed = await submitMessageFeedback(chatId, messageId, null, [], '', versionIndex);
     if (removed) toast('Feedback removed', { icon: <CheckCircle2 className="h-5 w-5 text-emerald-500" /> });
     return removed;
   }, [chatId]);
@@ -240,18 +241,20 @@ export default function ChatView({ chatId }: { chatId: string }) {
   // direction; the chips list adapts to the message kind. Tapping the same
   // (filled) thumb again withdraws the vote, which is the only way to clear
   // feedback: no separate "Remove feedback" text anywhere.
-  const handleToolbarFeedback = useCallback((messageId: string, rating: 'like' | 'dislike') => {
-    const current = feedbackMap[`${chatId}:${messageId}`]?.rating ?? null;
+  // Votes are tracked per version so regenerating a response gives a fresh
+  // neutral state while preserving prior version votes.
+  const handleToolbarFeedback = useCallback((messageId: string, rating: 'like' | 'dislike', versionIndex = 1) => {
+    const current = feedbackFor(messageId, versionIndex)?.rating ?? null;
     if (current === rating) {
-      void handleRemoveFeedback(messageId);
+      void handleRemoveFeedback(messageId, versionIndex);
       return;
     }
     const message = messagesRef.current.find(item => item.id === messageId);
-    setFeedbackTarget({ messageId, isError: message?.isError === true, rating });
-  }, [chatId, feedbackMap, handleRemoveFeedback, messagesRef]);
+    setFeedbackTarget({ messageId, isError: message?.isError === true, rating, versionIndex });
+  }, [feedbackFor, handleRemoveFeedback, messagesRef]);
 
-  const handleDialogFeedbackSubmit = useCallback(async (messageId: string, rating: MessageRating, reasons: string[], details: string) => {
-    const ok = await submitMessageFeedback(chatId, messageId, rating, reasons, details);
+  const handleDialogFeedbackSubmit = useCallback(async (messageId: string, rating: MessageRating, reasons: string[], details: string, versionIndex = 1) => {
+    const ok = await submitMessageFeedback(chatId, messageId, rating, reasons, details, versionIndex);
     if (ok) toast('Thank you! Your feedback has been saved.', { icon: <CheckCircle2 className="h-5 w-5 text-emerald-500" /> });
     else toast('Could not reach the server. Try again.', { icon: '⚠️' });
     return ok;
@@ -274,8 +277,8 @@ export default function ChatView({ chatId }: { chatId: string }) {
     }, 180);
   }, [feedbackTarget]);
 
-  const handleMessageFeedback = useCallback((messageId: string, rating: 'like' | 'dislike') => {
-    handleToolbarFeedback(messageId, rating);
+  const handleMessageFeedback = useCallback((messageId: string, rating: 'like' | 'dislike', versionIndex = 1) => {
+    handleToolbarFeedback(messageId, rating, versionIndex);
   }, [handleToolbarFeedback]);
 
   const handleFilesUpload = async (files: File[]) => {
@@ -821,21 +824,24 @@ export default function ChatView({ chatId }: { chatId: string }) {
             </div>
           )}
 
-          {displayMessages.map((msg) => (
-            <MessageBubble
-              key={msg.id}
-              message={msg}
-              onRegenerate={() => handleRegenerate(msg.id)}
-              onSwitchVersion={(delta) => switchVersion(msg.id, delta)}
-              canEditUserMessage={msg.role === 'user' && msg.id === latestUserMessageId}
-              onEditUserMessage={(content) => handleEditUserMessage(msg.id, content)}
-              isMobileActionsOpen={activeMobileActionMsgId === msg.id}
-              onActivateMobileActions={() => setActiveMobileActionMsgId(msg.id)}
-              feedbackRating={feedbackFor(msg.id)?.rating ?? null}
-              onLike={msg.role === 'assistant' && !msg.isStreaming ? () => handleMessageFeedback(msg.id, 'like') : undefined}
-              onDislike={msg.role === 'assistant' && !msg.isStreaming ? () => handleMessageFeedback(msg.id, 'dislike') : undefined}
-            />
-          ))}
+          {displayMessages.map((msg) => {
+            const activeVersion = (msg.currentVersionIndex ?? (msg.versions ? msg.versions.length - 1 : 0)) + 1;
+            return (
+              <MessageBubble
+                key={msg.id}
+                message={msg}
+                onRegenerate={() => handleRegenerate(msg.id)}
+                onSwitchVersion={(delta) => switchVersion(msg.id, delta)}
+                canEditUserMessage={msg.role === 'user' && msg.id === latestUserMessageId}
+                onEditUserMessage={(content) => handleEditUserMessage(msg.id, content)}
+                isMobileActionsOpen={activeMobileActionMsgId === msg.id}
+                onActivateMobileActions={() => setActiveMobileActionMsgId(msg.id)}
+                feedbackRating={feedbackFor(msg.id, activeVersion)?.rating ?? null}
+                onLike={msg.role === 'assistant' && !msg.isStreaming ? () => handleMessageFeedback(msg.id, 'like', activeVersion) : undefined}
+                onDislike={msg.role === 'assistant' && !msg.isStreaming ? () => handleMessageFeedback(msg.id, 'dislike', activeVersion) : undefined}
+              />
+            );
+          })}
 
         </div>
       </div>
@@ -914,10 +920,10 @@ export default function ChatView({ chatId }: { chatId: string }) {
           messageKind={feedbackTarget.isError ? 'error' : 'normal'}
           reasons={feedbackTarget.rating === 'like' ? LIKE_REASONS : (feedbackTarget.isError ? ERROR_DISLIKE_REASONS : DISLIKE_REASONS)}
           rating={feedbackTarget.rating}
-          initialReasons={feedbackFor(feedbackTarget.messageId)?.rating === feedbackTarget.rating ? (feedbackFor(feedbackTarget.messageId)?.reasons ?? []) : []}
-          initialDetails={feedbackFor(feedbackTarget.messageId)?.rating === feedbackTarget.rating ? (feedbackFor(feedbackTarget.messageId)?.details ?? '') : ''}
+          initialReasons={feedbackFor(feedbackTarget.messageId, feedbackTarget.versionIndex)?.rating === feedbackTarget.rating ? (feedbackFor(feedbackTarget.messageId, feedbackTarget.versionIndex)?.reasons ?? []) : []}
+          initialDetails={feedbackFor(feedbackTarget.messageId, feedbackTarget.versionIndex)?.rating === feedbackTarget.rating ? (feedbackFor(feedbackTarget.messageId, feedbackTarget.versionIndex)?.details ?? '') : ''}
           onClose={closeFeedbackDialog}
-          onSubmit={(rating, reasons, details) => handleDialogFeedbackSubmit(feedbackTarget.messageId, rating, reasons, details)}
+          onSubmit={(rating, reasons, details) => handleDialogFeedbackSubmit(feedbackTarget.messageId, rating, reasons, details, feedbackTarget.versionIndex)}
         />
       )}
     </div>
