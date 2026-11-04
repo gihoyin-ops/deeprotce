@@ -3,11 +3,6 @@ export const MAX_MESSAGE_CHARS = 50_000;
 export const MAX_TOTAL_CONTENT_CHARS = 200_000;
 export const MAX_ATTACHMENTS = 4;
 export const MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024;
-// Ceiling for how many MCP entries a single request may carry. Fresh
-// profiles send the small default set; large counts only come from
-// hand-crafted or legacy payloads. Keep this generous with headroom so no
-// legit profile ever 400s; the 12MB body cap below is the real size
-// backstop for runaway arrays.
 export const MAX_MCP_SERVERS = 128;
 export const MAX_TOOLS = 5;
 export const MAX_BODY_BYTES = 12 * 1024 * 1024;
