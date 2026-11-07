@@ -13,6 +13,13 @@ type ErrorPageProps = {
 
 // English-casual error surface with DeepChat branding; self-contained styles
 // so it also renders inside global-error where globals.css is not loaded
+const FOOTER: Record<ErrorPageProps['kind'], string> = {
+  '404': 'DeepChat. Your data is safe, we are just taking a breather.',
+  '500': 'DeepChat. Your data is safe, we are just taking a breather.',
+  offline: 'DeepChat. Nothing is lost, we pick up when the wifi comes back.',
+  server: 'DeepChat. Your data is safe, we are just taking a breather.',
+  naughty: 'DeepChat. No hard feelings, we promise.'
+};
 const ErrorPage = ({ kind, title, lines, primary, secondary }: ErrorPageProps) => {
   return (
     <div className="errorpage-root" data-kind={kind}>
@@ -160,7 +167,7 @@ const ErrorPage = ({ kind, title, lines, primary, secondary }: ErrorPageProps) =
             )}
           </div>
         )}
-        <p className="ep-foot">DeepChat. Your data is safe, we are just taking a breather.</p>
+        <p className="ep-foot">{FOOTER[kind]}</p>
       </div>
     </div>
   );
