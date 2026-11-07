@@ -498,7 +498,7 @@ export default function ChatComposer({
   const actionControls = (
     <div className="flex min-w-0 shrink-0 items-center gap-2">
       <div className="hidden min-w-0 sm:block sm:max-w-[15rem] lg:max-w-[16rem]">
-        <ModelSelector desktopOnly />
+        <ModelSelector desktopOnly variant="ghost" />
       </div>
       {isDictationEnabled && (
         <div className="hidden sm:block">

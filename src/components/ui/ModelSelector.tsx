@@ -209,11 +209,13 @@ interface ConfettiParticle {
 export default function ModelSelector({
   renderTrigger = true,
   mobileOnly = false,
-  desktopOnly = false
+  desktopOnly = false,
+  variant = 'chip'
 }: {
   renderTrigger?: boolean;
   mobileOnly?: boolean;
   desktopOnly?: boolean;
+  variant?: 'chip' | 'ghost';
 }) {
   const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
   const [isOpen, setIsOpen] = useState(false);
@@ -980,10 +982,14 @@ export default function ModelSelector({
           }}
           aria-haspopup="dialog"
           aria-expanded={isOpen}
-          className="flex h-9 w-full max-w-[250px] items-center justify-between rounded-full bg-[#F1F2F3] hover:bg-[#E8E9EB] dark:bg-[#1E1E22] dark:hover:bg-[#28282D] px-3.5 text-[#1A1D21] dark:text-[#F3F4F6] border border-black/[0.06] dark:border-white/[0.08] transition-all duration-150 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-[#0371DD]"
+          className={`flex h-9 w-full max-w-[250px] items-center justify-between rounded-full px-3.5 text-[#1A1D21] dark:text-[#F3F4F6] transition-all duration-150 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-[#0371DD] ${
+            variant === 'ghost'
+              ? 'bg-transparent hover:bg-black/[0.05] dark:hover:bg-white/[0.06]'
+              : 'bg-[#F1F2F3] hover:bg-[#E8E9EB] dark:bg-[#1E1E22] dark:hover:bg-[#28282D] border border-black/[0.06] dark:border-white/[0.08]'
+          }`}
         >
           <div className="flex min-w-0 items-center gap-1.5">
-            <svg className="h-3.5 w-3.5 shrink-0 text-slate-700 dark:text-slate-300" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+            <svg className={`h-3.5 w-3.5 shrink-0 ${variant === 'ghost' ? 'text-slate-500 dark:text-slate-400' : 'text-slate-700 dark:text-slate-300'}`} viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
               <path d="M11.983 1.907a.75.75 0 0 0-1.292-.657l-8.5 9.5A.75.75 0 0 0 2.75 12h6.572l-1.305 6.093a.75.75 0 0 0 1.292.657l8.5-9.5A.75.75 0 0 0 17.25 8h-6.572l1.305-6.093Z" />
             </svg>
             <span className="truncate text-[13px] font-semibold tracking-tight">{selectedModel.name}</span>
