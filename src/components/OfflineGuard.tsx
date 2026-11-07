@@ -1,25 +1,87 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+
+const PROBE_URL = '/api/online';
+const PROBE_TIMEOUT_MS = 6000;
+const POLL_INTERVAL_MS = 30000;
+// when navigator.onLine is true the probe must fail twice in a row before we
+// assume offline (VPN tunnels can shed a single probe); when the browser
+// itself reports offline, one probe failure is enough
+const FAILURES_REQUIRED_WHEN_NAV_ONLINE = 2;
+const FAILURES_REQUIRED_WHEN_NAV_OFFLINE = 1;
+
+type Connectivity = 'online' | 'offline' | 'unknown';
+
+const probeReachable = async (): Promise<boolean> => {
+  try {
+    // any HTTP status counts: reaching the server at all means we are online.
+    // only a network-level TypeError (no route / TCP refused / DNS) counts
+    // as offline. cache: 'no-store' defeats a cached 200 in disconnected states.
+    await fetch(PROBE_URL, {
+      cache: 'no-store',
+      method: 'GET',
+      signal: AbortSignal.timeout(PROBE_TIMEOUT_MS)
+    });
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 const OfflineGuard = () => {
-  const [isOnline, setIsOnline] = useState(() => (typeof navigator !== 'undefined' ? navigator.onLine : true));
+  const [state, setState] = useState<Connectivity>('unknown');
+  const failuresRef = useRef(0);
 
   useEffect(() => {
-    const handleStatus = (event: Event) => {
-      setIsOnline(event.type === 'online');
+    let disposed = false;
+    let timer: number | undefined;
+
+    const runProbe = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(async () => {
+        if (disposed) return;
+        const navOnline = navigator.onLine !== false;
+        const reachable = await probeReachable();
+        if (disposed) return;
+        if (reachable) {
+          failuresRef.current = 0;
+          setState((prev) => (prev === 'online' ? prev : 'online'));
+          return;
+        }
+        failuresRef.current += 1;
+        const required = navOnline ? FAILURES_REQUIRED_WHEN_NAV_ONLINE : FAILURES_REQUIRED_WHEN_NAV_OFFLINE;
+        if (failuresRef.current >= required || !navOnline) {
+          failuresRef.current = 0;
+          setState((prev) => (prev === 'offline' ? prev : 'offline'));
+        }
+      }, 0);
     };
 
-    window.addEventListener('online', handleStatus);
-    window.addEventListener('offline', handleStatus);
+    // the online/offline events can fire rapidly in bursts (VPN, wifi roam),
+    // so debounce the very short probe round
+    let eventDebounce: number | undefined;
+    const handleNetEvent = () => {
+      window.clearTimeout(eventDebounce);
+      eventDebounce = window.setTimeout(runProbe, 800);
+    };
+
+    void runProbe();
+    const interval = window.setInterval(runProbe, POLL_INTERVAL_MS);
+    window.addEventListener('online', handleNetEvent);
+    window.addEventListener('offline', handleNetEvent);
 
     return () => {
-      window.removeEventListener('online', handleStatus);
-      window.removeEventListener('offline', handleStatus);
+      disposed = true;
+      window.clearTimeout(timer);
+      window.clearTimeout(eventDebounce);
+      window.clearInterval(interval);
+      window.removeEventListener('online', handleNetEvent);
+      window.removeEventListener('offline', handleNetEvent);
     };
   }, []);
 
-  if (isOnline) {
+  if (state !== 'offline') {
     return null;
   }
 
@@ -37,6 +99,20 @@ const OfflineGuard = () => {
       }}
     >
       <style>{`
+        .og-btn {
+          min-height: 44px;
+          min-width: 132px;
+          padding: 0 0.875rem;
+          font: 600 0.875rem/1.5 Arial, Helvetica, sans-serif;
+          border-radius: 0.5rem;
+          border: 1px solid rgba(255, 255, 255, 0.25);
+          background: transparent;
+          color: inherit;
+          cursor: pointer;
+          transition: background-color 0.15s ease, transform 0.1s ease;
+          flex-shrink: 0;
+        }
+        .og-btn:hover { background: rgba(255, 255, 255, 0.12); }
         .og-btn:focus-visible {
           outline: 2px solid var(--deepchat-accent, #4f46e5);
           outline-offset: 2px;
@@ -61,44 +137,31 @@ const OfflineGuard = () => {
           style={{
             display: 'inline-flex',
             flexDirection: 'column',
+            justifyContent: 'center',
             gap: '3px',
+            width: '18px',
+            height: '16px',
             flexShrink: 0,
           }}
         >
-          <span style={{ width: '18px', height: 0, borderTop: '2px solid currentColor', borderRadius: '1px', opacity: 0.95 }} />
-          <span style={{ width: '13px', height: 0, borderTop: '2px solid currentColor', borderRadius: '1px', opacity: 0.65 }} />
-          <span style={{ width: '8px', height: 0, borderTop: '2px solid currentColor', borderRadius: '1px', opacity: 0.4 }} />
+          <span style={{ display: 'block', height: '2px', borderRadius: '2px', background: 'currentColor', opacity: 0.4 }} />
+          <span style={{ display: 'block', height: '2px', borderRadius: '2px', background: 'currentColor', opacity: 0.7 }} />
+          <span style={{ display: 'block', height: '2px', borderRadius: '2px', background: 'currentColor' }} />
         </span>
         <p
           style={{
             margin: 0,
-            flex: '1 1 auto',
-            fontFamily: 'Arial, Helvetica, sans-serif',
-            fontSize: '0.875rem',
-            lineHeight: 1.4,
+            flex: 1,
+            minWidth: 0,
+            font: '500 0.875rem/1.4 Arial, Helvetica, sans-serif',
           }}
         >
-          You are offline, friend. Nothing is lost, we will pick up right where you left off when the wifi returns.
+          You are offline, friend. Nothing is lost, we will pick up right where you left off when the connection returns.
         </p>
         <button
           type="button"
           className="og-btn"
           onClick={() => window.location.reload()}
-          style={{
-            flexShrink: 0,
-            minHeight: '44px',
-            minWidth: '92px',
-            padding: '0.5rem 1rem',
-            border: '1px solid rgba(128, 128, 128, 0.55)',
-            borderRadius: '0.5rem',
-            background: 'transparent',
-            color: 'inherit',
-            cursor: 'pointer',
-            fontFamily: 'Arial, Helvetica, sans-serif',
-            fontSize: '0.875rem',
-            fontWeight: 600,
-            transition: 'transform 0.1s ease',
-          }}
         >
           Check connection
         </button>
