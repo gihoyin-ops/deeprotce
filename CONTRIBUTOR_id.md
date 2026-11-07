@@ -49,7 +49,7 @@ pnpm lint
 ## Cara Mengirimkan Kontribusi Anda
 
 1. Lakukan fork pada repositori ini dan buat cabang (branch) baru dari main.
-2. Lakukan perubahan Anda dan uji secara lokal menggunakan launcher yang dibuat otomatis atau pnpm dev.
+2. Lakukan perubahan Anda dan uji secara lokal menggunakan launcher yang dibuat otomatis atau build produksi.
 3. Commit perubahan Anda dengan deskripsi yang jelas dan sederhana mengenai apa yang telah Anda lakukan.
 4. Push cabang Anda dan ajukan Pull Request. Kami akan meninjaunya secepat mungkin dan bekerja sama dengan Anda untuk menggabungkannya.
 

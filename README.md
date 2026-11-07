@@ -67,6 +67,15 @@ DeepChat is a feature-rich, local-first conversational workspace built with Next
 - Both open the same "Share feedback" sheet; the button you tapped preselects the direction. Picking a reason chip and a message kind is automatic: normal answers get chips such as "Incorrect or incomplete", "Not what I asked for", and "Safety or legal concern", while an errored response gets an error-specific list led by "Always Error Response".
 - Votes persist per message version on the local machine in `data/deepchat-feedback.sqlite` (with a browser-side mirror for the session), so regenerating a response provides a fresh neutral state while preserving feedback on previous versions.
 
+### Plan Tiers & Token Usage Limits
+- A per-identity plan system caps tokens per identity across all LLM calls (chat, titles, memory extraction share one budget). Tiers: **Free** (≈40M), **Supporters** (≈150M), **Cools** (≈650M), **Owner** (unlimited)
+- Each limit enforces over **two independent windows**: a 5-hour burst cap and a 7-day weekly cap. Exhausting either returns `402 usage_limit_reached` until that window resets; titles and memory extraction degrade gracefully (local fallback, empty list) instead of calling the provider
+- Identity is the client IP (no account system), the same key the rate limiter uses. The agentic loop self-re-enters `/api/chat`; it authenticates the re-entry with a per-process secret header so a client cannot forge a `usageKey` to dodge its own window
+- Spends estimate from the final upstream message list (chars/4, images flat); a provider-reported `usage` wins; aborted streams still bill the partial output
+- State lives in `data/deepchat-usage.sqlite`. Read via `GET /api/usage` and `GET /api/usage/plans`; change via `POST /api/usage` (requires `DEEPCHAT_USAGE_ADMIN=1`, off by default)
+- The meter fails open: an unavailable store never takes chat offline
+- Serverless auto-off: on Vercel the ledger never runs (one function serves one shared identity and its storage resets each cold start, so a budget there could block every visitor); it activates automatically on a VPS or LAN self-host
+
 ---
 
 ## Screenshots
@@ -126,12 +135,6 @@ For developers who prefer terminal controls, DeepChat supports standardized scri
 Provide this instruction to install dependencies manually:
 ```bash
 pnpm install
-```
-
-### Local Development Server
-Launches the development instance with Turbopack for near-instant hot reloading:
-```bash
-pnpm dev
 ```
 
 ### Production Operations

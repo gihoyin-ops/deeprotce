@@ -3,6 +3,9 @@ import { getPersona } from '@/app/persona';
 import { getLiveLiteConnection } from '@/lib/ai/live';
 import { isAiLogEnabled } from '@/lib/ai/ai-logs';
 import { MAX_EXTRACT_MESSAGE_CHARS } from '@/lib/security/limits';
+import { estimateTokens } from '@/lib/security/usage-meter';
+import { checkUsageBudget, recordTokens } from '@/lib/security/usage';
+import { getClientIp } from '@/lib/security/rate-limit';
 
 export const runtime = 'nodejs';
 export const maxDuration = 15;
@@ -172,6 +175,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ savedCount: 0, memories: [] });
     }
 
+    // budget gate, a blocked identity degrades to no memories,
+    // same effect as the low-signal path
+    if (!checkUsageBudget(getClientIp(req).slice(0, 128)).allowed) {
+      return NextResponse.json({ savedCount: 0, memories: [] });
+    }
+
     // server env model only; client modelId must not select the extraction model
     const model = conn.model || 'gpt-4o-mini';
 
@@ -182,8 +191,11 @@ export async function POST(req: Request) {
       // bound LLM prompt size before the existing buildPrompt slices
       const boundedUserMessage = userMessage.slice(0, MAX_EXTRACT_MESSAGE_CHARS);
       const boundedAssistantMessage = (assistantMessage || '').slice(0, MAX_EXTRACT_MESSAGE_CHARS);
+      const extractPrompt = buildPrompt(boundedUserMessage, boundedAssistantMessage);
       try {
-        const raw = await callMemoryModel(conn, model, buildPrompt(boundedUserMessage, boundedAssistantMessage));
+        const raw = await callMemoryModel(conn, model, extractPrompt);
+        // LITE model, same budget, output is uncapped so it is billed
+        recordTokens(getClientIp(req).slice(0, 128), estimateTokens(systemPrompt) + estimateTokens(extractPrompt) + estimateTokens(raw));
         extracted = parseJsonArray(raw)
           .map((item: ExtractedMemoryCandidate) => {
             const importance: 'low' | 'medium' | 'high' =

@@ -146,15 +146,16 @@ const STREAM_EMIT_INTERVAL_MS = 80;
 const getResponseError = async (res: Response) => {
   try {
     const data = await res.clone().json();
-    if (data?.error) return data.error;
+    // server sends a human message next to the code, show the sentence
+    return data?.message || data?.error || null;
   } catch {
     try {
       const text = await res.text();
       if (text) return text;
     } catch {
     }
+    return `Request failed with status ${res.status}`;
   }
-  return `Request failed with status ${res.status}`;
 };
 
 const isGenericChatTitle = (title?: string) => {

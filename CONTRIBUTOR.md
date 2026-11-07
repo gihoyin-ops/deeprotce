@@ -49,7 +49,7 @@ pnpm lint
 ## How to Submit Your Contribution
 
 1. Fork the repository and create your branch from main.
-2. Make your changes and test them locally using the generated launcher or pnpm dev.
+2. Make your changes and test them locally using the generated launcher or the production build.
 3. Commit your changes with a clear and simple description of what you did.
 4. Push your branch and open a Pull Request. We will review it as soon as possible and work with you to merge it.
 

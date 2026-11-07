@@ -37,6 +37,9 @@ import {
 } from '@/lib/mcp/mcp-runtime';
 import { assertEgressUrl } from '@/lib/security/url-guard';
 import { validateChatBody } from '@/lib/security/limits';
+import { checkUsageBudget, recordTokens } from '@/lib/security/usage';
+import { completeChatTokens, estimateChatPromptTokens, meterSseBody } from '@/lib/security/usage-meter';
+import { getClientIp } from '@/lib/security/rate-limit';
 import { buildClarificationInstruction, parseAgentClarification } from '@/lib/agent/agent-clarification';
 import { isImageGenerationModel } from '@/lib/images/image-generation';
 import { normalizeImageAspectRatio, type ImageAspectRatio } from '@/lib/images/image-aspect-ratio';
@@ -698,6 +701,15 @@ const buildPlatformCapabilityPrompt = () => [
   '- Do not ask the user which internal tool to use. Continue naturally and let DeepChat route tools.'
 ].join('\n');
 
+// server random, only the agentic self-POST sends this header
+// a client cannot forge usageKey without it
+const INTERNAL_METER_SECRET = (() => {
+  let hex = '';
+  for (const byte of crypto.getRandomValues(new Uint8Array(16))) hex += byte.toString(16).padStart(2, '0');
+  return hex;
+})();
+const INTERNAL_SELF_POST_HEADER = 'x-dc-internal';
+
 const pipeSseResponse = async (controller: ReadableStreamDefaultController<Uint8Array>, response: Response) => {
   if (!response.ok || !response.body) {
     const upstreamBody = await getRouteResponseError(response);
@@ -713,7 +725,7 @@ const pipeSseResponse = async (controller: ReadableStreamDefaultController<Uint8
   }
 };
 
-const createAgenticMCPResponse = (requestUrl: string, provider: string, payload: Record<string, unknown>, originalMessages: ChatMessage[], mcpServers: ChatMCPRuntimeServer[], tools: ChatToolRuntimeItem[], latestUserMessage: string) => {
+const createAgenticMCPResponse = (requestUrl: string, provider: string, payload: Record<string, unknown>, originalMessages: ChatMessage[], mcpServers: ChatMCPRuntimeServer[], tools: ChatToolRuntimeItem[], latestUserMessage: string, identityKey: string) => {
   const candidateServers = getMCPRuntimeCandidateServers(mcpServers, latestUserMessage);
   const preludeMessages = withSystemInstruction(originalMessages, [
     'Before using any MCP context, give a short natural first response to the user.',
@@ -724,9 +736,15 @@ const createAgenticMCPResponse = (requestUrl: string, provider: string, payload:
   ].join('\n'));
   const callDirect = (phaseMessages: ChatMessage[]) => fetch(requestUrl, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: {
+      'content-type': 'application/json',
+      // marks this as a server self-POST so the usageKey is trusted
+      [INTERNAL_SELF_POST_HEADER]: INTERNAL_METER_SECRET
+    },
     body: JSON.stringify({
       ...payload,
+      // carries the caller's identity so sub-requests key on the user, not __direct__
+      usageKey: identityKey,
       messages: phaseMessages,
       mcpServers: [],
       tools: [],
@@ -841,6 +859,7 @@ export async function POST(req: Request) {
       skipRuntimeIntegrations?: boolean;
       imageAspectRatio?: ImageAspectRatio;
       injectedPrompt?: string;
+      usageKey?: string;
     };
     const { messages, modelId, connectionId, mcpServers, tools, skipAgentLoop, skipRuntimeIntegrations, imageAspectRatio, injectedPrompt } = payload;
 
@@ -852,6 +871,26 @@ export async function POST(req: Request) {
     if (!Array.isArray(messages) || (!modelId && !connectionId)) {
       return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
     }
+
+    // budget gate, identity is the client IP
+    // agentic sub-requests carry a stamped usageKey, trusted only when
+    // the internal header proves it is a server self-POST
+    const internalSelfPost = req.headers.get(INTERNAL_SELF_POST_HEADER) === INTERNAL_METER_SECRET;
+    const givenKey = typeof payload.usageKey === 'string' ? payload.usageKey.trim() : '';
+    const identityKey = (internalSelfPost && givenKey ? givenKey : getClientIp(req)).slice(0, 128);
+    const gate = checkUsageBudget(identityKey);
+    if (!gate.allowed) {
+      const headers: Record<string, string> = { 'x-usage-expiry': gate.exhaustedWindow as string };
+      if (gate.retryAfterMs !== undefined) headers['retry-after'] = String(Math.ceil(gate.retryAfterMs / 1000));
+      return NextResponse.json({
+        error: 'usage_limit_reached',
+        code: 'usage_limit_reached',
+        message: `Your ${gate.exhaustedWindow} token limit is reached. This window resets automatically — please try again later.`,
+        exhaustedWindow: gate.exhaustedWindow
+      }, { status: 402, headers });
+    }
+    // fallback estimate for image turns, fallback list only
+    const imagePromptTokens = estimateChatPromptTokens(messages as { role?: string; content?: unknown }[]);
 
     let conn: LlmConnection | null = null;
     if (connectionId === LIVE_LITE_CONNECTION_ID) {
@@ -902,7 +941,7 @@ export async function POST(req: Request) {
     const runtimeTools = skipRuntimeIntegrations ? [] : normalizeChatTools(tools);
 
     if (!skipAgentLoop && runtimeMCPServers.length > 0 && getMCPRuntimeCandidateServers(runtimeMCPServers, latestUserMessage).length > 0) {
-      return createAgenticMCPResponse(req.url, p, { modelId: selectedModel, connectionId: conn.id }, messages, runtimeMCPServers, runtimeTools, latestUserMessage);
+      return createAgenticMCPResponse(req.url, p, { modelId: selectedModel, connectionId: conn.id }, messages, runtimeMCPServers, runtimeTools, latestUserMessage, identityKey);
     }
 
     const [mcpRuntimeResult, toolRuntimeResult] = await Promise.all([
@@ -965,11 +1004,15 @@ export async function POST(req: Request) {
       }
       const output = imageOutputToMarkdown(await materializeGeneratedImages(images));
       logAiExchange({ ...aiLogPayload, output });
+      // image call still eats a prompt, go with that
+      recordTokens(identityKey, imagePromptTokens);
       return singleSseResponse(p, { choices: [{ delta: { content: output } }] }, integrationEvents);
     }
 
     const url = getChatCompletionsUrl(p, cleanBase);
     const openAICompatibleMessages = await buildOpenAICompatibleMessages(messages, conn.provider, isMistralChatCompletionsTarget(conn, cleanBase, p));
+    // estimate from the final list, system, persona, and images are included
+    const promptTokens = estimateChatPromptTokens(openAICompatibleMessages);
     const headers: Record<string, string> = {
       'content-type': 'application/json',
       Authorization: `Bearer ${conn.apiKey}`
@@ -996,6 +1039,7 @@ export async function POST(req: Request) {
       const data = await res.json();
       const message = getOpenAiCompatibleMessage(data);
       logAiExchange({ ...aiLogPayload, output: [message.reasoning_content, message.content].filter(Boolean).join('\n') });
+      recordTokens(identityKey, completeChatTokens(data, promptTokens, [message.reasoning_content, message.content].filter(Boolean).join('\n')));
       return singleSseResponse(p, {
         choices: [{
           delta: {
@@ -1007,7 +1051,8 @@ export async function POST(req: Request) {
     }
 
     const streamBody = isAiLogEnabled() ? streamWithAiLog(res.body, aiLogPayload) : res.body;
-    return new Response(prependSseEvents(streamBody, integrationEvents), {
+    const meteredBody = meterSseBody(streamBody, identityKey, promptTokens);
+    return new Response(prependSseEvents(meteredBody, integrationEvents), {
       headers: streamHeaders(p)
     });
 

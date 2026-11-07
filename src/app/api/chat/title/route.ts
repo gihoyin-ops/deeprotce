@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { getLiveLiteConnection, getLiveChatConnection } from '@/lib/ai/live';
 import { isAiLogEnabled } from '@/lib/ai/ai-logs';
 import { MAX_TITLE_PROMPT_CHARS } from '@/lib/security/limits';
+import { estimateTokens } from '@/lib/security/usage-meter';
+import { checkUsageBudget, recordTokens } from '@/lib/security/usage';
+import { getClientIp } from '@/lib/security/rate-limit';
 
 export const runtime = 'nodejs';
 export const maxDuration = 15;
@@ -75,6 +78,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ title: buildFallbackTitle(promptForFallback) });
     }
 
+    // budget gate, a blocked identity degrades to the local
+    // fallback title instead of a provider call
+    if (!checkUsageBudget(getClientIp(req).slice(0, 128)).allowed) {
+      return NextResponse.json({ title: buildFallbackTitle(promptForFallback) });
+    }
+
     const sysMsg = "Create a specific chat title from the user's message. Output only a concise 3-6 word title. Never output New Chat, Untitled Chat, Chat Title, quotes, markdown, or explanations.";
 
     const url = `${conn.baseUrl}/v1/chat/completions`;
@@ -113,6 +122,8 @@ export async function POST(req: Request) {
     const data = await res.json() as TitleModelResponse;
     const rawTitle = data.choices?.[0]?.message?.content || '';
     const title = cleanTitle(rawTitle);
+    // LITE model, same budget, output capped at 30 tokens
+    recordTokens(getClientIp(req).slice(0, 128), estimateTokens(sysMsg) + estimateTokens(prompt) + estimateTokens(rawTitle));
     if (title && !isGenericTitle(title)) {
       return NextResponse.json({ title });
     }

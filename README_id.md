@@ -128,12 +128,6 @@ Gunakan perintah berikut untuk memasang dependensi secara manual:
 pnpm install
 ```
 
-### Server Pengembangan (Development)
-Menjalankan server pengembangan lokal dengan fitur Turbopack untuk pembaruan instan:
-```bash
-pnpm dev
-```
-
 ### Server Produksi (Production)
 Membangun paket siap rilis:
 ```bash
