@@ -7,6 +7,11 @@ import type { NextConfig } from "next";
 // There are no inline on* event-handler attributes (React attaches listeners
 // via addEventListener), so script-src-attr is locked to 'none'.
 const nextConfig: NextConfig = {
+  experimental: {
+    // routing-level 404 page that bypasses the root layout, so unmatched
+    // URLs render standalone (no chat frame), like the global error page
+    globalNotFound: true
+  },
   async headers() {
     return [
       {

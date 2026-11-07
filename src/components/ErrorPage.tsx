@@ -1,6 +1,5 @@
 'use client';
 
-import DeepChatLogoMark from '@/components/brand/DeepChatLogoMark';
 import DeepChatWordmarkSvg from '@/components/brand/DeepChatWordmarkSvg';
 
 type ErrorPageProps = {
@@ -14,11 +13,11 @@ type ErrorPageProps = {
 // English-casual error surface with DeepChat branding; self-contained styles
 // so it also renders inside global-error where globals.css is not loaded
 const FOOTER: Record<ErrorPageProps['kind'], string> = {
-  '404': 'DeepChat. Your data is safe, we are just taking a breather.',
-  '500': 'DeepChat. Your data is safe, we are just taking a breather.',
-  offline: 'DeepChat. Nothing is lost, we pick up when the wifi comes back.',
-  server: 'DeepChat. Your data is safe, we are just taking a breather.',
-  naughty: 'DeepChat. No hard feelings, we promise.'
+  '404': 'Your data is safe, we are just taking a breather.',
+  '500': 'Your data is safe, we are just taking a breather.',
+  offline: 'Nothing is lost, we pick up when the wifi comes back.',
+  server: 'Your data is safe, we are just taking a breather.',
+  naughty: 'No hard feelings, we promise.'
 };
 const ErrorPage = ({ kind, title, lines, primary, secondary }: ErrorPageProps) => {
   return (
@@ -50,9 +49,8 @@ const ErrorPage = ({ kind, title, lines, primary, secondary }: ErrorPageProps) =
           align-items: center;
         }
 
-        /* brand lockup */
-        .ep-brand { display: flex; align-items: center; gap: 0.625rem; margin-bottom: 1.75rem; }
-        .ep-brand .ep-brand-mark { width: 30px; height: 30px; color: var(--deepchat-accent, #4f46e5); flex-shrink: 0; }
+        /* brand lockup: wordmark only, no logo mark */
+        .ep-brand { display: flex; align-items: center; margin-bottom: 1.75rem; }
         .ep-brand .ep-brand-word { height: 26px; width: auto; color: var(--foreground, #171717); }
 
         /* svg mascot: a small deepchat bubble with an antenna, drawn in theme vars */
@@ -124,7 +122,6 @@ const ErrorPage = ({ kind, title, lines, primary, secondary }: ErrorPageProps) =
       `}</style>
       <div className="errorpage-inner">
         <div className="ep-brand">
-          <DeepChatLogoMark className="ep-brand-mark" />
           <DeepChatWordmarkSvg className="ep-brand-word" />
         </div>
         <svg

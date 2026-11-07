@@ -32,6 +32,9 @@ const probeReachable = async (): Promise<boolean> => {
 const OfflineGuard = () => {
   const [state, setState] = useState<Connectivity>('unknown');
   const failuresRef = useRef(0);
+  // direct probe retry for the "Check connection" button: a page reload here
+  // would read as a crash, so we simply re-run the verdict round
+  const recheckRef = useRef<() => void>(() => undefined);
 
   useEffect(() => {
     let disposed = false;
@@ -67,12 +70,14 @@ const OfflineGuard = () => {
     };
 
     void runProbe();
+    recheckRef.current = runProbe;
     const interval = window.setInterval(runProbe, POLL_INTERVAL_MS);
     window.addEventListener('online', handleNetEvent);
     window.addEventListener('offline', handleNetEvent);
 
     return () => {
       disposed = true;
+      recheckRef.current = () => undefined;
       window.clearTimeout(timer);
       window.clearTimeout(eventDebounce);
       window.clearInterval(interval);
@@ -161,7 +166,7 @@ const OfflineGuard = () => {
         <button
           type="button"
           className="og-btn"
-          onClick={() => window.location.reload()}
+          onClick={() => recheckRef.current()}
         >
           Check connection
         </button>
