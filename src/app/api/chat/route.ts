@@ -14,6 +14,7 @@ import {
 } from '@/lib/settings/llm-settings';
 import { isAiLogEnabled, logAiExchange, streamWithAiLog } from '@/lib/ai/ai-logs';
 import {
+  getEnvModelIds,
   getLiveChatConnection,
   getLiveLiteConnection,
   getLiveImageConfig,
@@ -661,19 +662,19 @@ const getRouteResponseError = async (response: Response) => {
 
 // upstream body text must never reach the client; map status classes to sanitized constants
 const upstreamSseError = (status: number) => {
-  if (status === 401 || status === 403) return 'upstream auth error';
-  if (status === 408 || status === 429) return 'upstream busy';
-  return 'upstream error';
+  if (status === 401 || status === 403) return 'The chat server went missing on us. Not your fault, hang tight and try again.';
+  if (status === 408 || status === 429) return 'The server is catching its breath. Give it a sec and try again.';
+  return 'Could not reach the chat server just now. Try again in a bit.';
 };
 
 const upstreamErrorResponse = (status: number) => {
   if (status === 401 || status === 403) {
-    return NextResponse.json({ error: 'upstream auth error' }, { status: 400 });
+    return NextResponse.json({ error: 'The chat server went missing on us. Not your fault, hang tight and try again.' }, { status: 400 });
   }
   if (status === 408 || status === 429) {
-    return NextResponse.json({ error: 'upstream busy' }, { status: 503 });
+    return NextResponse.json({ error: 'The server is catching its breath. Give it a sec and try again.' }, { status: 503 });
   }
-  return NextResponse.json({ error: 'upstream error', status }, { status: 502 });
+  return NextResponse.json({ error: `Could not reach the chat server just now (status ${status}). Try again in a bit.` }, { status: 502 });
 };
 
 const logUpstreamFailure = (status: number, detail: string) => {
@@ -885,7 +886,7 @@ export async function POST(req: Request) {
       return NextResponse.json({
         error: 'usage_limit_reached',
         code: 'usage_limit_reached',
-        message: `Your ${gate.exhaustedWindow} token limit is reached. This window resets automatically — please try again later.`,
+        message: `Your ${gate.exhaustedWindow} token limit is reached. This window resets automatically, please try again later.`,
         exhaustedWindow: gate.exhaustedWindow
       }, { status: 402, headers });
     }
@@ -905,7 +906,7 @@ export async function POST(req: Request) {
     }
 
     if (!conn) {
-      return NextResponse.json({ error: 'No API connection found. Please configure in Settings.' }, { status: 400 });
+      return NextResponse.json({ error: 'No active API connection yet. Check your settings first, then retry.' }, { status: 400 });
     }
 
     const p = normalizeProvider(conn.provider);
@@ -916,6 +917,7 @@ export async function POST(req: Request) {
 
     // client modelId is untrusted; only env-provisioned live models may reach the provider
     const allowedModels = new Set(getLiveModels().map(m => m.id));
+    for (const id of getEnvModelIds()) allowedModels.add(id);
     const requestedModel = typeof modelId === 'string' ? modelId.trim() : '';
     const selectedRequestModel = requestedModel && allowedModels.has(requestedModel) ? requestedModel : conn.model;
 
@@ -927,7 +929,7 @@ export async function POST(req: Request) {
     const selectedModel = imageFallbackModel || selectedRequestModel;
 
     if (requestedImageGeneration && !isImageGenerationModel(selectedModel)) {
-      return NextResponse.json({ error: 'Create image needs an image generation model or an OpenAI-compatible connection.' }, { status: 400 });
+      return NextResponse.json({ error: 'Image generation needs an image model enabled. Check your settings, then retry.' }, { status: 400 });
     }
 
     const [llmSettings, persona] = await Promise.all([
@@ -979,7 +981,7 @@ export async function POST(req: Request) {
       const liveImage = getLiveImageConfig();
       // server image endpoint is env-provisioned only; client strings must not select base or model
       if (!liveImage) {
-        return NextResponse.json({ error: 'Image generation requires server image config' }, { status: 400 });
+        return NextResponse.json({ error: 'The image feature is not configured on the server. Everything else is fine, try without an image.' }, { status: 400 });
       }
       const prompt = getImageGenerationPrompt(messages);
       const imageModel = liveImage.model;
@@ -1000,7 +1002,7 @@ export async function POST(req: Request) {
       const data = await res.json();
       const images = await inlineRemoteGeneratedImages(getOpenAIGeneratedImages(data));
       if (images.length === 0) {
-        throw new Error('Image generation did not return an image. The model may have blocked the request or returned an unsupported response.');
+        throw new Error('The server kept it to itself, no image came back. Try again in a moment.');
       }
       const output = imageOutputToMarkdown(await materializeGeneratedImages(images));
       logAiExchange({ ...aiLogPayload, output });

@@ -8,6 +8,7 @@ export const metadata: Metadata = {
 };
 
 import MainLayout from "@/components/MainLayout";
+import OfflineGuard from "@/components/OfflineGuard";
 
 export default function RootLayout({
   children,
@@ -28,6 +29,7 @@ export default function RootLayout({
         <QueryProvider>
           <MainLayout>{children}</MainLayout>
         </QueryProvider>
+        <OfflineGuard />
       </body>
     </html>
   );

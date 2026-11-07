@@ -311,7 +311,7 @@ const saveFinalMessage = async (task: ChatGenerationTask, options: { isError?: b
 
   const parsedContent = parseAgentClarification(task.fullContent);
   const clarification = task.clarification || parsedContent.clarification;
-  const content = options.errorMessage || parsedContent.visibleContent || (options.isStopped ? 'Generation stopped.' : '');
+  const content = options.errorMessage || parsedContent.visibleContent || (options.isStopped ? 'Done, finished up.' : '');
   const finalMessage = {
     ...updateMessageVersion(currentMsg, content, task.fullReasoning, getDuration(task), task.mcpNotice, task.mcpUsage, task.mcpContentOffset, task.searchSources, clarification, task.generationMode),
     isStreaming: false,
@@ -542,7 +542,7 @@ const finishSuccessfulTask = async (task: ChatGenerationTask) => {
 
 const finishStoppedTask = async (task: ChatGenerationTask) => {
   task.status = 'stopped';
-  task.fullContent = task.fullContent || 'Generation stopped.';
+  task.fullContent = task.fullContent || 'Stopped, safe to go.';
   await saveFinalMessage(task, { isStopped: true });
   emitSnapshot(task, true);
   publishDeepChatNotification({
@@ -558,7 +558,7 @@ const finishStoppedTask = async (task: ChatGenerationTask) => {
 
 const finishErroredTask = async (task: ChatGenerationTask, error: unknown) => {
   task.status = 'error';
-  const message = getErrorMessage(error) || 'I encountered an error while processing your request.';
+  const message = getErrorMessage(error) || 'Oops, I fumbled that one. Try tapping it again.';
   await saveFinalMessage(task, { isError: true, errorMessage: message });
   task.fullContent = message;
   emitSnapshot(task, true);
