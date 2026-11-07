@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
+import { splitModelEnv } from '@/lib/ai/live-model-env';
 
 export const runtime = 'nodejs';
 
-export interface EnvModelItem {
+interface EnvModelItem {
   id: string;
   name: string;
   badge?: string;
@@ -11,7 +12,7 @@ export interface EnvModelItem {
 
 const env = (key: string) => (process.env[key] || '').trim();
 
-export const formatFrontendModelName = (id: string): string => {
+const formatFrontendModelName = (id: string): string => {
   const lower = id.toLowerCase();
   if (lower.includes('gemma')) return 'Gemma 4';
   if (lower.includes('llama')) return 'Llama 4';
@@ -20,11 +21,12 @@ export const formatFrontendModelName = (id: string): string => {
   if (lower.includes('claude-3-5') || lower.includes('claude-3.5')) return 'Claude 3.5';
   if (lower.includes('claude')) return 'Claude 3';
   if (lower.includes('deepseek')) return 'DeepSeek R1';
+  if (lower.startsWith('qwen3.8')) return 'Qwen 3.8';
   const clean = id.replace(/:[\w.-]+/g, '').replace(/[-_]/g, ' ').trim();
   return clean ? clean.charAt(0).toUpperCase() + clean.slice(1) : id;
 };
 
-export const getModelDescription = (id: string, name?: string): string => {
+const getModelDescription = (id: string, name?: string): string => {
   const target = `${id} ${name || ''}`.toLowerCase();
   if (target.includes('gemma')) {
     return 'Model by Google, specialized in deep reasoning, coding, and multilingual dialogue';
@@ -63,20 +65,15 @@ export const getModelDescription = (id: string, name?: string): string => {
 };
 
 const parseModelsFromEnv = (val: string, badge?: string): EnvModelItem[] => {
-  if (!val) return [];
-  return val
-    .split(',')
-    .map(s => s.trim())
-    .filter(Boolean)
-    .map(id => {
-      const name = formatFrontendModelName(id);
-      return {
-        id,
-        name,
-        badge,
-        description: getModelDescription(id, name)
-      };
-    });
+  return splitModelEnv(val).map(e => {
+    const name = e.name || formatFrontendModelName(e.id);
+    return {
+      id: e.id,
+      name,
+      badge,
+      description: e.description || getModelDescription(e.id, name)
+    };
+  });
 };
 // return env models only, skip remote fetch
 export async function GET() {
@@ -115,7 +112,7 @@ export async function GET() {
       }
     ]);
   }
-  const defaultModel = env('LIVE_MODEL').split(',')[0]?.trim() || models[0]?.id || '';
+  const defaultModel = splitModelEnv(env('LIVE_MODEL'))[0]?.id || env('LIVE_MODEL').split(',')[0]?.trim() || models[0]?.id || '';
 
   return NextResponse.json({
     default: defaultModel,

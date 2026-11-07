@@ -1,4 +1,5 @@
 import type { LlmConnection } from '@/lib/ai/llm';
+import { splitModelEnv } from './live-model-env';
 
 // server-side live endpoints configured via env
 
@@ -39,7 +40,7 @@ export const getLiveChatConnection = (): LiveConnection | null => {
     name: 'Live',
     apiKey,
     baseUrl,
-    model: env('LIVE_MODEL')
+    model: splitModelEnv(env('LIVE_MODEL'))[0]?.id || env('LIVE_MODEL')
   };
   return cachedChatConnection;
 };
@@ -47,7 +48,7 @@ export const getLiveChatConnection = (): LiveConnection | null => {
 export const getLiveLiteConnection = (): LiveConnection | null => {
   if (cachedLiteConnection !== undefined) return cachedLiteConnection;
   const apiKey = env('LITE_API_KEY') || env('LIVE_API_KEY');
-  const baseUrl = cleanBase(env('LITE_API_URL'));
+  const baseUrl = cleanBase(env('LITE_API_URL') || env('LIVE_API_URL'));
   if (!apiKey || !baseUrl) {
     cachedLiteConnection = null;
     return null;
@@ -58,7 +59,7 @@ export const getLiveLiteConnection = (): LiveConnection | null => {
     name: 'Live Lite',
     apiKey,
     baseUrl,
-    model: env('LITE_MODEL')
+    model: splitModelEnv(env('LITE_MODEL'))[0]?.id || env('LITE_MODEL')
   };
   return cachedLiteConnection;
 };
@@ -115,6 +116,7 @@ export const formatFrontendModelName = (id: string): string => {
   if (lower.includes('claude-3-5') || lower.includes('claude-3.5')) return 'Claude 3.5';
   if (lower.includes('claude')) return 'Claude 3';
   if (lower.includes('deepseek')) return 'DeepSeek R1';
+  if (lower.startsWith('qwen3.8')) return 'Qwen 3.8';
   const clean = id.replace(/:[\w.-]+/g, '').replace(/[-_]/g, ' ').trim();
   return clean ? clean.charAt(0).toUpperCase() + clean.slice(1) : id;
 };
@@ -173,20 +175,15 @@ export const getLiveModels = (): LiveModelItem[] => {
   };
 
   const parseModels = (val: string, badge?: string): LiveModelItem[] => {
-    if (!val) return [];
-    return val
-      .split(',')
-      .map(s => s.trim())
-      .filter(Boolean)
-      .map(id => {
-        const name = formatFrontendModelName(id);
-        return {
-          id,
-          name,
-          badge,
-          description: getModelDescription(id, name)
-        };
-      });
+    return splitModelEnv(val).map(e => {
+      const name = e.name || formatFrontendModelName(e.id);
+      return {
+        id: e.id,
+        name,
+        badge,
+        description: e.description || getModelDescription(e.id, name)
+      };
+    });
   };
 
   add(parseModels(env('LIVE_MODEL'), 'Default'));
@@ -212,4 +209,9 @@ export const getLiveModels = (): LiveModelItem[] => {
   cachedLiveModels = models;
   return cachedLiveModels;
 };
+
+export const getEnvModelIds = (): string[] => [
+  ...splitModelEnv(env('LIVE_MODEL')),
+  ...splitModelEnv(env('LITE_MODEL'))
+].map(e => e.id);
 
