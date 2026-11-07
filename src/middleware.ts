@@ -24,6 +24,15 @@ function jsonError(status: number, error: string, extraHeaders?: Record<string, 
 function handle(req: NextRequest): NextResponse {
   const ip = getClientIp(req);
 
+  // browsers that type or click a /api path in the address bar land on a
+  // friendly guard page; real API clients (fetch/XHR send sec-fetch-dest:
+  // empty, non-browsers send nothing) keep talking to the real routes
+  if (req.headers.get('sec-fetch-dest') === 'document') {
+    const target = new URL('/naughty', req.url);
+    target.searchParams.set('from', req.nextUrl.pathname);
+    return NextResponse.redirect(target, 307);
+  }
+
   if (isBanned(ip)) {
     return jsonError(403, 'blocked', { 'x-ratelimit-policy': 'permanent' });
   }

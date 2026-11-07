@@ -4,7 +4,7 @@ import DeepChatLogoMark from '@/components/brand/DeepChatLogoMark';
 import DeepChatWordmarkSvg from '@/components/brand/DeepChatWordmarkSvg';
 
 type ErrorPageProps = {
-  kind: '404' | '500' | 'offline' | 'server';
+  kind: '404' | '500' | 'offline' | 'server' | 'naughty';
   title: string;
   lines: string[];
   primary?: { label: string; action: () => void };
@@ -60,6 +60,12 @@ const ErrorPage = ({ kind, title, lines, primary, secondary }: ErrorPageProps) =
         .ep-mouth { fill: none; stroke: var(--foreground, #171717); stroke-width: 4; stroke-linecap: round; }
         html.dark .ep-mouth,
         html[data-appearance="dark"] .ep-mouth { stroke: var(--deepchat-accent, #4f46e5); }
+        .ep-mouth-smirk { display: none; fill: none; stroke: var(--foreground, #171717); stroke-width: 4; stroke-linecap: round; }
+        html.dark .ep-mouth-smirk,
+        html[data-appearance="dark"] .ep-mouth-smirk { stroke: var(--deepchat-accent, #4f46e5); }
+        .errorpage-root[data-kind="naughty"] .ep-mascot { transform: rotate(-4deg); }
+        .errorpage-root[data-kind="naughty"] .ep-mouth { display: none; }
+        .errorpage-root[data-kind="naughty"] .ep-mouth-smirk { display: initial; }
         .ep-shadow { fill: var(--deepchat-accent-soft, #eef2ff); stroke: var(--deepchat-accent-border, #c7d2fe); stroke-width: 2; opacity: 0.7; }
         .ep-mascot-anim { transform-origin: 50% 92%; }
         @media (prefers-reduced-motion: no-preference) {
@@ -132,12 +138,13 @@ const ErrorPage = ({ kind, title, lines, primary, secondary }: ErrorPageProps) =
             <ellipse className="ep-cheek" cx="52" cy="84" rx="7" ry="4.5" />
             <ellipse className="ep-cheek" cx="108" cy="84" rx="7" ry="4.5" />
             <path className="ep-mouth" d="M70 86 Q80 95 90 86" />
+            <path className="ep-mouth-smirk" d="M68 89 Q80 87 92 81" />
           </g>
           <ellipse className="ep-shadow" cx="80" cy="148" rx="44" ry="8" />
         </svg>
         <h1 className="ep-title">{title}</h1>
         {lines.map((line, i) => (
-          <p key={i} className={`ep-line${line.startsWith('ref:') ? ' code' : ''}`}>{line}</p>
+          <p key={i} className={`ep-line${line.startsWith('ref:') || line.startsWith('poked:') ? ' code' : ''}`}>{line}</p>
         ))}
         {(primary || secondary) && (
           <div className="ep-actions">

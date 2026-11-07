@@ -525,6 +525,37 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     </div>
   );
 
+  const isNaughty = pathname === '/naughty';
+
+  if (isNaughty) {
+    // standalone guard page: intentionally outside the app chrome,
+    // so it reads as its own screen rather than an in-chat error bubble
+    return (
+      <div
+        className="h-dvh w-full overflow-y-auto custom-scrollbar font-sans"
+        style={{ background: 'var(--background)' }}
+      >
+        {children}
+        <Toaster
+          position="top-center"
+          containerStyle={{ zIndex: 99999 }}
+          toastOptions={{
+            style: {
+              background: '#1e293b',
+              color: '#fff',
+              borderRadius: '16px',
+              padding: '12px 16px',
+              fontSize: '14px',
+              fontWeight: 500,
+            },
+            success: { iconTheme: { primary: '#10b981', secondary: '#fff' } },
+            error: { iconTheme: { primary: '#ef4444', secondary: '#fff' } },
+          }}
+        />
+      </div>
+    );
+  }
+
   if (isSharedChat) {
     return (
       <div className="flex h-dvh flex-col bg-[#F8FAFC] font-sans">
