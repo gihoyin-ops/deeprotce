@@ -14,6 +14,7 @@ export interface ModelOption {
   name: string;
   badge?: string;
   description?: string;
+  maxTierIndex?: number;
 }
 
 export interface ModelTier {
@@ -34,17 +35,23 @@ export const LIVE_CHAT_CONNECTION_ID = 'live-chat';
 export const LIVE_LITE_CONNECTION_ID = 'live-lite';
 
 export const formatFrontendModelName = (modelId: string, modelName?: string): string => {
-  const target = (modelName || modelId || '').toLowerCase();
-  if (target.includes('gemma')) return 'Gemma 4';
-  if (target.includes('llama')) return 'Llama 4';
-  if (target.includes('gpt-4o')) return 'GPT-4o';
-  if (target.includes('gpt-4')) return 'GPT-4';
-  if (target.includes('claude-3-5') || target.includes('claude-3.5')) return 'Claude 3.5';
-  if (target.includes('claude')) return 'Claude 3';
-  if (target.includes('deepseek')) return 'DeepSeek R1';
+  const explicit = modelName?.trim();
+  if (explicit) return explicit;
 
-  const clean = (modelName || modelId).replace(/:[\w.-]+/g, '').replace(/[-_]/g, ' ').trim();
-  return clean ? clean.charAt(0).toUpperCase() + clean.slice(1) : modelId;
+  const clean = modelId.replace(/:[\w.-]+/g, '').replace(/[-_]/g, ' ').trim();
+  if (!clean) return modelId;
+  return clean
+    .split(/\s+/)
+    .map((word) => (word ? word.charAt(0).toUpperCase() + word.slice(1) : ''))
+    .join(' ');
+};
+
+export const getMaxTierIndexForModel = (models: ModelOption[], modelId: string): number => {
+  const found = models.find((m) => m.id === modelId);
+  if (typeof found?.maxTierIndex === 'number' && Number.isFinite(found.maxTierIndex)) {
+    return Math.min(4, Math.max(0, Math.round(found.maxTierIndex)));
+  }
+  return 4;
 };
 
 export const getModelDescription = (_modelId: string, _modelName?: string, rawDesc?: string): string => {
@@ -212,17 +219,27 @@ export function useSelectedModelState() {
 
       const stored = loadStoredModel();
       const found = stored && !isImageGenerationModel(stored.id) && list.find((m) => m.id === stored.id);
+      let activeModelId = list[0].id;
       if (found) {
         const fresh = toSelectedModel(found);
+        activeModelId = fresh.id;
         setSelectedModel(fresh);
         persistModel(fresh);
       } else {
         const defId = result.defaultId || list[0].id;
         const def = list.find((m) => m.id === defId) || list[0];
         const next = toSelectedModel(def);
+        activeModelId = next.id;
         setSelectedModel(next);
         persistModel(next);
         window.dispatchEvent(new CustomEvent('modelSelected', { detail: next }));
+      }
+
+      const maxTier = getMaxTierIndexForModel(list, activeModelId);
+      const currentEffort = loadStoredEffort();
+      if (currentEffort > maxTier) {
+        setTierIndex(maxTier);
+        persistEffort(maxTier);
       }
     });
 
@@ -260,27 +277,45 @@ export function useSelectedModelState() {
     };
   }, []);
 
+  const maxTierIndex = getMaxTierIndexForModel(models, selectedModel.id);
+
   const selectModel = useCallback((option: ModelOption) => {
     const next = toSelectedModel(option);
     setSelectedModel(next);
     persistModel(next);
     window.dispatchEvent(new CustomEvent('modelSelected', { detail: next }));
+
+    const nextMax = typeof option.maxTierIndex === 'number'
+      ? Math.min(4, Math.max(0, Math.round(option.maxTierIndex)))
+      : 4;
+    if (loadStoredEffort() > nextMax) {
+      setTierIndex(nextMax);
+      persistEffort(nextMax);
+    }
+
     return next;
   }, []);
 
-  const commitTier = useCallback((index: number) => {
-    const clamped = Math.min(4, Math.max(0, index));
-    setTierIndex(clamped);
-    persistEffort(clamped);
-    return clamped;
-  }, []);
+  const commitTier = useCallback(
+    (index: number) => {
+      const clamped = Math.min(maxTierIndex, Math.max(0, index));
+      setTierIndex(clamped);
+      persistEffort(clamped);
+      return clamped;
+    },
+    [maxTierIndex]
+  );
 
-  const currentTier = TIERS[tierIndex] || TIERS[1];
-  const isUltra = tierIndex === 4;
+  const effectiveTierIndex = Math.min(tierIndex, maxTierIndex);
+  const availableTiers = TIERS.slice(0, maxTierIndex + 1);
+  const currentTier = TIERS[effectiveTierIndex] || TIERS[0];
+  const isUltra = maxTierIndex >= 4 && effectiveTierIndex === 4;
 
   return {
     selectedModel,
-    tierIndex,
+    tierIndex: effectiveTierIndex,
+    maxTierIndex,
+    availableTiers,
     currentTier,
     isUltra,
     models,

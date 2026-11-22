@@ -1,5 +1,9 @@
 import type { LlmConnection } from '@/lib/ai/llm';
-import { splitModelEnv } from './live-model-env';
+import {
+  parseModelMaxEffortEnv,
+  resolveMaxEffortIndex,
+  splitModelEnv,
+} from './live-model-env';
 
 // server-side live endpoints configured via env
 
@@ -105,20 +109,16 @@ export interface LiveModelItem {
   name: string;
   badge?: string;
   description?: string;
+  maxTierIndex?: number;
 }
 
 export const formatFrontendModelName = (id: string): string => {
-  const lower = id.toLowerCase();
-  if (lower.includes('gemma')) return 'Gemma 4';
-  if (lower.includes('llama')) return 'Llama 4';
-  if (lower.includes('gpt-4o')) return 'GPT-4o';
-  if (lower.includes('gpt-4')) return 'GPT-4';
-  if (lower.includes('claude-3-5') || lower.includes('claude-3.5')) return 'Claude 3.5';
-  if (lower.includes('claude')) return 'Claude 3';
-  if (lower.includes('deepseek')) return 'DeepSeek R1';
-  if (lower.startsWith('qwen3.8')) return 'Qwen 3.8';
   const clean = id.replace(/:[\w.-]+/g, '').replace(/[-_]/g, ' ').trim();
-  return clean ? clean.charAt(0).toUpperCase() + clean.slice(1) : id;
+  if (!clean) return id;
+  return clean
+    .split(/\s+/)
+    .map((word) => (word ? word.charAt(0).toUpperCase() + word.slice(1) : ''))
+    .join(' ');
 };
 
 export const getLiveModels = (): LiveModelItem[] => {
@@ -126,6 +126,7 @@ export const getLiveModels = (): LiveModelItem[] => {
 
   const models: LiveModelItem[] = [];
   const seen = new Set<string>();
+  const effortConfig = parseModelMaxEffortEnv(env('MODEL_MAX_EFFORT'));
 
   const add = (items: LiveModelItem[]) => {
     for (const item of items) {
@@ -143,7 +144,8 @@ export const getLiveModels = (): LiveModelItem[] => {
         id: e.id,
         name,
         badge,
-        description: e.description || undefined
+        description: e.description || undefined,
+        maxTierIndex: resolveMaxEffortIndex(e.id, e.maxEffort, effortConfig),
       };
     });
   };
@@ -156,12 +158,14 @@ export const getLiveModels = (): LiveModelItem[] => {
       {
         id: 'gemma4:31b',
         name: 'Gemma 4',
-        badge: 'Default'
+        badge: 'Default',
+        maxTierIndex: resolveMaxEffortIndex('gemma4:31b', undefined, effortConfig),
       },
       {
         id: 'llama4:70b',
         name: 'Llama 4',
-        badge: 'Lite'
+        badge: 'Lite',
+        maxTierIndex: resolveMaxEffortIndex('llama4:70b', undefined, effortConfig),
       }
     ]);
   }

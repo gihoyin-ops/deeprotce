@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server';
-import { splitModelEnv } from '@/lib/ai/live-model-env';
+import {
+  parseModelMaxEffortEnv,
+  resolveMaxEffortIndex,
+  splitModelEnv,
+} from '@/lib/ai/live-model-env';
 
 export const runtime = 'nodejs';
 
@@ -8,32 +12,33 @@ interface EnvModelItem {
   name: string;
   badge?: string;
   description?: string;
+  maxTierIndex?: number;
 }
 
 const env = (key: string) => (process.env[key] || '').trim();
 
 const formatFrontendModelName = (id: string): string => {
-  const lower = id.toLowerCase();
-  if (lower.includes('gemma')) return 'Gemma 4';
-  if (lower.includes('llama')) return 'Llama 4';
-  if (lower.includes('gpt-4o')) return 'GPT-4o';
-  if (lower.includes('gpt-4')) return 'GPT-4';
-  if (lower.includes('claude-3-5') || lower.includes('claude-3.5')) return 'Claude 3.5';
-  if (lower.includes('claude')) return 'Claude 3';
-  if (lower.includes('deepseek')) return 'DeepSeek R1';
-  if (lower.startsWith('qwen3.8')) return 'Qwen 3.8';
   const clean = id.replace(/:[\w.-]+/g, '').replace(/[-_]/g, ' ').trim();
-  return clean ? clean.charAt(0).toUpperCase() + clean.slice(1) : id;
+  if (!clean) return id;
+  return clean
+    .split(/\s+/)
+    .map((word) => (word ? word.charAt(0).toUpperCase() + word.slice(1) : ''))
+    .join(' ');
 };
 
-const parseModelsFromEnv = (val: string, badge?: string): EnvModelItem[] => {
+const parseModelsFromEnv = (
+  val: string,
+  badge: string | undefined,
+  effortConfig: ReturnType<typeof parseModelMaxEffortEnv>
+): EnvModelItem[] => {
   return splitModelEnv(val).map(e => {
     const name = e.name || formatFrontendModelName(e.id);
     return {
       id: e.id,
       name,
       badge,
-      description: e.description || undefined
+      description: e.description || undefined,
+      maxTierIndex: resolveMaxEffortIndex(e.id, e.maxEffort, effortConfig),
     };
   });
 };
@@ -41,6 +46,7 @@ const parseModelsFromEnv = (val: string, badge?: string): EnvModelItem[] => {
 export async function GET() {
   const models: EnvModelItem[] = [];
   const seen = new Set<string>();
+  const effortConfig = parseModelMaxEffortEnv(env('MODEL_MAX_EFFORT'));
 
   const add = (items: EnvModelItem[]) => {
     for (const item of items) {
@@ -52,10 +58,10 @@ export async function GET() {
   };
 
   // main chat models from LIVE_MODEL
-  add(parseModelsFromEnv(env('LIVE_MODEL'), 'Default'));
+  add(parseModelsFromEnv(env('LIVE_MODEL'), 'Default', effortConfig));
 
   // lite models from LITE_MODEL
-  add(parseModelsFromEnv(env('LITE_MODEL'), 'Lite'));
+  add(parseModelsFromEnv(env('LITE_MODEL'), 'Lite', effortConfig));
 
   // provide defaults if no env models configured
   if (models.length === 0) {
@@ -63,12 +69,14 @@ export async function GET() {
       {
         id: 'gemma4:31b',
         name: 'Gemma 4',
-        badge: 'Default'
+        badge: 'Default',
+        maxTierIndex: resolveMaxEffortIndex('gemma4:31b', undefined, effortConfig),
       },
       {
         id: 'llama4:70b',
         name: 'Llama 4',
-        badge: 'Lite'
+        badge: 'Lite',
+        maxTierIndex: resolveMaxEffortIndex('llama4:70b', undefined, effortConfig),
       }
     ]);
   }

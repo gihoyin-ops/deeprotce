@@ -43,6 +43,8 @@ export default function MobileModelSheet({ isOpen, onClose }: MobileModelSheetPr
   const {
     selectedModel,
     tierIndex,
+    maxTierIndex,
+    availableTiers,
     currentTier,
     isUltra,
     models,
@@ -300,14 +302,14 @@ export default function MobileModelSheet({ isOpen, onClose }: MobileModelSheetPr
   const handleCommitSliderTier = useCallback(
     (index: number) => {
       const clamped = commitTier(index);
-      if (clamped === 4) {
+      if (clamped === 4 && maxTierIndex >= 4) {
         triggerSubtleHaptic(14);
         fireConfetti();
       } else {
         triggerSubtleHaptic(6);
       }
     },
-    [commitTier, fireConfetti]
+    [commitTier, fireConfetti, maxTierIndex]
   );
 
   // Sparkles canvas setup while sheet is open
@@ -394,7 +396,7 @@ export default function MobileModelSheet({ isOpen, onClose }: MobileModelSheetPr
     const frac = (clientX - rect.left) / rect.width;
     const pos = Math.min(1, Math.max(0, (frac * w - K / 2) / (w - K)));
     setDragPos(pos);
-    const nearest = Math.round(pos * 4);
+    const nearest = maxTierIndex > 0 ? Math.round(pos * maxTierIndex) : 0;
     if (nearest !== tierIndex) {
       commitTier(nearest);
       triggerSubtleHaptic(5);
@@ -424,9 +426,9 @@ export default function MobileModelSheet({ isOpen, onClose }: MobileModelSheetPr
     if (!isDraggingSlider || e.pointerId !== activePointerRef.current) return;
     setIsDraggingSlider(false);
     activePointerRef.current = null;
-    const pos = dragPos ?? tierIndex / 4;
+    const pos = dragPos ?? (maxTierIndex > 0 ? tierIndex / maxTierIndex : 0);
     setDragPos(null);
-    handleCommitSliderTier(Math.round(pos * 4));
+    handleCommitSliderTier(maxTierIndex > 0 ? Math.round(pos * maxTierIndex) : 0);
   };
 
   const handleSliderKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -441,7 +443,7 @@ export default function MobileModelSheet({ isOpen, onClose }: MobileModelSheetPr
       handleCommitSliderTier(0);
     } else if (e.key === 'End') {
       e.preventDefault();
-      handleCommitSliderTier(4);
+      handleCommitSliderTier(maxTierIndex);
     }
   };
 
@@ -526,7 +528,7 @@ export default function MobileModelSheet({ isOpen, onClose }: MobileModelSheetPr
 
   if (!isOpen || typeof document === 'undefined') return null;
 
-  const effectivePos = dragPos ?? tierIndex / 4;
+  const effectivePos = dragPos ?? (maxTierIndex > 0 ? tierIndex / maxTierIndex : 0);
   const knobStyle = {
     left: `calc(17px + ${effectivePos} * (100% - 34px))`,
   };
@@ -619,7 +621,7 @@ export default function MobileModelSheet({ isOpen, onClose }: MobileModelSheetPr
             data-gesture-ignore="true"
             aria-label="Model intelligence"
             aria-valuemin={0}
-            aria-valuemax={4}
+            aria-valuemax={maxTierIndex}
             aria-valuenow={tierIndex}
             aria-valuetext={currentTier.valuetext}
             onKeyDown={handleSliderKeyDown}
@@ -636,10 +638,12 @@ export default function MobileModelSheet({ isOpen, onClose }: MobileModelSheetPr
               className="dc-ms-slider-track absolute left-0 right-0 top-1/2 -translate-y-1/2"
             >
               <div className="pointer-events-none absolute inset-0">
-                {[0, 1, 2, 3, 4].map((idx) => (
+                {availableTiers.map((_, idx) => (
                   <div
                     key={idx}
-                    style={{ left: `calc(17px + ${idx / 4} * (100% - 34px))` }}
+                    style={{
+                      left: `calc(17px + ${maxTierIndex > 0 ? idx / maxTierIndex : 0} * (100% - 34px))`,
+                    }}
                     className={`absolute top-1/2 h-[5px] w-[5px] -translate-x-1/2 -translate-y-1/2 rounded-full transition-colors duration-200 ${
                       idx <= tierIndex
                         ? 'bg-white/45'

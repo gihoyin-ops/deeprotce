@@ -19,6 +19,7 @@ import {
   TIERS,
   fetchLiveModels,
   formatFrontendModelName,
+  getMaxTierIndexForModel,
   getModelDescription,
   loadStoredEffort,
   loadStoredModel,
@@ -110,8 +111,11 @@ export default function ModelSelector({
   const activePointerRef = useRef<number | null>(null);
   const shortcuts = useShortcutLabels();
 
-  const currentTier = TIERS[tierIndex] || TIERS[1];
-  const isUltra = tierIndex === 4;
+  const maxTierIndex = getMaxTierIndexForModel(models, selectedModel.id);
+  const effectiveTierIndex = Math.min(tierIndex, maxTierIndex);
+  const availableTiers = TIERS.slice(0, maxTierIndex + 1);
+  const currentTier = TIERS[effectiveTierIndex] || TIERS[0];
+  const isUltra = maxTierIndex >= 4 && effectiveTierIndex === 4;
 
   const openSelector = useCallback(() => {
     viewDirectionRef.current = 0;
@@ -154,17 +158,27 @@ export default function ModelSelector({
 
       const stored = loadStoredModel();
       const found = stored && !isImageGenerationModel(stored.id) && list.find((m) => m.id === stored.id);
+      let activeId = list[0].id;
       if (found) {
         const fresh = toSelectedModel(found);
+        activeId = fresh.id;
         setSelectedModel(fresh);
         persistModel(fresh);
       } else {
         const defId = result.defaultId || list[0].id;
         const def = list.find((m) => m.id === defId) || list[0];
         const next = toSelectedModel(def);
+        activeId = next.id;
         setSelectedModel(next);
         persistModel(next);
         window.dispatchEvent(new CustomEvent('modelSelected', { detail: next }));
+      }
+
+      const maxTier = getMaxTierIndexForModel(list, activeId);
+      const currentEffort = loadStoredEffort();
+      if (currentEffort > maxTier) {
+        setTierIndex(maxTier);
+        persistEffort(maxTier);
       }
     });
 
@@ -422,6 +436,15 @@ export default function ModelSelector({
       setSelectedModel(next);
       persistModel(next);
       window.dispatchEvent(new CustomEvent('modelSelected', { detail: next }));
+
+      const nextMax = typeof option.maxTierIndex === 'number'
+        ? Math.min(4, Math.max(0, Math.round(option.maxTierIndex)))
+        : 4;
+      if (loadStoredEffort() > nextMax) {
+        setTierIndex(nextMax);
+        persistEffort(nextMax);
+      }
+
       closeSelector();
     },
     [closeSelector]
@@ -520,14 +543,14 @@ export default function ModelSelector({
 
   const handleCommitTier = useCallback(
     (index: number) => {
-      const clamped = Math.min(4, Math.max(0, index));
+      const clamped = Math.min(maxTierIndex, Math.max(0, index));
       setTierIndex(clamped);
       persistEffort(clamped);
-      if (clamped === 4) {
+      if (clamped === 4 && maxTierIndex >= 4) {
         fireConfetti();
       }
     },
-    [fireConfetti]
+    [fireConfetti, maxTierIndex]
   );
 
   // initialize sparkles particles
@@ -627,8 +650,8 @@ export default function ModelSelector({
     const frac = (e.clientX - rect.left) / rect.width;
     const pos = Math.min(1, Math.max(0, (frac * w - K / 2) / (w - K)));
     setDragPos(pos);
-    const nearest = Math.round(pos * 4);
-    if (nearest !== tierIndex) {
+    const nearest = maxTierIndex > 0 ? Math.round(pos * maxTierIndex) : 0;
+    if (nearest !== effectiveTierIndex) {
       setTierIndex(nearest);
       persistEffort(nearest);
     }
@@ -644,8 +667,8 @@ export default function ModelSelector({
     const frac = (e.clientX - rect.left) / rect.width;
     const pos = Math.min(1, Math.max(0, (frac * w - K / 2) / (w - K)));
     setDragPos(pos);
-    const nearest = Math.round(pos * 4);
-    if (nearest !== tierIndex) {
+    const nearest = maxTierIndex > 0 ? Math.round(pos * maxTierIndex) : 0;
+    if (nearest !== effectiveTierIndex) {
       setTierIndex(nearest);
       persistEffort(nearest);
     }
@@ -655,30 +678,30 @@ export default function ModelSelector({
     if (!isDragging || e.pointerId !== activePointerRef.current) return;
     setIsDragging(false);
     activePointerRef.current = null;
-    const pos = dragPos ?? tierIndex / 4;
+    const pos = dragPos ?? (maxTierIndex > 0 ? effectiveTierIndex / maxTierIndex : 0);
     setDragPos(null);
-    const target = Math.round(pos * 4);
+    const target = maxTierIndex > 0 ? Math.round(pos * maxTierIndex) : 0;
     handleCommitTier(target);
   };
 
   const handleSliderKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
       e.preventDefault();
-      handleCommitTier(tierIndex + 1);
+      handleCommitTier(effectiveTierIndex + 1);
     } else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
       e.preventDefault();
-      handleCommitTier(tierIndex - 1);
+      handleCommitTier(effectiveTierIndex - 1);
     } else if (e.key === 'Home') {
       e.preventDefault();
       handleCommitTier(0);
     } else if (e.key === 'End') {
       e.preventDefault();
-      handleCommitTier(4);
+      handleCommitTier(maxTierIndex);
     }
   };
 
   // computed knob position
-  const effectivePos = dragPos ?? tierIndex / 4;
+  const effectivePos = dragPos ?? (maxTierIndex > 0 ? effectiveTierIndex / maxTierIndex : 0);
   const knobStyle = {
     left: `calc(17px + ${effectivePos} * (100% - 34px))`,
   };
@@ -871,8 +894,8 @@ export default function ModelSelector({
             role="slider"
             aria-label="Model intelligence"
             aria-valuemin={0}
-            aria-valuemax={4}
-            aria-valuenow={tierIndex}
+            aria-valuemax={maxTierIndex}
+            aria-valuenow={effectiveTierIndex}
             aria-valuetext={currentTier.valuetext}
             onKeyDown={handleSliderKeyDown}
             onPointerEnter={() => setIsHoveringSlider(true)}
@@ -890,12 +913,14 @@ export default function ModelSelector({
               className="dc-ms-slider-track absolute left-0 right-0 top-1/2 -translate-y-1/2"
             >
               <div className="pointer-events-none absolute inset-0">
-                {[0, 1, 2, 3, 4].map((idx) => (
+                {availableTiers.map((_, idx) => (
                   <div
                     key={idx}
-                    style={{ left: `calc(17px + ${idx / 4} * (100% - 34px))` }}
+                    style={{
+                      left: `calc(17px + ${maxTierIndex > 0 ? idx / maxTierIndex : 0} * (100% - 34px))`,
+                    }}
                     className={`absolute top-1/2 h-[5px] w-[5px] -translate-x-1/2 -translate-y-1/2 rounded-full transition-colors duration-200 ${
-                      idx <= tierIndex
+                      idx <= effectiveTierIndex
                         ? 'bg-white/45'
                         : 'bg-black/20 dark:bg-white/20'
                     }`}
@@ -914,7 +939,7 @@ export default function ModelSelector({
                     isUltra ? 'opacity-100' : 'opacity-0'
                   }`}
                 />
-                <SliderWaveSvg active={tierIndex >= 2} isUltra={isUltra} />
+                <SliderWaveSvg active={effectiveTierIndex >= 2} isUltra={isUltra} />
                 <canvas
                   ref={sparklesCanvasRef}
                   className="pointer-events-none absolute inset-0 h-full w-full"
