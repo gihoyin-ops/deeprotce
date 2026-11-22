@@ -1608,7 +1608,7 @@ const MessageBubble = React.memo(function MessageBubble({ message, deferOffscree
         )}
 
         {useImageStudioStage ? (
-          <div className="max-w-full">
+          <div className="w-full max-w-full">
             <ImageGenerationStage
               key={`${message.id}-v${currentIdx}-${message.createdAt || ''}`}
               isGenerating={Boolean(message.isStreaming)}

@@ -308,12 +308,14 @@ function GeneratedMarkdownImage({ src, alt }: { src: string; alt: string }) {
       style={
         !revealState
           ? {
-              width: 'min(100%, 380px)',
+              width: '380px',
+              maxWidth: '100%',
               aspectRatio: '4 / 3',
             }
           : settled
             ? {
-                width: `min(100%, ${Math.min(targetWidth, maxWidth)}px)`,
+                width: `${Math.min(targetWidth, maxWidth)}px`,
+                maxWidth: '100%',
                 aspectRatio: `${revealState.natWidth} / ${revealState.natHeight}`,
               }
             : undefined

@@ -492,12 +492,14 @@ export default function ImageGenerationStage({
   const frameStyle: React.CSSProperties | undefined =
     phase === 'generating'
       ? {
-          width: `min(100%, ${waitingBox.width}px)`,
+          width: `${waitingBox.width}px`,
+          maxWidth: '100%',
           aspectRatio: `${waitingBox.width} / ${waitingBox.height}`,
         }
       : phase === 'settled'
         ? {
-            width: `min(100%, ${finalBox.width}px)`,
+            width: `${finalBox.width}px`,
+            maxWidth: '100%',
             aspectRatio: decodedSize
               ? `${decodedSize.width} / ${decodedSize.height}`
               : `${Math.round(requestedRatio * 100)} / 100`,
