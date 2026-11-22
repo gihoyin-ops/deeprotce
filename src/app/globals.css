@@ -1634,3 +1634,335 @@ html[data-appearance="dark"] .dc-mob-drawer {
     opacity: 0.7;
   }
 }
+
+/* === Composer Tools Glass, Attachments & Document Preview === */
+.dc-composer-shell {
+  transition:
+    background-color 220ms ease,
+    border-color 220ms ease,
+    box-shadow 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-radius 220ms ease;
+}
+
+.dc-composer-shell:focus-within {
+  box-shadow:
+    0 0 0 1px rgb(15 23 42 / 0.08),
+    0 12px 30px -18px rgb(15 23 42 / 0.14);
+}
+
+html.dark .dc-composer-shell:focus-within,
+html[data-appearance="dark"] .dc-composer-shell:focus-within {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.08),
+    0 0 0 1px rgb(255 255 255 / 0.12),
+    0 18px 42px -22px rgb(0 0 0 / 0.9);
+}
+
+.dc-tools-panel {
+  position: relative;
+  overflow: hidden;
+  border-radius: 22px;
+  border: 1px solid rgb(15 23 42 / 0.09);
+  background: rgb(255 255 255 / 0.82);
+  backdrop-filter: blur(22px) saturate(165%);
+  -webkit-backdrop-filter: blur(22px) saturate(165%);
+  color: var(--dc-text);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.72),
+    0 6px 24px -6px rgb(15 23 42 / 0.1),
+    0 22px 46px -18px rgb(15 23 42 / 0.18);
+}
+
+html.dark .dc-tools-panel,
+html[data-appearance="dark"] .dc-tools-panel {
+  background: rgb(20 20 24 / 0.86);
+  border-color: rgb(255 255 255 / 0.11);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.07),
+    0 22px 48px -16px rgb(0 0 0 / 0.88);
+}
+
+.dc-tools-sheet {
+  position: relative;
+  overflow: hidden;
+  border-top-left-radius: 26px;
+  border-top-right-radius: 26px;
+  border-top: 1px solid rgb(15 23 42 / 0.09);
+  background: rgb(255 255 255 / 0.86);
+  backdrop-filter: blur(26px) saturate(165%);
+  -webkit-backdrop-filter: blur(26px) saturate(165%);
+  color: var(--dc-text);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.78),
+    0 -16px 48px -16px rgb(15 23 42 / 0.2);
+}
+
+html.dark .dc-tools-sheet,
+html[data-appearance="dark"] .dc-tools-sheet {
+  background: rgb(18 18 22 / 0.88);
+  border-top-color: rgb(255 255 255 / 0.12);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.08),
+    0 -20px 52px -16px rgb(0 0 0 / 0.92);
+}
+
+.dc-tools-glass-card {
+  border: 1px solid rgb(15 23 42 / 0.07);
+  background: rgb(255 255 255 / 0.62);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.55);
+}
+
+html.dark .dc-tools-glass-card,
+html[data-appearance="dark"] .dc-tools-glass-card {
+  border-color: rgb(255 255 255 / 0.08);
+  background: rgb(255 255 255 / 0.055);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.05);
+}
+
+.dc-tools-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 10px;
+  border-radius: 13px;
+  padding: 8px 10px;
+  text-align: left;
+  border: 1px solid transparent;
+  color: var(--dc-text-strong);
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.dc-tools-row:hover:not(:disabled) {
+  background: rgb(15 23 42 / 0.055);
+}
+
+html.dark .dc-tools-row:hover:not(:disabled),
+html[data-appearance="dark"] .dc-tools-row:hover:not(:disabled) {
+  background: rgb(255 255 255 / 0.075);
+}
+
+.dc-tools-row-active {
+  background: rgb(37 99 235 / 0.085);
+  border-color: rgb(37 99 235 / 0.22);
+}
+
+.dc-tools-row-active:hover:not(:disabled) {
+  background: rgb(37 99 235 / 0.12);
+}
+
+html.dark .dc-tools-row-active,
+html[data-appearance="dark"] .dc-tools-row-active {
+  background: rgb(56 189 248 / 0.12);
+  border-color: rgb(56 189 248 / 0.28);
+}
+
+html.dark .dc-tools-row-active:hover:not(:disabled),
+html[data-appearance="dark"] .dc-tools-row-active:hover:not(:disabled) {
+  background: rgb(56 189 248 / 0.16);
+}
+
+.dc-tools-icon-well {
+  display: flex;
+  height: 30px;
+  width: 30px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: rgb(15 23 42 / 0.045);
+  color: var(--dc-text-strong);
+}
+
+html.dark .dc-tools-icon-well,
+html[data-appearance="dark"] .dc-tools-icon-well {
+  background: rgb(255 255 255 / 0.075);
+  color: var(--dc-text-strong);
+}
+
+.dc-tools-divider {
+  margin: 4px 6px;
+  height: 1px;
+  background: rgb(15 23 42 / 0.075);
+}
+
+html.dark .dc-tools-divider,
+html[data-appearance="dark"] .dc-tools-divider {
+  background: rgb(255 255 255 / 0.09);
+}
+
+.dc-tools-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 10px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--dc-text-muted);
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.dc-tools-back-btn:hover {
+  background: rgb(15 23 42 / 0.055);
+  color: var(--dc-text-strong);
+}
+
+html.dark .dc-tools-back-btn:hover,
+html[data-appearance="dark"] .dc-tools-back-btn:hover {
+  background: rgb(255 255 255 / 0.08);
+  color: var(--dc-text-strong);
+}
+
+.dc-tools-chip {
+  border: 1px solid rgb(15 23 42 / 0.07);
+  background: rgb(255 255 255 / 0.84);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  color: var(--dc-text-strong);
+  box-shadow: 0 2px 8px -4px rgb(15 23 42 / 0.14);
+  transition: background-color 160ms ease, border-color 160ms ease;
+}
+
+.dc-tools-chip:hover {
+  background: rgb(255 255 255 / 0.96);
+  border-color: rgb(15 23 42 / 0.12);
+}
+
+html.dark .dc-tools-chip,
+html[data-appearance="dark"] .dc-tools-chip {
+  border-color: rgb(255 255 255 / 0.11);
+  background: rgb(30 31 36 / 0.84);
+  color: var(--dc-text-strong);
+  box-shadow: 0 4px 12px -6px rgb(0 0 0 / 0.65);
+}
+
+html.dark .dc-tools-chip:hover,
+html[data-appearance="dark"] .dc-tools-chip:hover {
+  background: rgb(42 44 52 / 0.92);
+  border-color: rgb(255 255 255 / 0.18);
+}
+
+.dc-tools-panel button:focus-visible,
+.dc-tools-sheet button:focus-visible,
+.dc-tools-chip button:focus-visible,
+.dc-tools-chip:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.dc-attach-card {
+  border: 1px solid rgb(15 23 42 / 0.08);
+  background: rgb(255 255 255 / 0.9);
+  color: var(--dc-text-strong);
+  box-shadow: 0 2px 8px -4px rgb(15 23 42 / 0.14);
+  transition: background-color 160ms ease, border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+}
+
+.dc-attach-card:hover {
+  background: rgb(255 255 255 / 1);
+  border-color: rgb(15 23 42 / 0.16);
+  box-shadow: 0 4px 14px -6px rgb(15 23 42 / 0.2);
+}
+
+html.dark .dc-attach-card,
+html[data-appearance="dark"] .dc-attach-card {
+  border-color: rgb(255 255 255 / 0.11);
+  background: rgb(30 32 38 / 0.92);
+  color: var(--dc-text-strong);
+  box-shadow: 0 4px 14px -6px rgb(0 0 0 / 0.72);
+}
+
+html.dark .dc-attach-card:hover,
+html[data-appearance="dark"] .dc-attach-card:hover {
+  border-color: rgb(255 255 255 / 0.2);
+  background: rgb(39 42 50 / 0.96);
+}
+
+.dc-attach-remove {
+  border: 2px solid var(--dc-surface-input);
+  background: #18181b;
+  color: #ffffff;
+}
+
+.dc-attach-remove:hover {
+  background: #09090b;
+}
+
+html.dark .dc-attach-remove,
+html[data-appearance="dark"] .dc-attach-remove {
+  border-color: var(--dc-surface-input);
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+html.dark .dc-attach-remove:hover,
+html[data-appearance="dark"] .dc-attach-remove:hover {
+  background: #ffffff;
+}
+
+.dc-preview-backdrop {
+  background: rgb(10 12 18 / 0.56);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+html.dark .dc-preview-backdrop,
+html[data-appearance="dark"] .dc-preview-backdrop {
+  background: rgb(0 0 0 / 0.74);
+}
+
+.dc-preview-modal {
+  border: 1px solid rgb(15 23 42 / 0.1);
+  background: rgb(255 255 255 / 0.9);
+  backdrop-filter: blur(24px) saturate(165%);
+  -webkit-backdrop-filter: blur(24px) saturate(165%);
+  color: var(--dc-text);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.75),
+    0 24px 64px -20px rgb(15 23 42 / 0.35);
+}
+
+html.dark .dc-preview-modal,
+html[data-appearance="dark"] .dc-preview-modal {
+  border-color: rgb(255 255 255 / 0.12);
+  background: rgb(20 20 24 / 0.92);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.08),
+    0 28px 72px -18px rgb(0 0 0 / 0.92);
+}
+
+.dc-preview-surface {
+  border-top: 1px solid rgb(15 23 42 / 0.07);
+  background: rgb(248 250 252 / 0.82);
+}
+
+html.dark .dc-preview-surface,
+html[data-appearance="dark"] .dc-preview-surface {
+  border-top-color: rgb(255 255 255 / 0.08);
+  background: rgb(12 13 16 / 0.86);
+}
+
+.dc-preview-action-btn {
+  border: 1px solid rgb(15 23 42 / 0.09);
+  background: rgb(255 255 255 / 0.76);
+  color: var(--dc-text-strong);
+  transition: background-color 160ms ease, border-color 160ms ease, transform 140ms ease;
+}
+
+.dc-preview-action-btn:hover {
+  background: rgb(255 255 255 / 0.98);
+  border-color: rgb(15 23 42 / 0.16);
+}
+
+html.dark .dc-preview-action-btn,
+html[data-appearance="dark"] .dc-preview-action-btn {
+  border-color: rgb(255 255 255 / 0.12);
+  background: rgb(255 255 255 / 0.075);
+  color: var(--dc-text-strong);
+}
+
+html.dark .dc-preview-action-btn:hover,
+html[data-appearance="dark"] .dc-preview-action-btn:hover {
+  background: rgb(255 255 255 / 0.13);
+  border-color: rgb(255 255 255 / 0.2);
+}

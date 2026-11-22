@@ -28,7 +28,12 @@ interface UserProfile {
   name?: string;
 }
 
-const canPreviewUploadFile = (file: File) => file.type.startsWith('image/') || /\.(png|jpe?g|gif|webp|svg|bmp|heic|heif)$/i.test(file.name);
+const canPreviewUploadFile = (file: File) =>
+  file.type.startsWith('image/') ||
+  file.type === 'application/pdf' ||
+  file.type.startsWith('video/') ||
+  file.type.startsWith('audio/') ||
+  /\.(png|jpe?g|gif|webp|svg|bmp|heic|heif|avif|pdf|mp4|webm|mov|mp3|wav|ogg|m4a)$/i.test(file.name);
 const createAttachedPreviewUrl = (file: File) => canPreviewUploadFile(file) ? URL.createObjectURL(file) : undefined;
 const revokeAttachedPreview = (file: AttachedFile) => {
   if (file.previewUrl) URL.revokeObjectURL(file.previewUrl);

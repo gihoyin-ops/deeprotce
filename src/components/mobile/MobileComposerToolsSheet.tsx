@@ -21,6 +21,10 @@ import { prefersReducedMotion, triggerSubtleHaptic } from './gesture-utils';
 interface ComposerFile {
   name: string;
   ext: string;
+  previewUrl?: string;
+  dataUrl?: string;
+  content?: string;
+  size?: number;
 }
 
 interface ComposerRecentFile extends ComposerFile {
@@ -286,7 +290,7 @@ export default function MobileComposerToolsSheet({
         role="dialog"
         aria-modal="true"
         aria-label="Composer tools"
-        className="dc-ms-sheet relative z-10 max-h-[84svh] w-full select-none px-4 pb-[max(1.15rem,env(safe-area-inset-bottom))] pt-2.5"
+        className="dc-tools-sheet relative z-10 max-h-[84svh] w-full select-none px-4 pb-[max(1.15rem,env(safe-area-inset-bottom))] pt-2.5"
       >
         <div
           onTouchStart={handleTouchStart}
@@ -329,14 +333,14 @@ export default function MobileComposerToolsSheet({
               animateAndClose();
               window.setTimeout(onUpload, 100);
             }}
-            className="dc-mob-tool-card flex min-h-[56px] w-full items-center gap-3.5 rounded-2xl border border-[var(--dc-border)] bg-[var(--dc-surface-subtle)] px-4 py-3 text-left transition-transform active:scale-[0.99] disabled:opacity-50"
+            className="dc-mob-tool-card dc-tools-glass-card flex min-h-[56px] w-full items-center gap-3.5 rounded-2xl px-4 py-3 text-left transition-transform active:scale-[0.985] disabled:opacity-50"
           >
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--deepchat-accent-soft)] text-[var(--deepchat-accent)]">
               <Paperclip className="h-5 w-5" strokeWidth={2.1} />
             </span>
             <span className="min-w-0 flex-1">
               <span className="block text-[14.5px] font-semibold text-[var(--dc-text-strong)]">
-                Add photos & files
+                Add photos &amp; files
               </span>
               <span className="mt-0.5 block text-[12px] font-medium text-[var(--dc-text-muted)]">
                 Documents, images, or code from device
@@ -345,7 +349,7 @@ export default function MobileComposerToolsSheet({
           </button>
 
           {/* Grouped Capability Toggles */}
-          <div className="dc-mob-tool-card overflow-hidden rounded-2xl border border-[var(--dc-border)] bg-[var(--dc-surface-subtle)] divide-y divide-[var(--dc-border-subtle)]">
+          <div className="dc-mob-tool-card dc-tools-glass-card overflow-hidden rounded-2xl divide-y divide-[var(--dc-border-subtle)]">
             <div className="flex min-h-[56px] items-center justify-between gap-3 px-4 py-2.5">
               <div className="flex min-w-0 items-center gap-3">
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sky-500/12 text-sky-600 dark:text-sky-400">
@@ -409,14 +413,21 @@ export default function MobileComposerToolsSheet({
                       <button
                         key={option.value}
                         type="button"
-                        onClick={() => {
+                        onClick={(e) => {
                           triggerSubtleHaptic(6);
+                          if (!prefersReducedMotion()) {
+                            gsap.fromTo(
+                              e.currentTarget,
+                              { scale: 0.94 },
+                              { scale: 1, duration: 0.24, ease: 'back.out(2.2)', clearProps: 'transform' }
+                            );
+                          }
                           onImageAspectRatioChange?.(option.value);
                         }}
-                        className={`inline-flex min-h-[38px] shrink-0 snap-start items-center gap-1.5 rounded-full border px-3 text-[12.5px] font-semibold transition-colors active:scale-95 ${
+                        className={`inline-flex min-h-[38px] shrink-0 snap-start items-center gap-1.5 rounded-full border px-3 text-[12.5px] font-semibold transition-colors ${
                           active
                             ? 'border-[var(--deepchat-accent)] bg-[var(--deepchat-accent-soft)] text-[var(--deepchat-accent)]'
-                            : 'border-[var(--dc-border)] bg-[var(--dc-surface)] text-[var(--dc-text-strong)]'
+                            : 'border-[var(--dc-border)] bg-[rgb(255_255_255/0.6)] text-[var(--dc-text-strong)] dark:bg-[rgb(255_255_255/0.05)]'
                         }`}
                       >
                         {option.icon}
@@ -430,7 +441,7 @@ export default function MobileComposerToolsSheet({
           </div>
 
           {/* Recent Files + Library */}
-          <div className="dc-mob-tool-card rounded-2xl border border-[var(--dc-border)] bg-[var(--dc-surface-subtle)] p-3.5">
+          <div className="dc-mob-tool-card dc-tools-glass-card rounded-2xl p-3.5">
             <div className="mb-2.5 flex items-center justify-between">
               <span className="text-[12px] font-semibold uppercase tracking-wider text-[var(--dc-text-muted)]">
                 Recent Files
@@ -456,10 +467,17 @@ export default function MobileComposerToolsSheet({
                     type="button"
                     onClick={() => {
                       triggerSubtleHaptic(8);
-                      onAttachRecentFile({ name: file.name, ext: file.ext });
+                      onAttachRecentFile({
+                        name: file.name,
+                        ext: file.ext,
+                        previewUrl: file.previewUrl,
+                        dataUrl: file.dataUrl,
+                        content: file.content,
+                        size: file.size,
+                      });
                       animateAndClose();
                     }}
-                    className="flex min-h-[46px] w-full items-center gap-3 rounded-xl bg-[var(--dc-surface)] px-3 py-2 text-left ring-1 ring-[var(--dc-border-subtle)] transition-transform active:scale-[0.99]"
+                    className="flex min-h-[46px] w-full items-center gap-3 rounded-xl bg-[rgb(255_255_255/0.62)] px-3 py-2 text-left ring-1 ring-[var(--dc-border-subtle)] transition-transform active:scale-[0.985] dark:bg-[rgb(255_255_255/0.05)]"
                   >
                     <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--dc-fill)] text-[var(--dc-text-strong)]">
                       {getFileIcon(file.ext, 'h-4 w-4')}

@@ -562,6 +562,26 @@ export const clearChatHistoryClient = async (): Promise<boolean> => {
   return true;
 };
 
+export interface StoredFileRecord {
+  id: string;
+  name: string;
+  ext: string;
+  size: number;
+  type: string;
+  dataUrl?: string;
+  content?: string;
+  createdAt: string;
+}
+
+export const getStoredFileClient = async (id: string): Promise<StoredFileRecord | null> => {
+  if (typeof window === 'undefined' || !id) return null;
+  try {
+    return await idbGet<StoredFileRecord>('files', id);
+  } catch {
+    return null;
+  }
+};
+
 export const uploadFileClient = async (file: File): Promise<{
   success: boolean;
   fileName?: string;
@@ -575,11 +595,15 @@ export const uploadFileClient = async (file: File): Promise<{
     const ext = file.name.split('.').pop()?.toLowerCase() || 'other';
     const safeName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
     const textExts: Record<string, true> = {
-      txt: true, md: true, csv: true, json: true, js: true, jsx: true, ts: true, tsx: true,
-      html: true, css: true, py: true, sql: true, xml: true, yaml: true, yml: true
+      txt: true, md: true, markdown: true, csv: true, tsv: true, json: true, js: true, jsx: true,
+      ts: true, tsx: true, html: true, css: true, scss: true, less: true, py: true, sql: true,
+      xml: true, yaml: true, yml: true, sh: true, bash: true, env: true, ini: true, toml: true,
+      log: true, java: true, go: true, rs: true, c: true, cpp: true, h: true, hpp: true,
+      rb: true, php: true, swift: true, kt: true, vue: true, svelte: true, graphql: true,
+      prisma: true, svg: true
     };
     let content: string | undefined;
-    if (textExts[ext]) {
+    if (textExts[ext] && file.size <= 2 * 1024 * 1024) {
       try {
         content = await file.text();
       } catch {}

@@ -5,7 +5,8 @@ import Image from 'next/image';
 import { gsap } from 'gsap';
 import { getChat, saveMessage, uploadFile } from '@/app/actions';
 import MarkdownRenderer from '@/components/ui/MarkdownRenderer';
-import ChatComposer, { getComposerFileIcon } from '@/components/ui/ChatComposer';
+import ChatComposer, { getComposerDisplayName, getComposerFileIcon } from '@/components/ui/ChatComposer';
+import AttachmentPreviewModal from '@/components/ui/AttachmentPreviewModal';
 import DotRevealHeadline from '@/components/home/DotRevealHeadline';
 import Tooltip from '@/components/ui/Tooltip';
 import { prefersReducedMotion, triggerSubtleHaptic } from '@/components/mobile/gesture-utils';
@@ -38,7 +39,12 @@ type AttachedFile = {
   size?: number;
 };
 
-const canPreviewUploadFile = (file: File) => file.type.startsWith('image/') || /\.(png|jpe?g|gif|webp|svg|bmp|heic|heif)$/i.test(file.name);
+const canPreviewUploadFile = (file: File) =>
+  file.type.startsWith('image/') ||
+  file.type === 'application/pdf' ||
+  file.type.startsWith('video/') ||
+  file.type.startsWith('audio/') ||
+  /\.(png|jpe?g|gif|webp|svg|bmp|heic|heif|avif|pdf|mp4|webm|mov|mp3|wav|ogg|m4a)$/i.test(file.name);
 const createAttachedPreviewUrl = (file: File) => canPreviewUploadFile(file) ? URL.createObjectURL(file) : undefined;
 const revokeAttachedPreview = (file: AttachedFile) => {
   if (file.previewUrl) URL.revokeObjectURL(file.previewUrl);
@@ -1518,6 +1524,8 @@ const MessageBubble = React.memo(function MessageBubble({ message, deferOffscree
   const [copied, setCopied] = useState(false);
   const [isEditingUserMessage, setIsEditingUserMessage] = useState(false);
   const [userDraft, setUserDraft] = useState(message.content || '');
+  const [previewAttachment, setPreviewAttachment] = useState<AttachedFile | null>(null);
+  const [isAttachmentPreviewOpen, setIsAttachmentPreviewOpen] = useState(false);
   const userEditRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
@@ -1587,18 +1595,35 @@ const MessageBubble = React.memo(function MessageBubble({ message, deferOffscree
         )}
 
         {isUser && message.attachedFiles && message.attachedFiles.length > 0 && (
-          <div className="flex flex-wrap justify-end gap-2 mb-2">
-            {message.attachedFiles.map((file, idx: number) => (
-              <div key={idx} className="flex items-center gap-2 p-1.5 pr-2.5 bg-indigo-50 border border-indigo-100 rounded-xl shadow-sm max-w-[200px]">
-                <div className="w-8 h-8 shrink-0 bg-white border border-indigo-100 shadow-sm flex items-center justify-center rounded-lg">
-                  {getComposerFileIcon(file.ext, "w-4 h-4 text-indigo-600")}
-                </div>
-                <div className="flex flex-col min-w-0 pr-1">
-                  <span className="text-[11px] font-bold text-indigo-900 truncate block w-full">{file.name}</span>
-                  <span className="text-[9px] font-semibold text-indigo-600 uppercase tracking-wider">{file.ext}</span>
-                </div>
-              </div>
-            ))}
+          <div className="mb-2 flex flex-wrap justify-end gap-2">
+            {message.attachedFiles.map((file, idx: number) => {
+              const displayName = getComposerDisplayName(file.name);
+              return (
+                <button
+                  key={`${file.name}-${idx}`}
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setPreviewAttachment(file);
+                    setIsAttachmentPreviewOpen(true);
+                  }}
+                  aria-label={`Preview ${displayName}`}
+                  className="dc-attach-card flex max-w-[216px] cursor-pointer items-center gap-2 rounded-xl p-1.5 pr-3 text-left active:scale-[0.97]"
+                >
+                  <div className="dc-tools-icon-well h-8 w-8 rounded-lg">
+                    {getComposerFileIcon(file.ext, 'h-4 w-4')}
+                  </div>
+                  <div className="flex min-w-0 flex-col pr-1">
+                    <span className="block w-full truncate text-[11.5px] font-semibold text-[var(--dc-text-strong)]">
+                      {displayName}
+                    </span>
+                    <span className="text-[9.5px] font-semibold uppercase tracking-wider text-[var(--dc-text-muted)]">
+                      {file.ext}
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
           </div>
         )}
 
@@ -1761,6 +1786,12 @@ const MessageBubble = React.memo(function MessageBubble({ message, deferOffscree
           </div>
         )}
       </div>
+      <AttachmentPreviewModal
+        isOpen={isAttachmentPreviewOpen}
+        file={previewAttachment}
+        onClose={() => setIsAttachmentPreviewOpen(false)}
+        onExited={() => setPreviewAttachment(null)}
+      />
     </div>
   );
 }, (prev, next) => prev.message === next.message && prev.deferOffscreen === next.deferOffscreen && prev.canEditUserMessage === next.canEditUserMessage && prev.onEditUserMessage === next.onEditUserMessage && prev.isMobileActionsOpen === next.isMobileActionsOpen && prev.feedbackRating === next.feedbackRating);
