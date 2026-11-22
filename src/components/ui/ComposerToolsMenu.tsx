@@ -301,249 +301,80 @@ export function ComposerToolsMenu({
       ref={panelRef}
       role="menu"
       aria-label="Composer tools"
-      className="dc-tools-panel absolute bottom-full left-0 z-50 mb-3 w-[min(17.75rem,calc(100vw-24px))] origin-bottom-left p-1.5"
+      className="absolute bottom-full left-0 z-50 mb-3 w-[min(17.5rem,calc(100vw-24px))] origin-bottom-left"
     >
-      <div ref={viewRef}>
-        {view === 'main' && (
-          <div className="space-y-0.5">
-            <button
-              type="button"
-              disabled={isUploading}
-              onClick={onUpload}
-              onPointerEnter={(e) => {
-                if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, true, -10);
-              }}
-              onPointerLeave={(e) => {
-                if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, false, 0);
-              }}
-              className="dc-tools-row dc-tools-stagger group/row disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <span className="dc-tools-icon-well">
-                <Paperclip className="dc-tools-icon h-[16px] w-[16px]" strokeWidth={2.05} />
-              </span>
-              <span className="min-w-0 flex-1 whitespace-nowrap text-[13.5px] font-medium">
-                Add photos &amp; files
-              </span>
-              {uploadShortcut.length > 0 && (
-                <span className="shrink-0 text-[11px] font-semibold tracking-tight text-[var(--dc-text-faint)] opacity-0 transition-opacity duration-150 group-focus-visible/row:opacity-100 group-hover/row:opacity-100">
-                  {uploadShortcut.join('+')}
-                </span>
-              )}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => switchView('recent')}
-              onPointerEnter={(e) => {
-                if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, true);
-              }}
-              onPointerLeave={(e) => {
-                if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, false);
-              }}
-              className="dc-tools-row dc-tools-stagger"
-            >
-              <span className="dc-tools-icon-well">
-                <FileText className="dc-tools-icon h-[16px] w-[16px]" strokeWidth={2.05} />
-              </span>
-              <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">
-                Recent files
-              </span>
-              <ChevronRight className="dc-tools-chevron h-4 w-4 shrink-0 text-[var(--dc-text-muted)]" />
-            </button>
-
-            <div className="dc-tools-divider dc-tools-stagger" />
-
-            <button
-              type="button"
-              onClick={() => {
-                onToggleImageGeneration?.(!imageGenerationEnabled);
-                onClose();
-              }}
-              onPointerEnter={(e) => {
-                if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, true);
-              }}
-              onPointerLeave={(e) => {
-                if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, false);
-              }}
-              className={`dc-tools-row dc-tools-stagger ${imageGenerationEnabled ? 'dc-tools-row-active' : ''}`}
-            >
-              <span className="dc-tools-icon-well">
-                <ImageIcon className="dc-tools-icon h-[16px] w-[16px]" strokeWidth={2.05} />
-              </span>
-              <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">
-                Create image
-              </span>
-              <ToolsAnimatedCheckSvg active={Boolean(imageGenerationEnabled)} />
-            </button>
-
-            <button
-              type="button"
-              onClick={onClose}
-              onPointerEnter={(e) => {
-                if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, true);
-              }}
-              onPointerLeave={(e) => {
-                if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, false);
-              }}
-              className="dc-tools-row dc-tools-stagger"
-            >
-              <span className="dc-tools-icon-well">
-                <BookOpen className="dc-tools-icon h-[16px] w-[16px]" strokeWidth={2.05} />
-              </span>
-              <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">
-                Deep research
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                onToggleWebSearch?.(!webSearchEnabled);
-                onClose();
-              }}
-              onPointerEnter={(e) => {
-                if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, true);
-              }}
-              onPointerLeave={(e) => {
-                if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, false);
-              }}
-              className={`dc-tools-row dc-tools-stagger ${webSearchEnabled ? 'dc-tools-row-active' : ''}`}
-            >
-              <span className="dc-tools-icon-well">
-                <Globe className="dc-tools-icon h-[16px] w-[16px]" strokeWidth={2.05} />
-              </span>
-              <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">
-                Web search
-              </span>
-              <ToolsAnimatedCheckSvg active={Boolean(webSearchEnabled)} />
-            </button>
-
-            <button
-              type="button"
-              onClick={() => switchView('more')}
-              onPointerEnter={(e) => {
-                if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, true);
-              }}
-              onPointerLeave={(e) => {
-                if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, false);
-              }}
-              className="dc-tools-row dc-tools-stagger"
-            >
-              <span className="dc-tools-icon-well">
-                <MoreHorizontal className="dc-tools-icon h-[16px] w-[16px]" strokeWidth={2.05} />
-              </span>
-              <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">
-                More
-              </span>
-              <ChevronRight className="dc-tools-chevron h-4 w-4 shrink-0 text-[var(--dc-text-muted)]" />
-            </button>
-          </div>
-        )}
-
-        {view === 'recent' && (
-          <div>
-            <div className="mb-1 flex items-center justify-between gap-2 px-0.5 py-0.5">
-              <button
-                type="button"
-                onClick={() => switchView('main')}
-                className="dc-tools-back-btn"
-              >
-                <ChevronLeft className="h-3.5 w-3.5" strokeWidth={2.3} />
-                <span>Recent files</span>
-              </button>
-              <button
-                type="button"
-                onClick={openLibrary}
-                className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11.5px] font-semibold text-[var(--deepchat-accent)] transition-opacity hover:opacity-80"
-              >
-                <BookOpen className="h-3.5 w-3.5" />
-                <span>Library</span>
-              </button>
-            </div>
-
-            <div className="dc-tools-divider" />
-
-            {recentFiles.length > 0 ? (
-              <div className="custom-scrollbar max-h-60 space-y-0.5 overflow-y-auto pr-0.5">
-                {recentFiles.map((file) => (
-                  <button
-                    key={`${file.chatId}-${file.name}-${file.ext}`}
-                    type="button"
-                    onClick={() =>
-                      onAttachRecentFile({
-                        name: file.name,
-                        ext: file.ext,
-                        previewUrl: file.previewUrl,
-                        dataUrl: file.dataUrl,
-                        content: file.content,
-                        size: file.size,
-                      })
-                    }
-                    onPointerEnter={(e) => {
-                      if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, true);
-                    }}
-                    onPointerLeave={(e) => {
-                      if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, false);
-                    }}
-                    className="dc-tools-row dc-tools-stagger"
-                  >
-                    <span className="dc-tools-icon-well">
-                      <span className="dc-tools-icon flex items-center justify-center">
-                        {getFileIcon(file.ext, 'h-4 w-4')}
-                      </span>
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[13px] font-medium leading-5 text-[var(--dc-text-strong)]">
-                        {getDisplayName(file.name)}
-                      </span>
-                      <span className="block truncate text-[11px] font-medium leading-4 text-[var(--dc-text-muted)]">
-                        {formatRecentFileTime(file.addedAt)}
-                      </span>
-                    </span>
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <div className="px-3 py-7 text-center text-[12.5px] font-medium text-[var(--dc-text-muted)]">
-                No recent files yet
-              </div>
-            )}
-          </div>
-        )}
-
-        {view === 'more' && (
-          <div>
-            <div className="mb-1 flex items-center justify-between px-0.5 py-0.5">
-              <button
-                type="button"
-                onClick={() => switchView('main')}
-                className="dc-tools-back-btn"
-              >
-                <ChevronLeft className="h-3.5 w-3.5" strokeWidth={2.3} />
-                <span>More tools</span>
-              </button>
-            </div>
-
-            <div className="dc-tools-divider" />
-
+      <div className="dc-tools-panel max-h-[min(24rem,65dvh)] overflow-y-auto p-1.5 custom-scrollbar">
+        <div ref={viewRef}>
+          {view === 'main' && (
             <div className="space-y-0.5">
               <button
                 type="button"
-                onClick={onClose}
+                disabled={isUploading}
+                onClick={onUpload}
+                onPointerEnter={(e) => {
+                  if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, true, -10);
+                }}
+                onPointerLeave={(e) => {
+                  if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, false, 0);
+                }}
+                className="dc-tools-row dc-tools-stagger group/row min-h-[42px] active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-[38px]"
+              >
+                <span className="dc-tools-icon-well">
+                  <Paperclip className="dc-tools-icon h-[16px] w-[16px]" strokeWidth={2.05} />
+                </span>
+                <span className="min-w-0 flex-1 whitespace-nowrap text-[13.5px] font-medium">
+                  Add photos &amp; files
+                </span>
+                {uploadShortcut.length > 0 && (
+                  <span className="hidden shrink-0 text-[11px] font-semibold tracking-tight text-[var(--dc-text-faint)] opacity-0 transition-opacity duration-150 group-focus-visible/row:opacity-100 group-hover/row:opacity-100 sm:inline">
+                    {uploadShortcut.join('+')}
+                  </span>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => switchView('recent')}
                 onPointerEnter={(e) => {
                   if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, true);
                 }}
                 onPointerLeave={(e) => {
                   if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, false);
                 }}
-                className="dc-tools-row dc-tools-stagger"
+                className="dc-tools-row dc-tools-stagger min-h-[42px] active:scale-[0.985] sm:min-h-[38px]"
               >
                 <span className="dc-tools-icon-well">
-                  <SquareMousePointer className="dc-tools-icon h-[16px] w-[16px]" strokeWidth={2.05} />
+                  <FileText className="dc-tools-icon h-[16px] w-[16px]" strokeWidth={2.05} />
                 </span>
                 <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">
-                  Agent mode
+                  Recent files
                 </span>
+                <ChevronRight className="dc-tools-chevron h-4 w-4 shrink-0 text-[var(--dc-text-muted)]" />
+              </button>
+
+              <div className="dc-tools-divider dc-tools-stagger" />
+
+              <button
+                type="button"
+                onClick={() => {
+                  onToggleImageGeneration?.(!imageGenerationEnabled);
+                  onClose();
+                }}
+                onPointerEnter={(e) => {
+                  if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, true);
+                }}
+                onPointerLeave={(e) => {
+                  if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, false);
+                }}
+                className={`dc-tools-row dc-tools-stagger min-h-[42px] active:scale-[0.985] sm:min-h-[38px] ${imageGenerationEnabled ? 'dc-tools-row-active' : ''}`}
+              >
+                <span className="dc-tools-icon-well">
+                  <ImageIcon className="dc-tools-icon h-[16px] w-[16px]" strokeWidth={2.05} />
+                </span>
+                <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">
+                  Create image
+                </span>
+                <ToolsAnimatedCheckSvg active={Boolean(imageGenerationEnabled)} />
               </button>
 
               <button
@@ -555,19 +386,190 @@ export function ComposerToolsMenu({
                 onPointerLeave={(e) => {
                   if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, false);
                 }}
-                className="dc-tools-row dc-tools-stagger"
+                className="dc-tools-row dc-tools-stagger min-h-[42px] active:scale-[0.985] sm:min-h-[38px]"
               >
-                <span className="dc-tools-icon-well relative">
-                  <PenLine className="dc-tools-icon h-[16px] w-[16px]" strokeWidth={2.05} />
-                  <Plus className="absolute right-0.5 top-0.5 h-2.5 w-2.5 text-[var(--deepchat-accent)]" strokeWidth={2.5} />
+                <span className="dc-tools-icon-well">
+                  <BookOpen className="dc-tools-icon h-[16px] w-[16px]" strokeWidth={2.05} />
                 </span>
                 <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">
-                  Canvas
+                  Deep research
                 </span>
               </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  onToggleWebSearch?.(!webSearchEnabled);
+                  onClose();
+                }}
+                onPointerEnter={(e) => {
+                  if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, true);
+                }}
+                onPointerLeave={(e) => {
+                  if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, false);
+                }}
+                className={`dc-tools-row dc-tools-stagger min-h-[42px] active:scale-[0.985] sm:min-h-[38px] ${webSearchEnabled ? 'dc-tools-row-active' : ''}`}
+              >
+                <span className="dc-tools-icon-well">
+                  <Globe className="dc-tools-icon h-[16px] w-[16px]" strokeWidth={2.05} />
+                </span>
+                <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">
+                  Web search
+                </span>
+                <ToolsAnimatedCheckSvg active={Boolean(webSearchEnabled)} />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => switchView('more')}
+                onPointerEnter={(e) => {
+                  if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, true);
+                }}
+                onPointerLeave={(e) => {
+                  if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, false);
+                }}
+                className="dc-tools-row dc-tools-stagger min-h-[42px] active:scale-[0.985] sm:min-h-[38px]"
+              >
+                <span className="dc-tools-icon-well">
+                  <MoreHorizontal className="dc-tools-icon h-[16px] w-[16px]" strokeWidth={2.05} />
+                </span>
+                <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">
+                  More
+                </span>
+                <ChevronRight className="dc-tools-chevron h-4 w-4 shrink-0 text-[var(--dc-text-muted)]" />
+              </button>
             </div>
-          </div>
-        )}
+          )}
+
+          {view === 'recent' && (
+            <div>
+              <div className="mb-1 flex items-center justify-between gap-2 px-0.5 py-0.5">
+                <button
+                  type="button"
+                  onClick={() => switchView('main')}
+                  className="dc-tools-back-btn min-h-[34px]"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" strokeWidth={2.3} />
+                  <span>Recent files</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={openLibrary}
+                  className="inline-flex min-h-[34px] items-center gap-1 rounded-lg px-2 py-1 text-[11.5px] font-semibold text-[var(--deepchat-accent)] transition-opacity hover:opacity-80"
+                >
+                  <BookOpen className="h-3.5 w-3.5" />
+                  <span>Library</span>
+                </button>
+              </div>
+
+              <div className="dc-tools-divider" />
+
+              {recentFiles.length > 0 ? (
+                <div className="custom-scrollbar max-h-60 space-y-0.5 overflow-y-auto pr-0.5">
+                  {recentFiles.map((file) => (
+                    <button
+                      key={`${file.chatId}-${file.name}-${file.ext}`}
+                      type="button"
+                      onClick={() =>
+                        onAttachRecentFile({
+                          name: file.name,
+                          ext: file.ext,
+                          previewUrl: file.previewUrl,
+                          dataUrl: file.dataUrl,
+                          content: file.content,
+                          size: file.size,
+                        })
+                      }
+                      onPointerEnter={(e) => {
+                        if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, true);
+                      }}
+                      onPointerLeave={(e) => {
+                        if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, false);
+                      }}
+                      className="dc-tools-row dc-tools-stagger min-h-[44px] active:scale-[0.985]"
+                    >
+                      <span className="dc-tools-icon-well">
+                        <span className="dc-tools-icon flex items-center justify-center">
+                          {getFileIcon(file.ext, 'h-4 w-4')}
+                        </span>
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[13px] font-medium leading-5 text-[var(--dc-text-strong)]">
+                          {getDisplayName(file.name)}
+                        </span>
+                        <span className="block truncate text-[11px] font-medium leading-4 text-[var(--dc-text-muted)]">
+                          {formatRecentFileTime(file.addedAt)}
+                        </span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="px-3 py-7 text-center text-[12.5px] font-medium text-[var(--dc-text-muted)]">
+                  No recent files yet
+                </div>
+              )}
+            </div>
+          )}
+
+          {view === 'more' && (
+            <div>
+              <div className="mb-1 flex items-center justify-between px-0.5 py-0.5">
+                <button
+                  type="button"
+                  onClick={() => switchView('main')}
+                  className="dc-tools-back-btn min-h-[34px]"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" strokeWidth={2.3} />
+                  <span>More tools</span>
+                </button>
+              </div>
+
+              <div className="dc-tools-divider" />
+
+              <div className="space-y-0.5">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  onPointerEnter={(e) => {
+                    if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, true);
+                  }}
+                  onPointerLeave={(e) => {
+                    if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, false);
+                  }}
+                  className="dc-tools-row dc-tools-stagger min-h-[42px] active:scale-[0.985] sm:min-h-[38px]"
+                >
+                  <span className="dc-tools-icon-well">
+                    <SquareMousePointer className="dc-tools-icon h-[16px] w-[16px]" strokeWidth={2.05} />
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">
+                    Agent mode
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={onClose}
+                  onPointerEnter={(e) => {
+                    if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, true);
+                  }}
+                  onPointerLeave={(e) => {
+                    if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, false);
+                  }}
+                  className="dc-tools-row dc-tools-stagger min-h-[42px] active:scale-[0.985] sm:min-h-[38px]"
+                >
+                  <span className="dc-tools-icon-well relative">
+                    <PenLine className="dc-tools-icon h-[16px] w-[16px]" strokeWidth={2.05} />
+                    <Plus className="absolute right-0.5 top-0.5 h-2.5 w-2.5 text-[var(--deepchat-accent)]" strokeWidth={2.5} />
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">
+                    Canvas
+                  </span>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -828,44 +830,46 @@ export function ImageToolBadge({
       {isMenuRendered && (
         <div
           ref={menuRef}
-          className="dc-tools-panel absolute bottom-full left-0 z-[70] mb-2.5 w-[min(16rem,calc(100vw-24px))] origin-bottom-left p-1.5"
+          className="absolute bottom-full left-0 z-[70] mb-2.5 w-[min(15.5rem,calc(100vw-28px))] origin-bottom-left"
         >
-          <div className="space-y-0.5">
-            {ASPECT_RATIO_OPTIONS.map((option) => {
-              const active = aspectRatio === option.value;
-              return (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => {
-                    onAspectRatioChange?.(option.value);
-                    setIsOpen(false);
-                  }}
-                  onPointerEnter={(e) => {
-                    if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, true);
-                  }}
-                  onPointerLeave={(e) => {
-                    if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, false);
-                  }}
-                  className={`dc-tools-row dc-tools-stagger ${active ? 'dc-tools-row-active' : ''}`}
-                >
-                  <span className="dc-tools-icon-well">
-                    <span className="dc-tools-icon flex items-center justify-center">
-                      {option.icon}
+          <div className="dc-tools-panel max-h-[min(22rem,60dvh)] overflow-y-auto p-1.5 custom-scrollbar">
+            <div className="space-y-0.5">
+              {ASPECT_RATIO_OPTIONS.map((option) => {
+                const active = aspectRatio === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => {
+                      onAspectRatioChange?.(option.value);
+                      setIsOpen(false);
+                    }}
+                    onPointerEnter={(e) => {
+                      if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, true);
+                    }}
+                    onPointerLeave={(e) => {
+                      if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, false);
+                    }}
+                    className={`dc-tools-row dc-tools-stagger min-h-[42px] active:scale-[0.985] sm:min-h-[38px] ${active ? 'dc-tools-row-active' : ''}`}
+                  >
+                    <span className="dc-tools-icon-well">
+                      <span className="dc-tools-icon flex items-center justify-center">
+                        {option.icon}
+                      </span>
                     </span>
-                  </span>
-                  <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">
-                    {option.label}
-                  </span>
-                  {option.hint && (
-                    <span className="shrink-0 text-[11.5px] font-semibold text-[var(--dc-text-muted)]">
-                      {option.hint}
+                    <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">
+                      {option.label}
                     </span>
-                  )}
-                  <ToolsAnimatedCheckSvg active={active} />
-                </button>
-              );
-            })}
+                    {option.hint && (
+                      <span className="shrink-0 text-[11.5px] font-semibold text-[var(--dc-text-muted)]">
+                        {option.hint}
+                      </span>
+                    )}
+                    <ToolsAnimatedCheckSvg active={active} />
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}

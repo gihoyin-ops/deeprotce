@@ -2,7 +2,6 @@
 
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import NextImage from 'next/image';
-import dynamic from 'next/dynamic';
 import { useQuery } from '@tanstack/react-query';
 import { gsap } from 'gsap';
 import {
@@ -23,7 +22,6 @@ import {
 } from '@/components/ui/icons';
 import { getChats } from '@/app/actions';
 import { isShortcutEvent, useShortcutLabels } from '@/components/shortcuts';
-import { useIsMobileViewport } from '@/components/mobile/useIsMobileViewport';
 import ModelSelector from './ModelSelector';
 import Tooltip from './Tooltip';
 import { ComposerToolsMenu, ImageToolBadge, SearchToolBadge } from './ComposerToolsMenu';
@@ -35,11 +33,6 @@ import {
 } from '@/lib/settings/general-settings';
 import { type ImageAspectRatio } from '@/lib/images/image-aspect-ratio';
 import { deepchatQueryKeys } from '@/lib/query-keys';
-
-const MobileComposerToolsSheet = dynamic(
-  () => import('@/components/mobile/MobileComposerToolsSheet'),
-  { ssr: false }
-);
 
 export interface ComposerFile {
   name: string;
@@ -228,12 +221,10 @@ export default function ChatComposer({
   const hasAttachmentsInitRef = useRef(false);
   const prevAttachmentKeysRef = useRef<string[]>([]);
 
-  const isMobileViewport = useIsMobileViewport();
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [isDictating, setIsDictating] = useState(false);
   const [isAttachMenuOpen, setIsAttachMenuOpen] = useState(false);
   const [isAttachMenuRendered, setIsAttachMenuRendered] = useState(false);
-  const [hasOpenedMobileToolsSheet, setHasOpenedMobileToolsSheet] = useState(false);
   const [isDictationEnabled, setIsDictationEnabled] = useState(
     () => loadGeneralSettings().dictationEnabled
   );
@@ -593,7 +584,7 @@ export default function ChatComposer({
   }, []);
 
   useEffect(() => {
-    if (!isAttachMenuOpen || isMobileViewport) return;
+    if (!isAttachMenuOpen) return;
     const handlePointerDown = (event: PointerEvent) => {
       if (composerRef.current && !composerRef.current.contains(event.target as Node)) {
         setIsAttachMenuOpen(false);
@@ -608,7 +599,7 @@ export default function ChatComposer({
       document.removeEventListener('pointerdown', handlePointerDown);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isAttachMenuOpen, isMobileViewport]);
+  }, [isAttachMenuOpen]);
 
   useEffect(() => {
     const closeAttachMenu = () => setIsAttachMenuOpen(false);
@@ -635,11 +626,7 @@ export default function ChatComposer({
   const toggleAttachMenu = () => {
     const nextOpen = !isAttachMenuOpen;
     if (nextOpen) {
-      if (isMobileViewport) {
-        setHasOpenedMobileToolsSheet(true);
-      } else {
-        setIsAttachMenuRendered(true);
-      }
+      setIsAttachMenuRendered(true);
       window.dispatchEvent(new Event('closeModelSelector'));
     }
     setIsAttachMenuOpen(nextOpen);
@@ -785,7 +772,7 @@ export default function ChatComposer({
         </button>
       </Tooltip>
 
-      {isAttachMenuRendered && !isMobileViewport && (
+      {isAttachMenuRendered && (
         <ComposerToolsMenu
           isOpen={isAttachMenuOpen}
           onExited={() => setIsAttachMenuRendered(false)}
@@ -808,28 +795,6 @@ export default function ChatComposer({
             setIsAttachMenuOpen(false);
             onToggleImageGeneration?.(enabled);
           }}
-          onImageAspectRatioChange={onImageAspectRatioChange}
-          onClose={() => setIsAttachMenuOpen(false)}
-          getFileIcon={getComposerFileIcon}
-          getDisplayName={getComposerDisplayName}
-        />
-      )}
-
-      {isMobileViewport && (isAttachMenuOpen || hasOpenedMobileToolsSheet) && (
-        <MobileComposerToolsSheet
-          isOpen={isAttachMenuOpen}
-          isUploading={isUploading}
-          webSearchEnabled={webSearchEnabled}
-          imageGenerationEnabled={imageGenerationEnabled}
-          imageAspectRatio={imageAspectRatio}
-          recentFiles={recentFiles}
-          onUpload={openFilePicker}
-          onAttachRecentFile={(file) => {
-            onAttachRecentFile(file);
-            setIsAttachMenuOpen(false);
-          }}
-          onToggleWebSearch={(enabled) => onToggleWebSearch?.(enabled)}
-          onToggleImageGeneration={(enabled) => onToggleImageGeneration?.(enabled)}
           onImageAspectRatioChange={onImageAspectRatioChange}
           onClose={() => setIsAttachMenuOpen(false)}
           getFileIcon={getComposerFileIcon}
