@@ -2,11 +2,13 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Image from 'next/image';
+import { gsap } from 'gsap';
 import { getChat, saveMessage, uploadFile } from '@/app/actions';
 import MarkdownRenderer from '@/components/ui/MarkdownRenderer';
 import ChatComposer, { getComposerFileIcon } from '@/components/ui/ChatComposer';
 import DotRevealHeadline from '@/components/home/DotRevealHeadline';
 import Tooltip from '@/components/ui/Tooltip';
+import { prefersReducedMotion, triggerSubtleHaptic } from '@/components/mobile/gesture-utils';
 import {
   ChatGenerationSnapshot,
   type MCPUsageItem,
@@ -222,10 +224,85 @@ export default function ChatView({ chatId }: { chatId: string }) {
   const sendMessageRef = useRef<((text: string, overrideFiles?: AttachedFile[], overrideWebSearch?: boolean, overrideImageGeneration?: boolean, overrideImageAspectRatio?: ImageAspectRatio) => void | Promise<void>) | null>(null);
   const [activeUserMsgId, setActiveUserMsgId] = useState<string | null>(null);
   const [activeMobileActionMsgId, setActiveMobileActionMsgId] = useState<string | null>(null);
+  const [showScrollBottomBtn, setShowScrollBottomBtn] = useState(false);
+  const scrollBottomBtnRef = useRef<HTMLButtonElement>(null);
   const [composerReserve, setComposerReserve] = useState(160);
   const [feedbackMap, setFeedbackMap] = useState(() => getFeedbackMap());
   const [feedbackTarget, setFeedbackTarget] = useState<{ messageId: string; isError: boolean; rating: 'like' | 'dislike'; versionIndex: number } | null>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
+
+  // Mobile floating scroll-to-bottom visibility
+  useEffect(() => {
+    const scrollEl = scrollContainerRef.current;
+    if (!scrollEl) return;
+
+    const handleScroll = () => {
+      if (window.innerWidth >= 640) {
+        setShowScrollBottomBtn(false);
+        return;
+      }
+      const distFromBottom = scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight;
+      setShowScrollBottomBtn(distFromBottom > 220);
+    };
+
+    handleScroll();
+    scrollEl.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('resize', handleScroll);
+    return () => {
+      scrollEl.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', handleScroll);
+    };
+  }, [messages.length]);
+
+  // Animate floating scroll-to-bottom pill with GSAP
+  useEffect(() => {
+    const btnEl = scrollBottomBtnRef.current;
+    if (!btnEl) return;
+    const reduce = prefersReducedMotion();
+    gsap.killTweensOf(btnEl);
+    if (showScrollBottomBtn) {
+      gsap.fromTo(
+        btnEl,
+        { opacity: 0, y: reduce ? 0 : 12, scale: reduce ? 1 : 0.88 },
+        {
+          opacity: 1,
+          y: 0,
+          scale: 1,
+          duration: reduce ? 0.01 : 0.28,
+          ease: 'back.out(1.8)',
+          clearProps: 'transform',
+        }
+      );
+    } else {
+      gsap.to(btnEl, {
+        opacity: 0,
+        y: reduce ? 0 : 10,
+        scale: reduce ? 1 : 0.9,
+        duration: reduce ? 0.01 : 0.18,
+        ease: 'power2.in',
+      });
+    }
+  }, [showScrollBottomBtn]);
+
+  // Jump-to-message outline handler from MobileRightDrawer
+  useEffect(() => {
+    const handleJump = (event: Event) => {
+      const msgId = (event as CustomEvent<{ messageId?: string }>).detail?.messageId;
+      if (!msgId) return;
+      const el = document.getElementById(`msg-${msgId}`);
+      if (!el) return;
+      el.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'center' });
+      if (!prefersReducedMotion()) {
+        gsap.fromTo(
+          el,
+          { scale: 0.98 },
+          { scale: 1, duration: 0.45, ease: 'back.out(2)', clearProps: 'transform' }
+        );
+      }
+    };
+    window.addEventListener('deepchat:jump-to-message', handleJump);
+    return () => window.removeEventListener('deepchat:jump-to-message', handleJump);
+  }, []);
 
   // Keep the in-memory vote map in sync across tabs and after each submit.
   useEffect(() => subscribeFeedback(() => setFeedbackMap(getFeedbackMap())), [chatId]);
@@ -820,21 +897,23 @@ export default function ChatView({ chatId }: { chatId: string }) {
     <div className="deepchat-chat-view relative flex min-h-0 flex-1 flex-col bg-white text-black dark:bg-slate-950 dark:text-slate-100">
       <div
         ref={scrollContainerRef}
-        className={`flex-1 overflow-y-auto px-6 pb-4 pt-8 sm:px-14 sm:pb-6 sm:pt-12 ${showCustomScrollbar ? '[&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]' : 'custom-scrollbar'}`}
+        style={{ scrollPaddingBottom: composerReserve }}
+        className={`flex-1 overflow-y-auto px-4 pb-4 pt-4 sm:px-14 sm:pb-6 sm:pt-12 ${showCustomScrollbar ? '[&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]' : 'custom-scrollbar'}`}
       >
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-12 sm:gap-14" style={{ paddingBottom: composerReserve }}>
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-7 sm:gap-14" style={{ paddingBottom: composerReserve }}>
           {isChatHydrated && messages.length === 0 && !isLoading && (
             <div className="mt-24 flex flex-col items-center justify-center text-center">
               <DotRevealHeadline text="Start a new thought with DeepChat" ready size="compact" />
             </div>
           )}
 
-          {displayMessages.map((msg) => {
+          {displayMessages.map((msg, idx) => {
             const activeVersion = (msg.currentVersionIndex ?? (msg.versions ? msg.versions.length - 1 : 0)) + 1;
             return (
               <MessageBubble
                 key={msg.id}
                 message={msg}
+                deferOffscreen={idx < displayMessages.length - 6}
                 onRegenerate={() => handleRegenerate(msg.id)}
                 onSwitchVersion={(delta) => switchVersion(msg.id, delta)}
                 canEditUserMessage={msg.role === 'user' && msg.id === latestUserMessageId}
@@ -850,6 +929,28 @@ export default function ChatView({ chatId }: { chatId: string }) {
 
         </div>
       </div>
+
+      {/* Mobile Floating Scroll-to-Bottom Pill */}
+      <button
+        ref={scrollBottomBtnRef}
+        type="button"
+        onClick={() => {
+          triggerSubtleHaptic(6);
+          const el = scrollContainerRef.current;
+          if (!el) return;
+          el.scrollTo({
+            top: el.scrollHeight,
+            behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+          });
+        }}
+        aria-label="Scroll to bottom"
+        style={{ bottom: composerReserve + 12 }}
+        className={`fixed right-4 z-30 flex h-11 w-11 items-center justify-center rounded-full border border-[var(--dc-border)] bg-[var(--dc-surface)]/95 text-[var(--dc-text-strong)] shadow-lg backdrop-blur-md transition-transform active:scale-90 sm:hidden ${
+          showScrollBottomBtn ? 'pointer-events-auto' : 'pointer-events-none opacity-0'
+        }`}
+      >
+        <ChevronDown className="h-5 w-5" strokeWidth={2.25} />
+      </button>
 
       {showCustomScrollbar && (
         <div className="absolute right-4 top-1/2 z-30 hidden -translate-y-1/2 flex-col items-center justify-center animate-in fade-in zoom-in-95 duration-500 sm:flex">
@@ -878,7 +979,7 @@ export default function ChatView({ chatId }: { chatId: string }) {
         </div>
       )}
 
-      <div className="deepchat-composer-dock pointer-events-none absolute bottom-0 left-0 z-20 flex w-full flex-col items-center px-6 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-8 sm:px-8 sm:pb-7 sm:pt-10">
+      <div className="deepchat-composer-dock pointer-events-none absolute bottom-0 left-0 z-20 flex w-full flex-col items-center px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-6 sm:px-8 sm:pb-7 sm:pt-10">
         <div ref={composerContentRef} className="pointer-events-auto flex w-full max-w-[40rem] flex-col gap-2 sm:max-w-[50rem]">
           {activeClarificationMessage?.clarification ? (
             <ClarificationDock
@@ -1280,6 +1381,7 @@ function getSearchHost(url: string) {
 
 type MessageBubbleProps = {
   message: ChatMessage;
+  deferOffscreen?: boolean;
   onRegenerate?: () => void;
   onSwitchVersion?: (delta: number) => void;
   canEditUserMessage?: boolean;
@@ -1411,7 +1513,7 @@ function CopyActionIcon({ copied, className = 'h-4 w-4' }: { copied: boolean; cl
   return <Copy className={className} strokeWidth={2} />;
 }
 
-const MessageBubble = React.memo(function MessageBubble({ message, onRegenerate, onSwitchVersion, canEditUserMessage = false, onEditUserMessage, isMobileActionsOpen = false, onActivateMobileActions, feedbackRating = null, onLike, onDislike }: MessageBubbleProps) {
+const MessageBubble = React.memo(function MessageBubble({ message, deferOffscreen = false, onRegenerate, onSwitchVersion, canEditUserMessage = false, onEditUserMessage, isMobileActionsOpen = false, onActivateMobileActions, feedbackRating = null, onLike, onDislike }: MessageBubbleProps) {
   const isUser = message.role === 'user';
   const [copied, setCopied] = useState(false);
   const [isEditingUserMessage, setIsEditingUserMessage] = useState(false);
@@ -1463,7 +1565,7 @@ const MessageBubble = React.memo(function MessageBubble({ message, onRegenerate,
     <div
       id={`msg-${message.id}`}
       onClick={onActivateMobileActions}
-      className={`group/message flex w-full items-start ${isUser ? 'justify-end message-user' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2`}
+      className={`group/message flex w-full items-start ${isUser ? 'justify-end message-user' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 ${deferOffscreen ? 'dc-mob-msg-deferred' : ''}`}
     >
       <div className={`flex min-w-0 flex-col ${isUser ? 'max-w-[78%] items-end sm:max-w-[52%]' : 'w-full max-w-[44rem] items-start sm:max-w-[48rem]'}`}>
         {!isUser && message.reasoning && (
@@ -1502,7 +1604,7 @@ const MessageBubble = React.memo(function MessageBubble({ message, onRegenerate,
 
         {(standardContent || postMCPContent) ? (
           <div className={`max-w-full ${isUser
-            ? 'rounded-[1.45rem] bg-[#d7d7d7] px-5 py-3 text-black shadow-none sm:rounded-[1.65rem] sm:bg-[#aeeefa] sm:px-5 sm:py-3.5 dark:text-slate-100'
+            ? 'rounded-[20px] rounded-br-[6px] border border-[var(--dc-border-subtle)] bg-[var(--dc-fill)] px-4 py-2.5 text-[var(--dc-text-strong)] shadow-none sm:rounded-[1.65rem] sm:border-0 sm:bg-[#aeeefa] sm:px-5 sm:py-3.5 dark:text-slate-100'
             : message.isError
               ? 'px-1 py-1 text-red-600'
               : 'px-0 py-0 text-black dark:text-slate-100'
@@ -1538,7 +1640,7 @@ const MessageBubble = React.memo(function MessageBubble({ message, onRegenerate,
                 </div>
               </div>
             ) : isUser ? (
-              <div className="whitespace-pre-wrap break-words text-[18px] font-medium leading-relaxed sm:text-[17px]">
+              <div className="whitespace-pre-wrap break-words text-[15.5px] font-medium leading-[1.55] sm:text-[17px] sm:leading-relaxed">
                 {message.content}
               </div>
             ) : (
@@ -1562,12 +1664,12 @@ const MessageBubble = React.memo(function MessageBubble({ message, onRegenerate,
         )}
 
         {isUser && !isEditingUserMessage && (
-          <div className={`mt-1 flex h-8 max-w-full flex-wrap items-center justify-end gap-1 transition-opacity duration-200 sm:gap-1.5 sm:pointer-events-none sm:opacity-0 sm:group-hover/message:pointer-events-auto sm:group-hover/message:opacity-100 sm:group-focus-within/message:pointer-events-auto sm:group-focus-within/message:opacity-100 ${isMobileActionsOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`}>
+          <div className={`mt-1 flex min-h-9 max-w-full flex-wrap items-center justify-end gap-1 transition-opacity duration-200 sm:h-8 sm:min-h-0 sm:gap-1.5 sm:pointer-events-none sm:opacity-0 sm:group-hover/message:pointer-events-auto sm:group-hover/message:opacity-100 sm:group-focus-within/message:pointer-events-auto sm:group-focus-within/message:opacity-100 ${isMobileActionsOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`}>
             <MessageActionButton
               label={copied ? 'Copied' : 'Copy message'}
               tooltip={copied ? 'Copied' : 'Copy message'}
               onClick={handleCopy}
-              className="inline-flex items-center justify-center rounded-full p-1 text-[#aaa0a0] transition-colors hover:text-black"
+              className="inline-flex min-h-[38px] min-w-[38px] items-center justify-center rounded-full p-2 text-[#aaa0a0] transition-colors hover:text-black sm:min-h-0 sm:min-w-0 sm:p-1"
             >
               <CopyActionIcon copied={copied} />
             </MessageActionButton>
@@ -1576,7 +1678,7 @@ const MessageBubble = React.memo(function MessageBubble({ message, onRegenerate,
                 label="Edit message"
                 tooltip="Edit message"
                 onClick={startUserEdit}
-                className="inline-flex items-center justify-center rounded-full p-1 text-[#aaa0a0] transition-colors hover:text-black"
+                className="inline-flex min-h-[38px] min-w-[38px] items-center justify-center rounded-full p-2 text-[#aaa0a0] transition-colors hover:text-black sm:min-h-0 sm:min-w-0 sm:p-1"
               >
                 <Edit3 className="h-4 w-4" strokeWidth={2} />
               </MessageActionButton>
@@ -1585,7 +1687,7 @@ const MessageBubble = React.memo(function MessageBubble({ message, onRegenerate,
         )}
 
         {!isUser && !message.isStreaming && (
-          <div className={`mt-2 ml-0 flex min-h-8 max-w-full flex-wrap items-center gap-1.5 transition-opacity duration-200 sm:pointer-events-none sm:opacity-0 sm:group-hover/message:pointer-events-auto sm:group-hover/message:opacity-100 sm:group-focus-within/message:pointer-events-auto sm:group-focus-within/message:opacity-100 ${isMobileActionsOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-auto opacity-100 sm:pointer-events-none sm:opacity-0'}`}>
+          <div className={`mt-2 ml-0 flex min-h-9 max-w-full flex-wrap items-center gap-1 transition-opacity duration-200 sm:min-h-8 sm:gap-1.5 sm:pointer-events-none sm:opacity-0 sm:group-hover/message:pointer-events-auto sm:group-hover/message:opacity-100 sm:group-focus-within/message:pointer-events-auto sm:group-focus-within/message:opacity-100 ${isMobileActionsOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-auto opacity-100 sm:pointer-events-none sm:opacity-0'}`}>
             {hasVersions && (
               <div className="mr-1 flex items-center gap-1 rounded-full px-1 py-0.5">
                 <MessageActionButton
@@ -1593,7 +1695,7 @@ const MessageBubble = React.memo(function MessageBubble({ message, onRegenerate,
                   tooltip="Previous version"
                   onClick={() => onSwitchVersion && onSwitchVersion(-1)}
                   disabled={currentIdx === 0}
-                  className="rounded-full p-1 text-[#aaa0a0] transition-colors hover:text-black disabled:opacity-30"
+                  className="inline-flex min-h-[36px] min-w-[36px] items-center justify-center rounded-full p-1.5 text-[#aaa0a0] transition-colors hover:text-black disabled:opacity-30 sm:min-h-0 sm:min-w-0 sm:p-1"
                 >
                   <ChevronLeft className="w-4 h-4" strokeWidth={2.35} />
                 </MessageActionButton>
@@ -1605,7 +1707,7 @@ const MessageBubble = React.memo(function MessageBubble({ message, onRegenerate,
                   tooltip="Next version"
                   onClick={() => onSwitchVersion && onSwitchVersion(1)}
                   disabled={currentIdx === totalVersions - 1}
-                  className="rounded-full p-1 text-[#aaa0a0] transition-colors hover:text-black disabled:opacity-30"
+                  className="inline-flex min-h-[36px] min-w-[36px] items-center justify-center rounded-full p-1.5 text-[#aaa0a0] transition-colors hover:text-black disabled:opacity-30 sm:min-h-0 sm:min-w-0 sm:p-1"
                 >
                   <ChevronRight className="w-4 h-4" strokeWidth={2.35} />
                 </MessageActionButton>
@@ -1616,7 +1718,7 @@ const MessageBubble = React.memo(function MessageBubble({ message, onRegenerate,
               label={copied ? 'Copied' : 'Copy response'}
               tooltip={copied ? 'Copied' : 'Copy response'}
               onClick={handleCopy}
-              className="inline-flex items-center justify-center rounded-full p-1 text-[#aaa0a0] transition-colors hover:text-black"
+              className="inline-flex min-h-[38px] min-w-[38px] items-center justify-center rounded-full p-2 text-[#aaa0a0] transition-colors hover:text-black sm:min-h-0 sm:min-w-0 sm:p-1"
             >
               <CopyActionIcon copied={copied} className="h-4 w-4" />
             </MessageActionButton>
@@ -1625,7 +1727,7 @@ const MessageBubble = React.memo(function MessageBubble({ message, onRegenerate,
                 <MessageActionButton
                   label="Like response"
                   tooltip={feedbackRating === 'like' ? 'Feedback saved' : 'Like response'}
-                  className={`relative inline-flex items-center justify-center rounded-full p-1 transition-colors after:absolute after:-inset-1 after:content-[''] ${feedbackRating === 'like' ? 'text-[var(--deepchat-accent)] dark:text-[var(--deepchat-accent-text)]' : 'text-[#aaa0a0] hover:text-black'}`}
+                  className={`relative inline-flex min-h-[38px] min-w-[38px] items-center justify-center rounded-full p-2 transition-colors after:absolute after:-inset-1 after:content-[''] sm:min-h-0 sm:min-w-0 sm:p-1 ${feedbackRating === 'like' ? 'text-[var(--deepchat-accent)] dark:text-[var(--deepchat-accent-text)]' : 'text-[#aaa0a0] hover:text-black'}`}
                   ariaPressed={feedbackRating === 'like'}
                   onClick={onLike}
                 >
@@ -1636,7 +1738,7 @@ const MessageBubble = React.memo(function MessageBubble({ message, onRegenerate,
                 <MessageActionButton
                   label="Dislike response"
                   tooltip={feedbackRating === 'dislike' ? 'Feedback saved' : 'Dislike response'}
-                  className={`relative inline-flex items-center justify-center rounded-full p-1 transition-colors after:absolute after:-inset-1 after:content-[''] ${feedbackRating === 'dislike' ? 'text-[var(--deepchat-accent)] dark:text-[var(--deepchat-accent-text)]' : 'text-[#aaa0a0] hover:text-black'}`}
+                  className={`relative inline-flex min-h-[38px] min-w-[38px] items-center justify-center rounded-full p-2 transition-colors after:absolute after:-inset-1 after:content-[''] sm:min-h-0 sm:min-w-0 sm:p-1 ${feedbackRating === 'dislike' ? 'text-[var(--deepchat-accent)] dark:text-[var(--deepchat-accent-text)]' : 'text-[#aaa0a0] hover:text-black'}`}
                   ariaPressed={feedbackRating === 'dislike'}
                   onClick={onDislike}
                 >
@@ -1651,7 +1753,7 @@ const MessageBubble = React.memo(function MessageBubble({ message, onRegenerate,
                 label="Regenerate response"
                 tooltip="Regenerate response"
                 onClick={onRegenerate}
-                className="inline-flex items-center justify-center rounded-full p-1 text-[#aaa0a0] transition-colors hover:text-black"
+                className="inline-flex min-h-[38px] min-w-[38px] items-center justify-center rounded-full p-2 text-[#aaa0a0] transition-colors hover:text-black sm:min-h-0 sm:min-w-0 sm:p-1"
               >
                 <RefreshCw className="h-4 w-4" strokeWidth={2} />
               </MessageActionButton>
@@ -1661,4 +1763,4 @@ const MessageBubble = React.memo(function MessageBubble({ message, onRegenerate,
       </div>
     </div>
   );
-}, (prev, next) => prev.message === next.message && prev.canEditUserMessage === next.canEditUserMessage && prev.onEditUserMessage === next.onEditUserMessage && prev.isMobileActionsOpen === next.isMobileActionsOpen && prev.feedbackRating === next.feedbackRating);
+}, (prev, next) => prev.message === next.message && prev.deferOffscreen === next.deferOffscreen && prev.canEditUserMessage === next.canEditUserMessage && prev.onEditUserMessage === next.onEditUserMessage && prev.isMobileActionsOpen === next.isMobileActionsOpen && prev.feedbackRating === next.feedbackRating);

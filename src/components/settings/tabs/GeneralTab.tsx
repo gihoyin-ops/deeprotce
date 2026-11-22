@@ -1,11 +1,12 @@
 'use client';
 
 import CustomDropdown from '@/components/ui/CustomDropdown';
+import ToggleSwitch from '@/components/ui/ToggleSwitch';
 import { ACCENT_COLOR_OPTIONS, APPEARANCE_OPTIONS, CONTRAST_OPTIONS, type GeneralSettings } from '@/lib/settings/general-settings';
 import { LANGUAGE_OPTIONS } from '@/lib/settings/languages';
 import { MOBILE_LANGUAGE_OPTIONS, MOBILE_APPEARANCE_OPTIONS } from '../constants';
 import { ToggleRow, SettingRow, SettingsPanel, TabHeader } from '../primitives';
-import { MobileGeneralDropdown, MobileGeneralSelectRow } from '../mobile';
+import { IconMask, MobileGeneralDropdown, MobileGeneralSelectRow } from '../mobile';
 
 interface GeneralTabProps {
   settings: GeneralSettings;
@@ -47,10 +48,12 @@ export function GeneralTab({ settings, onChange }: GeneralTabProps) {
 // mobile general preferences layout
 function MobileGeneralSettings({ settings, onChange }: GeneralTabProps) {
   return (
-    <div className="sm:hidden">
+    <div className="space-y-6 sm:hidden">
       <section>
-        <p className="mb-4 px-1 text-[12px] font-semibold text-[#9b9b9b]">Theme</p>
-        <div className="space-y-[6px]">
+        <p className="mb-2.5 px-1 text-[12px] font-semibold uppercase tracking-wider text-[var(--dc-text-muted)]">
+          Theme
+        </p>
+        <div className="overflow-hidden rounded-[20px] border border-[var(--dc-border-subtle)] bg-[var(--dc-surface-muted)] divide-y divide-[var(--dc-border-subtle)]">
           <MobileGeneralSelectRow
             label="Appearance"
             icon="/icons/monitor.svg"
@@ -78,11 +81,20 @@ function MobileGeneralSettings({ settings, onChange }: GeneralTabProps) {
         </div>
       </section>
 
-      <section className="mt-7">
-        <p className="mb-4 px-1 text-[12px] font-semibold text-[#9b9b9b]">Language</p>
-        <div className="space-y-[6px]">
-          <div className="flex h-[51px] items-center justify-between rounded-[17px] bg-[#d9d9d9] px-4 dark:bg-slate-800">
-            <span className="truncate text-[12px] font-semibold leading-none text-black dark:text-slate-100">App language</span>
+      <section>
+        <p className="mb-2.5 px-1 text-[12px] font-semibold uppercase tracking-wider text-[var(--dc-text-muted)]">
+          Language
+        </p>
+        <div className="overflow-hidden rounded-[20px] border border-[var(--dc-border-subtle)] bg-[var(--dc-surface-muted)]">
+          <div className="flex min-h-[52px] items-center justify-between gap-3 px-4 py-2">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[var(--dc-surface)] text-[var(--dc-text-strong)] ring-1 ring-[var(--dc-border-subtle)]">
+                <IconMask icon="/icons/globe.svg" source="local" className="h-[17px] w-[17px] shrink-0" />
+              </span>
+              <span className="truncate text-[14px] font-semibold leading-none text-[var(--dc-text-strong)]">
+                App language
+              </span>
+            </div>
             <MobileGeneralDropdown
               value={settings.language}
               options={MOBILE_LANGUAGE_OPTIONS}
@@ -93,21 +105,29 @@ function MobileGeneralSettings({ settings, onChange }: GeneralTabProps) {
         </div>
       </section>
 
-      <section className="mt-7">
-        <p className="mb-4 px-1 text-[12px] font-semibold text-[#9b9b9b]">Input</p>
-        <div className="space-y-[6px]">
-          <label className="flex h-[51px] items-center justify-between rounded-[17px] bg-[#d9d9d9] px-4 dark:bg-slate-800">
-            <span className="truncate text-[12px] font-semibold leading-none text-black dark:text-slate-100">Enable dictation</span>
-            <input
-              type="checkbox"
-              className="h-5 w-5 accent-indigo-600"
+      <section>
+        <p className="mb-2.5 px-1 text-[12px] font-semibold uppercase tracking-wider text-[var(--dc-text-muted)]">
+          Input
+        </p>
+        <div className="overflow-hidden rounded-[20px] border border-[var(--dc-border-subtle)] bg-[var(--dc-surface-muted)]">
+          <div className="flex min-h-[52px] items-center justify-between gap-3 px-4 py-2">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[var(--dc-surface)] text-[var(--dc-text-strong)] ring-1 ring-[var(--dc-border-subtle)]">
+                <IconMask icon="/icons/mic.svg" source="local" className="h-[17px] w-[17px] shrink-0" />
+              </span>
+              <span className="truncate text-[14px] font-semibold leading-none text-[var(--dc-text-strong)]">
+                Enable dictation
+              </span>
+            </div>
+            <ToggleSwitch
+              size="mobile"
+              ariaLabel="Enable dictation"
               checked={settings.dictationEnabled}
-              onChange={event => onChange({ dictationEnabled: event.target.checked })}
+              onChange={checked => onChange({ dictationEnabled: checked })}
             />
-          </label>
+          </div>
         </div>
       </section>
-
     </div>
   );
 }

@@ -1,10 +1,17 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import QueryProvider from "@/components/QueryProvider";
 
 export const metadata: Metadata = {
   title: "DeepChat",
   description: "DeepChat is a AI Platform for Agentic",
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+  interactiveWidget: 'resizes-content',
 };
 
 import MainLayout from "@/components/MainLayout";

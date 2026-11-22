@@ -15,180 +15,29 @@ import { useShortcutLabels } from '@/components/shortcuts';
 import Tooltip from '@/components/ui/Tooltip';
 import { isImageGenerationModel } from '@/lib/images/image-generation';
 import {
+  DEFAULT_SELECTED_MODEL,
+  TIERS,
+  fetchLiveModels,
+  formatFrontendModelName,
+  getModelDescription,
+  loadStoredEffort,
+  loadStoredModel,
+  persistEffort,
+  persistModel,
+  toSelectedModel,
+  type ModelOption,
+  type SelectedModel,
+} from '@/lib/ai/model-selection';
+import {
   AnimatedCheckSvg,
   SliderWaveSvg,
   UltraPrismBorderSvg,
 } from './ModelSelectorVisuals';
 
-export interface SelectedModel {
-  id: string;
-  name: string;
-  connectionId: string;
-}
+export { formatFrontendModelName, getModelDescription };
+export type { SelectedModel, ModelOption };
 
-export interface ModelOption {
-  id: string;
-  name: string;
-  badge?: string;
-  description?: string;
-}
-
-interface Tier {
-  key: string;
-  valuetext: string;
-  speed: string;
-}
-
-const TIERS: Tier[] = [
-  { key: 'Light', valuetext: 'Light - fastest', speed: 'Ultra Fast' },
-  { key: 'Medium', valuetext: 'Medium - balanced', speed: 'Fast' },
-  { key: 'High', valuetext: 'High - smarter', speed: 'Thinking' },
-  { key: 'Extra High', valuetext: 'Extra High - much smarter', speed: 'Deep Thinking' },
-  { key: 'Ultra', valuetext: 'Ultra - smartest, consumes usage limits faster', speed: 'Max Reasoning' },
-];
-
-const LIVE_CHAT_CONNECTION_ID = 'live-chat';
-const LIVE_LITE_CONNECTION_ID = 'live-lite';
 const emptySubscribe = () => () => {};
-
-export const formatFrontendModelName = (modelId: string, modelName?: string): string => {
-  const target = (modelName || modelId || '').toLowerCase();
-  if (target.includes('gemma')) {
-    return 'Gemma 4';
-  }
-  if (target.includes('llama')) {
-    return 'Llama 4';
-  }
-  if (target.includes('gpt-4o')) {
-    return 'GPT-4o';
-  }
-  if (target.includes('gpt-4')) {
-    return 'GPT-4';
-  }
-  if (target.includes('claude-3-5') || target.includes('claude-3.5')) {
-    return 'Claude 3.5';
-  }
-  if (target.includes('claude')) {
-    return 'Claude 3';
-  }
-  if (target.includes('deepseek')) {
-    return 'DeepSeek R1';
-  }
-  const clean = (modelName || modelId).replace(/:[\w.-]+/g, '').replace(/[-_]/g, ' ').trim();
-  return clean ? clean.charAt(0).toUpperCase() + clean.slice(1) : modelId;
-};
-
-export const getModelDescription = (modelId: string, modelName?: string, rawDesc?: string): string => {
-  const target = `${modelId} ${modelName || ''}`.toLowerCase();
-  if (target.includes('gemma')) {
-    return 'Model by Google, specialized in deep reasoning, coding, and multilingual dialogue';
-  }
-  if (target.includes('llama')) {
-    return 'Model by Meta, specialized in versatile conversation, logic, and general knowledge';
-  }
-  if (target.includes('deepseek')) {
-    return 'Model by DeepSeek, specialized in advanced mathematics, code, and step-by-step logic';
-  }
-  if (target.includes('gpt-4o')) {
-    return 'Model by OpenAI, specialized in high-speed multimodal intelligence and complex tasks';
-  }
-  if (target.includes('gpt-4')) {
-    return 'Model by OpenAI, specialized in broad problem solving, writing, and deep analysis';
-  }
-  if (target.includes('claude-3-5') || target.includes('claude-3.5')) {
-    return 'Model by Anthropic, specialized in nuanced coding, detailed writing, and analysis';
-  }
-  if (target.includes('claude')) {
-    return 'Model by Anthropic, specialized in safe reasoning, creative tasks, and writing';
-  }
-  if (target.includes('gemini')) {
-    return 'Model by Google, specialized in multimodal processing and long-context reasoning';
-  }
-  if (target.includes('mistral') || target.includes('codestral')) {
-    return 'Model by Mistral AI, specialized in fast reasoning and concise generation';
-  }
-  if (target.includes('qwen')) {
-    return 'Model by Alibaba Cloud, specialized in multilingual reasoning and programming';
-  }
-  if (target.includes('phi')) {
-    return 'Model by Microsoft, specialized in compact high-efficiency reasoning';
-  }
-  if (rawDesc && rawDesc !== 'Main chat model' && rawDesc !== 'Fast & lightweight tasks') {
-    return rawDesc;
-  }
-  return 'High-performance AI model specialized in reasoning and conversational tasks';
-};
-
-const DEFAULT_FALLBACK_MODELS: ModelOption[] = [
-  {
-    id: 'gemma4:31b',
-    name: 'Gemma 4',
-    description: getModelDescription('gemma4:31b', 'Gemma 4'),
-  },
-  {
-    id: 'llama4:70b',
-    name: 'Llama 4',
-    description: getModelDescription('llama4:70b', 'Llama 4'),
-  },
-];
-
-const getConnectionIdForModel = (modelId: string): string => {
-  if (modelId.toLowerCase().includes('llama') || modelId.toLowerCase().includes('lite')) {
-    return LIVE_LITE_CONNECTION_ID;
-  }
-  return LIVE_CHAT_CONNECTION_ID;
-};
-
-const toSelectedModel = (option: ModelOption): SelectedModel => ({
-  id: option.id,
-  name: formatFrontendModelName(option.id, option.name),
-  connectionId: getConnectionIdForModel(option.id),
-});
-
-const persistModel = (model: SelectedModel) => {
-  try {
-    localStorage.setItem('selectedModelObj', JSON.stringify(model));
-    localStorage.setItem('selectedModel', model.id);
-  } catch {}
-};
-
-const loadStoredModel = (): SelectedModel | null => {
-  if (typeof window === 'undefined') return null;
-  try {
-    const saved = localStorage.getItem('selectedModelObj');
-    if (!saved) return null;
-    const parsed = JSON.parse(saved) as Partial<SelectedModel>;
-    if (!parsed.id) return null;
-    return {
-      id: parsed.id,
-      name: formatFrontendModelName(parsed.id, parsed.name),
-      connectionId: parsed.connectionId || getConnectionIdForModel(parsed.id),
-    };
-  } catch {
-    return null;
-  }
-};
-
-const loadStoredEffort = (): number => {
-  if (typeof window === 'undefined') return 1;
-  try {
-    const saved = localStorage.getItem('selectedModelEffort');
-    if (saved !== null) {
-      const parsed = parseInt(saved, 10);
-      if (!Number.isNaN(parsed) && parsed >= 0 && parsed <= 4) return parsed;
-    }
-  } catch {}
-  return 1;
-};
-
-const persistEffort = (index: number) => {
-  try {
-    localStorage.setItem('selectedModelEffort', String(index));
-  } catch {}
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('modelEffortChanged', { detail: index }));
-  }
-};
 
 interface Particle {
   x: number;
@@ -230,7 +79,7 @@ export default function ModelSelector({
   const [selectedModel, setSelectedModel] = useState<SelectedModel>(() => {
     const stored = loadStoredModel();
     if (stored && !isImageGenerationModel(stored.id)) return stored;
-    return { id: 'gemma4:31b', name: 'Gemma 4', connectionId: LIVE_CHAT_CONNECTION_ID };
+    return DEFAULT_SELECTED_MODEL;
   });
   const [tierIndex, setTierIndex] = useState<number>(() => loadStoredEffort());
   const [loading, setLoading] = useState(true);
@@ -297,51 +146,27 @@ export default function ModelSelector({
   // fetch env-defined models from api without remote lookup
   useEffect(() => {
     let cancelled = false;
-    fetch('/api/live/models', { cache: 'no-store' })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data: { default?: string; models?: ModelOption[] } | null) => {
-        if (cancelled) return;
-        const sourceList = data?.models && data.models.length > 0 ? data.models : DEFAULT_FALLBACK_MODELS;
-        const list = sourceList
-          .filter((m) => m.badge !== 'Image' && !isImageGenerationModel(m.id))
-          .map((m) => {
-            const formattedName = formatFrontendModelName(m.id, m.name);
-            return {
-              ...m,
-              name: formattedName,
-              description: getModelDescription(m.id, formattedName, m.description),
-            };
-          });
+    void fetchLiveModels().then((result) => {
+      if (cancelled) return;
+      const list = result.models;
+      setModels(list);
+      setLoading(false);
 
-        if (list.length === 0) {
-          setModels(DEFAULT_FALLBACK_MODELS);
-          setLoading(false);
-          return;
-        }
-        setModels(list);
-        setLoading(false);
-
-        const stored = loadStoredModel();
-        const found = stored && !isImageGenerationModel(stored.id) && list.find((m) => m.id === stored.id);
-        if (found) {
-          const fresh = toSelectedModel(found);
-          setSelectedModel(fresh);
-          persistModel(fresh);
-        } else {
-          const defId = data?.default || list[0].id;
-          const def = list.find((m) => m.id === defId) || list[0];
-          const next = toSelectedModel(def);
-          setSelectedModel(next);
-          persistModel(next);
-          window.dispatchEvent(new CustomEvent('modelSelected', { detail: next }));
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setModels(DEFAULT_FALLBACK_MODELS);
-          setLoading(false);
-        }
-      });
+      const stored = loadStoredModel();
+      const found = stored && !isImageGenerationModel(stored.id) && list.find((m) => m.id === stored.id);
+      if (found) {
+        const fresh = toSelectedModel(found);
+        setSelectedModel(fresh);
+        persistModel(fresh);
+      } else {
+        const defId = result.defaultId || list[0].id;
+        const def = list.find((m) => m.id === defId) || list[0];
+        const next = toSelectedModel(def);
+        setSelectedModel(next);
+        persistModel(next);
+        window.dispatchEvent(new CustomEvent('modelSelected', { detail: next }));
+      }
+    });
 
     return () => {
       cancelled = true;

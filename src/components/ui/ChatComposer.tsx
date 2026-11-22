@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import NextImage from 'next/image';
+import dynamic from 'next/dynamic';
 import { createPortal } from 'react-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -21,12 +22,18 @@ import {
 import { AnimatePresence, motion } from 'framer-motion';
 import { getChats } from '@/app/actions';
 import { isShortcutEvent, useShortcutLabels } from '@/components/shortcuts';
+import { useIsMobileViewport } from '@/components/mobile/useIsMobileViewport';
 import ModelSelector from './ModelSelector';
 import Tooltip from './Tooltip';
 import { ComposerToolsMenu, ImageToolBadge, SearchToolBadge } from './ComposerToolsMenu';
 import { getDictationLanguage, loadGeneralSettings, subscribeGeneralSettings } from '@/lib/settings/general-settings';
 import { type ImageAspectRatio } from '@/lib/images/image-aspect-ratio';
 import { deepchatQueryKeys } from '@/lib/query-keys';
+
+const MobileComposerToolsSheet = dynamic(
+  () => import('@/components/mobile/MobileComposerToolsSheet'),
+  { ssr: false }
+);
 
 export interface ComposerFile {
   name: string;
@@ -171,9 +178,11 @@ export default function ChatComposer({
   const dragDepthRef = useRef(0);
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const dictationBaseRef = useRef('');
+  const isMobileViewport = useIsMobileViewport();
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [isDictating, setIsDictating] = useState(false);
   const [isAttachMenuOpen, setIsAttachMenuOpen] = useState(false);
+  const [hasOpenedMobileToolsSheet, setHasOpenedMobileToolsSheet] = useState(false);
   const [isDictationEnabled, setIsDictationEnabled] = useState(() => loadGeneralSettings().dictationEnabled);
   const { data: recentFiles = [] } = useQuery<ComposerRecentFile[]>({
     queryKey: deepchatQueryKeys.recentFiles,
@@ -290,7 +299,7 @@ export default function ChatComposer({
   }, []);
 
   useEffect(() => {
-    if (!isAttachMenuOpen) return;
+    if (!isAttachMenuOpen || isMobileViewport) return;
     const handlePointerDown = (event: PointerEvent) => {
       if (composerRef.current && !composerRef.current.contains(event.target as Node)) setIsAttachMenuOpen(false);
     };
@@ -303,7 +312,7 @@ export default function ChatComposer({
       document.removeEventListener('pointerdown', handlePointerDown);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isAttachMenuOpen]);
+  }, [isAttachMenuOpen, isMobileViewport]);
 
   useEffect(() => {
     const closeAttachMenu = () => setIsAttachMenuOpen(false);
@@ -330,7 +339,10 @@ export default function ChatComposer({
   const toggleAttachMenu = () => {
     setIsAttachMenuOpen(open => {
       const nextOpen = !open;
-      if (nextOpen) window.dispatchEvent(new Event('closeModelSelector'));
+      if (nextOpen) {
+        if (isMobileViewport) setHasOpenedMobileToolsSheet(true);
+        window.dispatchEvent(new Event('closeModelSelector'));
+      }
       return nextOpen;
     });
   };
@@ -457,7 +469,7 @@ export default function ChatComposer({
         </motion.button>
       </Tooltip>
       <AnimatePresence>
-        {isAttachMenuOpen && (
+        {isAttachMenuOpen && !isMobileViewport && (
           <ComposerToolsMenu
             isUploading={isUploading}
             webSearchEnabled={webSearchEnabled}
@@ -485,6 +497,27 @@ export default function ChatComposer({
           />
         )}
       </AnimatePresence>
+      {isMobileViewport && (isAttachMenuOpen || hasOpenedMobileToolsSheet) && (
+        <MobileComposerToolsSheet
+          isOpen={isAttachMenuOpen}
+          isUploading={isUploading}
+          webSearchEnabled={webSearchEnabled}
+          imageGenerationEnabled={imageGenerationEnabled}
+          imageAspectRatio={imageAspectRatio}
+          recentFiles={recentFiles}
+          onUpload={openFilePicker}
+          onAttachRecentFile={(file) => {
+            onAttachRecentFile(file);
+            setIsAttachMenuOpen(false);
+          }}
+          onToggleWebSearch={(enabled) => onToggleWebSearch?.(enabled)}
+          onToggleImageGeneration={(enabled) => onToggleImageGeneration?.(enabled)}
+          onImageAspectRatioChange={onImageAspectRatioChange}
+          onClose={() => setIsAttachMenuOpen(false)}
+          getFileIcon={getComposerFileIcon}
+          getDisplayName={getComposerDisplayName}
+        />
+      )}
     </div>
   );
 
@@ -496,7 +529,7 @@ export default function ChatComposer({
   );
 
   const actionControls = (
-    <div className="flex min-w-0 shrink-0 items-center gap-2">
+    <div className="flex min-w-0 shrink-0 items-center gap-1.5 sm:gap-2">
       <div className="hidden min-w-0 sm:block sm:max-w-[15rem] lg:max-w-[16rem]">
         <ModelSelector desktopOnly variant="ghost" />
       </div>
@@ -506,6 +539,21 @@ export default function ChatComposer({
             <Mic className={`h-5 w-5 ${isDictating ? 'text-red-500' : ''}`} strokeWidth={2.35} />
           </IconButton>
         </div>
+      )}
+      {isDictationEnabled && !hasText && !hasAttachedFiles && !isBusy && (
+        <button
+          type="button"
+          onClick={toggleDictation}
+          aria-label={isDictating ? 'Stop dictation' : 'Dictate'}
+          aria-pressed={isDictating}
+          className={`flex h-9 w-9 items-center justify-center rounded-full transition-all active:scale-90 sm:hidden ${
+            isDictating
+              ? 'bg-red-500/15 text-red-500 ring-2 ring-red-500/35'
+              : 'text-[#303030] hover:bg-black/5 dark:text-slate-300 dark:hover:bg-white/10'
+          }`}
+        >
+          <Mic className={`h-[19px] w-[19px] ${isDictating ? 'animate-pulse' : ''}`} strokeWidth={2.2} />
+        </button>
       )}
       <Tooltip label={isBusy ? 'Stop generating' : 'Send prompt'} shortcuts={isBusy ? [] : [{ label: <CornerDownLeft className="h-3.5 w-3.5" strokeWidth={2.4} />, tone: 'icon' }]} side="bottom" align="end">
         <button
@@ -569,7 +617,7 @@ export default function ChatComposer({
           event.preventDefault();
           uploadFiles(files);
         }}
-        className={`relative bg-[#efeeee] transition-[background-color,border-radius] duration-200 ease-out dark:bg-slate-900 dark:ring-1 dark:ring-inset dark:ring-white/[0.06] dark:shadow-[0_18px_40px_-28px_rgba(0,0,0,0.9)] ${hasAttachedFiles || isToolComposerActive ? 'rounded-[26px]' : 'rounded-full'} ${isToolComposerActive ? 'px-4 py-3 sm:px-5 sm:py-3.5' : 'px-2 py-1'} ${isDraggingFile ? 'ring-2 ring-indigo-400 dark:ring-indigo-500/30' : ''}`}
+        className={`relative bg-[#efeeee] transition-[background-color,border-radius] duration-200 ease-out dark:bg-slate-900 dark:ring-1 dark:ring-inset dark:ring-white/[0.06] dark:shadow-[0_18px_40px_-28px_rgba(0,0,0,0.9)] rounded-[26px] ${isToolComposerActive ? 'px-4 py-3 sm:px-5 sm:py-3.5' : 'px-2 py-1'} ${isDraggingFile ? 'ring-2 ring-indigo-400 dark:ring-indigo-500/30' : ''}`}
       >
         <AnimatePresence initial={false}>
           {hasAttachedFiles && (

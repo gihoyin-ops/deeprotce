@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import Image from 'next/image';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   Bot, Search, Bell, Edit3, Folder, Download, Share2, MoreVertical,
   Settings,
@@ -11,11 +12,19 @@ import {
 } from '@/components/ui/icons';
 import Sidebar from './Sidebar';
 import { DeepChatWordmarkSvg } from './brand';
-import ModelSelector from './ui/ModelSelector';
+import MobileNavbar from './mobile/MobileNavbar';
+import { useIsMobileViewport } from './mobile/useIsMobileViewport';
+import {
+  hasBlockingModalOpen,
+  shouldIgnoreHorizontalSwipe,
+  triggerSubtleHaptic
+} from './mobile/gesture-utils';
+import type { MobileDrawerHandle, MobileRightDrawerTab } from './mobile/types';
 import { isShortcutEvent, ShortcutCombo, useShortcutLabels } from './shortcuts';
 import type { SettingsTab } from './SettingsModal';
 import toast, { Toaster } from 'react-hot-toast';
-import { getChat, deleteChat, shareChat, getUserProfile } from '@/app/actions';
+import { getChat, deleteChat, shareChat, getUserProfile, updateChatTitle, togglePinChat } from '@/app/actions';
+import { deepchatQueryKeys } from '@/lib/query-keys';
 import {
   addNotificationToInbox,
   clearNotificationInbox,
@@ -36,6 +45,18 @@ import { safeAvatarSource } from '@/lib/utils';
 const SettingsModal = dynamic(() => import('./SettingsModal'), {
   ssr: false,
   loading: () => <SettingsModalSkeleton />
+});
+
+const MobileSidebarDrawer = dynamic(() => import('./mobile/MobileSidebarDrawer'), {
+  ssr: false
+});
+
+const MobileRightDrawer = dynamic(() => import('./mobile/MobileRightDrawer'), {
+  ssr: false
+});
+
+const MobileModelSheet = dynamic(() => import('./mobile/MobileModelSheet'), {
+  ssr: false
 });
 
 function SettingsModalSkeleton() {
@@ -79,6 +100,7 @@ function SettingsModalSkeleton() {
 interface ChatData {
   title?: string;
   isShared?: boolean;
+  pinned?: boolean;
 }
 
 interface ChatUpdatedDetail {
@@ -110,19 +132,42 @@ const isSettingsTab = (value: unknown): value is SettingsTab => typeof value ===
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const hasActiveChat = pathname.startsWith('/chat');
   const isSharedChat = pathname.startsWith('/chat/s/');
+  const activeChatId = hasActiveChat && !isSharedChat ? pathname.split('/').pop() : undefined;
   const shortcuts = useShortcutLabels();
+  const isMobileViewport = useIsMobileViewport();
   const searchInputRef = useRef<HTMLInputElement>(null);
   const notificationRefs = useRef<Array<HTMLDivElement | null>>([]);
   const profileMenuRefs = useRef<Array<HTMLDivElement | null>>([]);
-  const mobileSwipeStartRef = useRef<{ x: number; y: number; edge: boolean } | null>(null);
+  const mainContentRef = useRef<HTMLDivElement>(null);
+  const leftDrawerRef = useRef<MobileDrawerHandle>(null);
+  const rightDrawerRef = useRef<MobileDrawerHandle>(null);
+  const mobileGestureRef = useRef<{
+    startX: number;
+    startY: number;
+    lastX: number;
+    lastTime: number;
+    velocityX: number;
+    isEdgeLeft: boolean;
+    isEdgeRight: boolean;
+    axis: 'none' | 'x' | 'y';
+    target: 'left' | 'right' | null;
+    panelWidth: number;
+    hapticFired: boolean;
+  } | null>(null);
 
   const initialSidebarOpen = pathname.startsWith('/chat');
   const [isSidebarOpen, setSidebarOpen] = useState(initialSidebarOpen);
   // restore after mount for hydration parity
   const sidebarPreferenceLoadedRef = useRef(false);
   const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isRightDrawerOpen, setRightDrawerOpen] = useState(false);
+  const [rightDrawerTab, setRightDrawerTab] = useState<MobileRightDrawerTab>('search');
+  const [mobileDrawersPrimed, setMobileDrawersPrimed] = useState(false);
+  const [isModelSheetOpen, setModelSheetOpen] = useState(false);
+  const [hasOpenedModelSheet, setHasOpenedModelSheet] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTab>('general');
   const [isNotificationOpen, setNotificationOpen] = useState(false);
@@ -152,15 +197,41 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     window.dispatchEvent(new Event('deepchat:new-home-prompt'));
     router.push('/');
     setMobileMenuOpen(false);
+    setRightDrawerOpen(false);
   }, [router]);
 
+  const openMobileLeftDrawer = useCallback(() => {
+    setMobileDrawersPrimed(true);
+    setRightDrawerOpen(false);
+    setMobileMenuOpen(true);
+  }, []);
+
+  const openMobileRightDrawer = useCallback(
+    (tab?: MobileRightDrawerTab) => {
+      setMobileDrawersPrimed(true);
+      setMobileMenuOpen(false);
+      setRightDrawerTab(tab || (hasActiveChat ? 'chat' : 'search'));
+      setRightDrawerOpen(true);
+    },
+    [hasActiveChat]
+  );
+
+  const openMobileModelSheet = useCallback(() => {
+    setHasOpenedModelSheet(true);
+    setModelSheetOpen(true);
+  }, []);
+
   const handleOpenSearch = useCallback(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 640) {
+      openMobileRightDrawer('search');
+      return;
+    }
     if (searchInputRef.current) {
       searchInputRef.current.focus();
       return;
     }
     toast('Search is available in chat view.');
-  }, []);
+  }, [openMobileRightDrawer]);
 
   const handleOpenActions = useCallback(() => {
     toast('Action menu is available from the composer tools.');
@@ -295,43 +366,192 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     return () => window.removeEventListener('keydown', handleShortcut);
   }, [handleCreateChat]);
 
+  // Idle-warm mobile drawer chunks so first swipe responds at 60fps
   useEffect(() => {
+    if (!isMobileViewport || mobileDrawersPrimed) return;
+    let cancelled = false;
+    const warm = () => {
+      if (!cancelled) setMobileDrawersPrimed(true);
+    };
+    const w = window as Window & {
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+      cancelIdleCallback?: (id: number) => void;
+    };
+    if (typeof w.requestIdleCallback === 'function') {
+      const id = w.requestIdleCallback(warm, { timeout: 900 });
+      return () => {
+        cancelled = true;
+        w.cancelIdleCallback?.(id);
+      };
+    }
+    const timer = window.setTimeout(warm, 500);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [isMobileViewport, mobileDrawersPrimed]);
+
+  // Listen to openModelSelector / closeModelSelector on mobile viewports
+  useEffect(() => {
+    const handleOpenModelSelector = () => {
+      if (!window.matchMedia('(max-width: 639px)').matches) return;
+      openMobileModelSheet();
+    };
+    const handleCloseModelSelector = () => {
+      if (!window.matchMedia('(max-width: 639px)').matches) return;
+      setModelSheetOpen(false);
+    };
+    window.addEventListener('openModelSelector', handleOpenModelSelector);
+    window.addEventListener('closeModelSelector', handleCloseModelSelector);
+    return () => {
+      window.removeEventListener('openModelSelector', handleOpenModelSelector);
+      window.removeEventListener('closeModelSelector', handleCloseModelSelector);
+    };
+  }, [openMobileModelSheet]);
+
+  // 1:1 Finger-tracked global edge & canvas horizontal gesture engine (< 640px only)
+  useEffect(() => {
+    if (!isMobileViewport) return;
+
     const handleTouchStart = (event: TouchEvent) => {
       if (window.innerWidth >= 640 || event.touches.length !== 1) return;
+      if (
+        isMobileMenuOpen ||
+        isRightDrawerOpen ||
+        isModelSheetOpen ||
+        isSettingsOpen ||
+        hasBlockingModalOpen() ||
+        shouldIgnoreHorizontalSwipe(event.target)
+      ) {
+        mobileGestureRef.current = null;
+        return;
+      }
+
       const touch = event.touches[0];
-      mobileSwipeStartRef.current = {
-        x: touch.clientX,
-        y: touch.clientY,
-        edge: touch.clientX <= 28
+      mobileGestureRef.current = {
+        startX: touch.clientX,
+        startY: touch.clientY,
+        lastX: touch.clientX,
+        lastTime: performance.now(),
+        velocityX: 0,
+        isEdgeLeft: touch.clientX <= 44,
+        isEdgeRight: touch.clientX >= window.innerWidth - 44,
+        axis: 'none',
+        target: null,
+        panelWidth: 320,
+        hapticFired: false,
       };
     };
 
-    const handleTouchEnd = (event: TouchEvent) => {
-      const start = mobileSwipeStartRef.current;
-      mobileSwipeStartRef.current = null;
-      if (!start || window.innerWidth >= 640 || event.changedTouches.length !== 1) return;
-      const touch = event.changedTouches[0];
-      const deltaX = touch.clientX - start.x;
-      const deltaY = Math.abs(touch.clientY - start.y);
-      if (!isMobileMenuOpen && start.edge && deltaX > 72 && deltaY < 64) {
-        setMobileMenuOpen(true);
+    const handleTouchMove = (event: TouchEvent) => {
+      const drag = mobileGestureRef.current;
+      if (!drag || window.innerWidth >= 640 || event.touches.length !== 1) return;
+
+      const touch = event.touches[0];
+      const dx = touch.clientX - drag.startX;
+      const dy = touch.clientY - drag.startY;
+
+      if (drag.axis === 'none') {
+        const minHorizontal =
+          (dx > 0 && drag.isEdgeLeft) || (dx < 0 && drag.isEdgeRight) ? 10 : 14;
+
+        if (Math.abs(dy) >= 10 && Math.abs(dy) >= Math.abs(dx)) {
+          drag.axis = 'y';
+          mobileGestureRef.current = null;
+          return;
+        }
+
+        if (Math.abs(dx) >= minHorizontal && Math.abs(dx) > Math.abs(dy) * 1.35) {
+          drag.axis = 'x';
+          drag.target = dx > 0 ? 'left' : 'right';
+          drag.panelWidth =
+            drag.target === 'left'
+              ? Math.min(window.innerWidth * 0.84, 340)
+              : Math.min(window.innerWidth * 0.86, 356);
+          setMobileDrawersPrimed(true);
+          if (drag.target === 'right') {
+            setRightDrawerTab(hasActiveChat ? 'chat' : 'search');
+          }
+        } else {
+          return;
+        }
       }
-      if (isMobileMenuOpen && deltaX < -72 && deltaY < 64) {
-        setMobileMenuOpen(false);
+
+      if (drag.axis !== 'x' || !drag.target) return;
+
+      const now = performance.now();
+      const dt = Math.max(1, now - drag.lastTime);
+      drag.velocityX = (touch.clientX - drag.lastX) / dt;
+      drag.lastX = touch.clientX;
+      drag.lastTime = now;
+
+      if (drag.target === 'left') {
+        const progress = Math.min(1, Math.max(0, dx / drag.panelWidth));
+        leftDrawerRef.current?.setDragProgress(progress);
+        if (progress >= 0.32 && !drag.hapticFired) {
+          drag.hapticFired = true;
+          triggerSubtleHaptic(8);
+        }
+      } else {
+        const progress = Math.min(1, Math.max(0, -dx / drag.panelWidth));
+        rightDrawerRef.current?.setDragProgress(progress);
+        if (progress >= 0.32 && !drag.hapticFired) {
+          drag.hapticFired = true;
+          triggerSubtleHaptic(8);
+        }
+      }
+    };
+
+    const handleTouchEnd = () => {
+      const drag = mobileGestureRef.current;
+      mobileGestureRef.current = null;
+      if (!drag || drag.axis !== 'x' || !drag.target) return;
+
+      const dx = drag.lastX - drag.startX;
+      if (drag.target === 'left') {
+        const progress = Math.min(1, Math.max(0, dx / drag.panelWidth));
+        if (progress >= 0.32 || drag.velocityX >= 0.42) {
+          leftDrawerRef.current?.snapOpen();
+          setMobileMenuOpen(true);
+        } else {
+          leftDrawerRef.current?.snapClose();
+          setMobileMenuOpen(false);
+        }
+      } else {
+        const progress = Math.min(1, Math.max(0, -dx / drag.panelWidth));
+        if (progress >= 0.32 || drag.velocityX <= -0.42) {
+          rightDrawerRef.current?.snapOpen();
+          setRightDrawerOpen(true);
+        } else {
+          rightDrawerRef.current?.snapClose();
+          setRightDrawerOpen(false);
+        }
       }
     };
 
     window.addEventListener('touchstart', handleTouchStart, { passive: true });
+    window.addEventListener('touchmove', handleTouchMove, { passive: true });
     window.addEventListener('touchend', handleTouchEnd, { passive: true });
+    window.addEventListener('touchcancel', handleTouchEnd, { passive: true });
     return () => {
       window.removeEventListener('touchstart', handleTouchStart);
+      window.removeEventListener('touchmove', handleTouchMove);
       window.removeEventListener('touchend', handleTouchEnd);
+      window.removeEventListener('touchcancel', handleTouchEnd);
     };
-  }, [isMobileMenuOpen]);
+  }, [
+    hasActiveChat,
+    isMobileMenuOpen,
+    isMobileViewport,
+    isModelSheetOpen,
+    isRightDrawerOpen,
+    isSettingsOpen,
+  ]);
 
   const [chatTitle, setChatTitle] = useState('');
   const [folderName, setFolderName] = useState('');
   const [isShared, setIsShared] = useState(false);
+  const [isActiveChatPinned, setIsActiveChatPinned] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -352,12 +572,14 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
               const chat = c as ChatData;
               setChatTitle(chat.title || 'New Chat');
               setIsShared(chat.isShared === true);
+              setIsActiveChatPinned(chat.pinned === true);
             }
           });
         } else {
           setChatTitle('New Chat');
           setFolderName('');
           setIsShared(false);
+          setIsActiveChatPinned(false);
         }
       }
     };
@@ -365,6 +587,39 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     window.addEventListener('chatUpdated', loadChat);
     return () => window.removeEventListener('chatUpdated', loadChat);
   }, [pathname, hasActiveChat]);
+
+  const handleRenameChat = useCallback(
+    async (nextTitle: string): Promise<boolean> => {
+      if (!activeChatId || activeChatId === 'new') return false;
+      const updated = await updateChatTitle(activeChatId, nextTitle);
+      if (!updated) {
+        toast.error('Failed to rename chat');
+        return false;
+      }
+      setChatTitle(nextTitle);
+      window.dispatchEvent(
+        new CustomEvent('chatUpdated', { detail: { chatId: activeChatId, title: nextTitle } })
+      );
+      void queryClient.invalidateQueries({ queryKey: deepchatQueryKeys.chats });
+      toast.success('Chat renamed');
+      return true;
+    },
+    [activeChatId, queryClient]
+  );
+
+  const handleTogglePinActiveChat = useCallback(async () => {
+    if (!activeChatId || activeChatId === 'new') return;
+    const updated = await togglePinChat(activeChatId);
+    if (updated) {
+      const nextPinned = Boolean((updated as ChatData).pinned);
+      setIsActiveChatPinned(nextPinned);
+      window.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chatId: activeChatId } }));
+      void queryClient.invalidateQueries({ queryKey: deepchatQueryKeys.chats });
+      toast.success(nextPinned ? 'Chat pinned' : 'Chat unpinned');
+    } else {
+      toast.error('Failed to update pin');
+    }
+  }, [activeChatId, queryClient]);
 
   const handleShareChat = async () => {
     setIsMenuOpen(false);
@@ -593,28 +848,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-white font-sans sm:flex-row dark:bg-slate-950">
-      <div className="relative z-20 flex h-[54px] shrink-0 items-center bg-white px-4 dark:bg-slate-950 sm:hidden">
-        <div className="flex items-center gap-2">
-          <button onClick={() => setMobileMenuOpen(true)} className="flex h-[35px] w-[35px] items-center justify-center rounded-[12px] bg-[#efeeee] active:scale-95 transition-transform dark:bg-slate-800/80" aria-label="Open menu">
-            <div className="flex flex-col items-start gap-[4px]">
-              <span className="h-[2.5px] w-[18px] rounded-full bg-[#303030] dark:bg-slate-200" />
-              <span className="h-[2.5px] w-[12px] rounded-full bg-[#303030] dark:bg-slate-200" />
-            </div>
-          </button>
-          <button
-            type="button"
-            onClick={() => window.dispatchEvent(new Event('openModelSelector'))}
-            className="flex h-[35px] items-center justify-center rounded-[12px] bg-[#efeeee] px-[16px] text-black active:scale-95 transition-transform dark:bg-slate-800/80 dark:text-white"
-            aria-label="Select model"
-          >
-            <span className="font-extrabold text-[15px] tracking-tight text-[#1a1a1a] dark:text-slate-100">DeepChat</span>
-          </button>
-          <button className="flex h-[35px] w-[35px] items-center justify-center rounded-[12px] bg-[#efeeee] text-[#303030] active:scale-95 transition-transform dark:bg-slate-800/80 dark:text-slate-200" aria-label="Search">
-            <Search className="h-[18px] w-[18px]" strokeWidth={2.5} />
-          </button>
-        </div>
-      </div>
-
       <Sidebar
         isOpen={isSidebarOpen}
         setIsOpen={setSidebarState}
@@ -625,7 +858,23 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         onOpenActions={handleOpenActions}
       />
 
-      <div className={`relative z-10 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${hasActiveChat ? 'bg-white shadow-none sm:m-0 sm:rounded-none sm:border-0 dark:bg-slate-950' : 'bg-white shadow-none sm:m-0 sm:rounded-none sm:border-0'}`}>
+      <div
+        ref={mainContentRef}
+        className={`relative z-10 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden sm:transition-all sm:duration-500 sm:ease-[cubic-bezier(0.22,1,0.36,1)] ${hasActiveChat ? 'bg-white shadow-none sm:m-0 sm:rounded-none sm:border-0 dark:bg-slate-950' : 'bg-white shadow-none sm:m-0 sm:rounded-none sm:border-0'}`}
+      >
+        <MobileNavbar
+          hasActiveChat={hasActiveChat}
+          activeChatId={activeChatId}
+          chatTitle={chatTitle}
+          unreadNotifications={unreadNotifications}
+          isLeftDrawerOpen={isMobileMenuOpen}
+          isRightDrawerOpen={isRightDrawerOpen}
+          isModelSheetOpen={isModelSheetOpen}
+          onOpenLeftDrawer={openMobileLeftDrawer}
+          onOpenRightDrawer={openMobileRightDrawer}
+          onOpenModelSheet={openMobileModelSheet}
+          onNewChat={handleCreateChat}
+        />
 
         {hasActiveChat && (
         <div className="hidden">
@@ -730,13 +979,54 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
       </div>
 
-      <ModelSelector renderTrigger={false} mobileOnly />
+      {isMobileViewport && (mobileDrawersPrimed || isMobileMenuOpen) && (
+        <MobileSidebarDrawer
+          ref={leftDrawerRef}
+          isOpen={isMobileMenuOpen}
+          onOpenChange={setMobileMenuOpen}
+          mainContentRef={mainContentRef}
+          onNewChat={handleCreateChat}
+          onOpenSettings={openSettings}
+        />
+      )}
+
+      {isMobileViewport && (mobileDrawersPrimed || isRightDrawerOpen) && (
+        <MobileRightDrawer
+          ref={rightDrawerRef}
+          isOpen={isRightDrawerOpen}
+          activeTab={rightDrawerTab}
+          onTabChange={setRightDrawerTab}
+          onOpenChange={setRightDrawerOpen}
+          mainContentRef={mainContentRef}
+          hasActiveChat={hasActiveChat}
+          activeChatId={activeChatId}
+          chatTitle={chatTitle}
+          isPinned={isActiveChatPinned}
+          onRenameChat={handleRenameChat}
+          onTogglePinChat={handleTogglePinActiveChat}
+          onShareChat={() => void handleShareChat()}
+          onDownloadChat={() => void handleDownloadChat()}
+          onDeleteChat={() => void handleDeleteChat()}
+          notifications={notifications}
+          unreadNotifications={unreadNotifications}
+          onMarkNotificationRead={markNotificationRead}
+          onMarkAllNotificationsRead={markAllNotificationsRead}
+          onClearNotifications={clearNotifications}
+        />
+      )}
+
+      {isMobileViewport && (isModelSheetOpen || hasOpenedModelSheet) && (
+        <MobileModelSheet
+          isOpen={isModelSheetOpen}
+          onClose={() => setModelSheetOpen(false)}
+        />
+      )}
 
       {isSettingsOpen && (
         <SettingsModal
           isOpen={isSettingsOpen}
           onClose={() => setIsSettingsOpen(false)}
-          onBackToSidebar={() => setMobileMenuOpen(true)}
+          onBackToSidebar={openMobileLeftDrawer}
           initialTab={settingsInitialTab}
         />
       )}

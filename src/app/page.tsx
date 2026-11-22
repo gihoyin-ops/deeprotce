@@ -12,7 +12,7 @@ import {
   ProductAnnouncementCard,
   type ProductAnnouncementActionType,
 } from '@/components/notify_annouce_products';
-import { defaultComposerToolState, saveComposerToolState } from '@/lib/agent/composer-tool-state';
+import { defaultComposerToolState, loadComposerToolState, saveComposerToolState } from '@/lib/agent/composer-tool-state';
 import { type ImageAspectRatio } from '@/lib/images/image-aspect-ratio';
 
 interface AttachedFile {
@@ -78,6 +78,10 @@ export default function WelcomePage() {
     const frame = window.requestAnimationFrame(() => {
       if (cancelled) return;
       setInput(localStorage.getItem('deepchat-draft-new') || '');
+      const toolState = loadComposerToolState();
+      setWebSearchEnabled(toolState.webSearchEnabled);
+      setImageGenerationEnabled(toolState.imageGenerationEnabled);
+      setImageAspectRatio(toolState.imageAspectRatio);
       setHeadlineIndex(current => pickHeadlineIndex(current));
       setIsClientStateLoaded(true);
     });
@@ -187,6 +191,16 @@ export default function WelcomePage() {
     }
   }, []);
 
+  useEffect(() => {
+    const activateImageTool = () => {
+      setWebSearchEnabled(false);
+      setImageGenerationEnabled(true);
+      focusComposerInput(true);
+    };
+    window.addEventListener('deepchat:activate-image-tool', activateImageTool);
+    return () => window.removeEventListener('deepchat:activate-image-tool', activateImageTool);
+  }, [focusComposerInput]);
+
   const handleAnnouncementOpenState = useCallback(
     (state: { checked: boolean; open: boolean }) => {
       setAnnouncementState(state);
@@ -273,12 +287,12 @@ export default function WelcomePage() {
         onOpenStateChange={handleAnnouncementOpenState}
       />
 
-      <div className="mx-auto my-auto flex w-full max-w-[46rem] shrink-0 flex-col items-center px-4 pb-12 pt-6 sm:px-6 sm:pb-16 sm:pt-10">
-        <div className="mb-8 flex w-full justify-center sm:mb-10">
+      <div className="flex min-h-full w-full max-w-[46rem] flex-col items-center px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-4 sm:mx-auto sm:my-auto sm:min-h-0 sm:shrink-0 sm:px-6 sm:pb-16 sm:pt-10">
+        <div className="flex w-full flex-1 flex-col items-center justify-center px-2 sm:mb-10 sm:flex-none sm:px-0">
           <DotRevealHeadline text={headline} ready={isHeadlineReady} />
         </div>
 
-        <div ref={composerWrapRef} className="dc-home-reveal-hidden relative z-30 w-full">
+        <div ref={composerWrapRef} className="dc-home-reveal-hidden relative z-30 w-full shrink-0">
           <div
             ref={composerPulseRef}
             className="dc-composer-focus-ring pointer-events-none absolute -inset-[3px] rounded-[29px] opacity-0"

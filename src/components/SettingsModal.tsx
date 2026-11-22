@@ -27,7 +27,8 @@ import {
   type NotificationEventSetting,
   type NotificationSettings
 } from '@/lib/settings/notification-settings';
-import { getMobileTabTitle, mobileDetailAnimationMs, modalAnimationMs } from './settings/constants';
+import { getMobileTabTitle, modalAnimationMs } from './settings/constants';
+import { prefersReducedMotion, triggerSubtleHaptic } from '@/components/mobile/gesture-utils';
 import { type GeneralSettings, loadGeneralSettings, saveGeneralSettings } from '@/lib/settings/general-settings';
 import { MobileSettingsHome } from './settings/mobile';
 import { GeneralTab } from './settings/tabs/GeneralTab';
@@ -93,6 +94,15 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
   const backdropRef = useRef<HTMLDivElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const mobileDetailRef = useRef<HTMLElement>(null);
+  const mobileSwipeBackRef = useRef<{
+    startX: number;
+    startY: number;
+    lastX: number;
+    lastTime: number;
+    velocityX: number;
+    axis: 'none' | 'x' | 'y';
+  } | null>(null);
 
   // tab data
   const [generalSettings, setGeneralSettings] = useState<GeneralSettings>(() => loadGeneralSettings());
@@ -313,6 +323,18 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
     }
   };
 
+  // GSAP mobile detail panel slide entrance (< 640px)
+  useEffect(() => {
+    if (!isOpen || !isMobileDetailOpen || typeof window === 'undefined' || window.innerWidth >= 640) return;
+    const detailEl = mobileDetailRef.current;
+    if (!detailEl || prefersReducedMotion()) return;
+    gsap.fromTo(
+      detailEl,
+      { x: '100%' },
+      { x: 0, duration: 0.3, ease: 'expo.out', clearProps: 'transform' }
+    );
+  }, [isOpen, isMobileDetailOpen]);
+
   const openMobileTab = (tab: SettingsTab) => {
     clearTimeout(mobileTimerRef.current);
     mobileTimerRef.current = undefined;
@@ -321,14 +343,103 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
     setIsMobileDetailOpen(true);
   };
 
-  const backToMobileMenu = () => {
+  const backToMobileMenu = useCallback(() => {
     if (isMobileDetailClosing) return;
-    setIsMobileDetailClosing(true);
-    mobileTimerRef.current = window.setTimeout(() => {
-      mobileTimerRef.current = undefined;
+    const detailEl = mobileDetailRef.current;
+    if (!detailEl || prefersReducedMotion() || (typeof window !== 'undefined' && window.innerWidth >= 640)) {
       setIsMobileDetailOpen(false);
       setIsMobileDetailClosing(false);
-    }, mobileDetailAnimationMs);
+      return;
+    }
+    setIsMobileDetailClosing(true);
+    gsap.to(detailEl, {
+      x: '100%',
+      duration: 0.24,
+      ease: 'power3.in',
+      onComplete: () => {
+        setIsMobileDetailOpen(false);
+        setIsMobileDetailClosing(false);
+        gsap.set(detailEl, { clearProps: 'transform' });
+      },
+    });
+  }, [isMobileDetailClosing]);
+
+  const handleMobileTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (typeof window === 'undefined' || window.innerWidth >= 640 || e.touches.length !== 1) return;
+    if (cropImage || isSharedLinksOpen || isArchivedOpen || isMemoriesOpen || confirm) return;
+    const t = e.touches[0];
+    if (t.clientX > 32) return;
+    mobileSwipeBackRef.current = {
+      startX: t.clientX,
+      startY: t.clientY,
+      lastX: t.clientX,
+      lastTime: performance.now(),
+      velocityX: 0,
+      axis: 'none',
+    };
+  };
+
+  const handleMobileTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    const drag = mobileSwipeBackRef.current;
+    if (!drag || e.touches.length !== 1) return;
+    const t = e.touches[0];
+    const dx = t.clientX - drag.startX;
+    const dy = t.clientY - drag.startY;
+
+    if (drag.axis === 'none') {
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      if (Math.abs(dx) > Math.abs(dy) * 1.35 && dx > 0) {
+        drag.axis = 'x';
+      } else {
+        mobileSwipeBackRef.current = null;
+        return;
+      }
+    }
+
+    const now = performance.now();
+    const dt = Math.max(1, now - drag.lastTime);
+    drag.velocityX = (t.clientX - drag.lastX) / dt;
+    drag.lastX = t.clientX;
+    drag.lastTime = now;
+
+    const targetEl = isMobileDetailOpen ? mobileDetailRef.current : modalRef.current;
+    if (targetEl) {
+      gsap.set(targetEl, { x: Math.max(0, dx) });
+    }
+  };
+
+  const handleMobileTouchEnd = () => {
+    const drag = mobileSwipeBackRef.current;
+    mobileSwipeBackRef.current = null;
+    if (!drag || drag.axis !== 'x') return;
+
+    const dx = Math.max(0, drag.lastX - drag.startX);
+    const targetEl = isMobileDetailOpen ? mobileDetailRef.current : modalRef.current;
+    if (!targetEl) return;
+
+    if (dx > 88 || drag.velocityX > 0.42) {
+      triggerSubtleHaptic(6);
+      if (isMobileDetailOpen) {
+        backToMobileMenu();
+      } else {
+        gsap.to(targetEl, {
+          x: '100%',
+          duration: prefersReducedMotion() ? 0.01 : 0.22,
+          ease: 'power3.in',
+          onComplete: () => {
+            onClose();
+            onBackToSidebar?.();
+          },
+        });
+      }
+    } else {
+      gsap.to(targetEl, {
+        x: 0,
+        duration: prefersReducedMotion() ? 0.01 : 0.28,
+        ease: 'expo.out',
+        clearProps: 'transform',
+      });
+    }
   };
 
   // general, profile, persona
@@ -588,6 +699,13 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
     >
       <div
         ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Settings"
+        onTouchStart={handleMobileTouchStart}
+        onTouchMove={handleMobileTouchMove}
+        onTouchEnd={handleMobileTouchEnd}
+        onTouchCancel={handleMobileTouchEnd}
         className="settings-root-panel deepchat-mobile-settings-light relative flex h-dvh w-full flex-col overflow-hidden bg-white shadow-xl will-change-transform sm:h-[min(92dvh,800px)] sm:max-w-5xl sm:flex-row sm:rounded-3xl sm:border sm:border-white/70 sm:bg-white dark:border-slate-700/80 dark:shadow-2xl dark:shadow-black/50"
         onClick={event => event.stopPropagation()}
       >
@@ -622,6 +740,7 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
 
         {/* Desktop Content Panel */}
         <section
+          ref={mobileDetailRef}
           key={isMobileDetailOpen ? activeTab : 'settings-content'}
           className={`${isMobileDetailOpen ? `settings-mobile-detail-panel ${isMobileDetailClosing ? 'settings-mobile-detail-panel-closing' : ''} flex` : 'hidden'} absolute inset-0 z-10 min-h-0 flex-1 flex-col bg-white sm:relative sm:inset-auto sm:z-auto sm:flex dark:bg-slate-900`}
         >
@@ -634,14 +753,24 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
               <X className="h-5 w-5" />
             </GsapMorphSvg>
           </button>
-          <button onClick={backToMobileMenu} className="absolute left-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-lg bg-[#efeeee] text-black transition-transform active:scale-95 dark:bg-slate-800 dark:text-slate-200 sm:hidden" aria-label="Back to settings menu">
-            <ArrowLeft className="h-4 w-4" strokeWidth={2.5} />
-          </button>
-          <h3 className="absolute left-14 right-14 top-3 z-10 flex h-8 items-center justify-center truncate text-center text-[22px] font-semibold leading-none text-black dark:text-slate-100 sm:hidden">
-            {getMobileTabTitle(activeTab)}
-          </h3>
 
-          <div ref={contentRef} className="flex-1 overflow-y-auto p-4 pt-14 custom-scrollbar sm:p-6 will-change-transform">
+          {/* Unified Mobile Settings Detail Header */}
+          <div className="dc-mob-navbar flex min-h-[56px] shrink-0 items-center justify-between px-2 pt-[env(safe-area-inset-top)] sm:hidden">
+            <button
+              type="button"
+              onClick={backToMobileMenu}
+              aria-label="Back to settings menu"
+              className="flex h-11 w-11 items-center justify-center rounded-full text-[var(--dc-text-strong)] transition-transform active:scale-90 hover:bg-[var(--dc-fill)]"
+            >
+              <ArrowLeft className="h-5 w-5" strokeWidth={2.2} />
+            </button>
+            <h3 className="truncate px-2 text-center text-[16px] font-semibold leading-none text-[var(--dc-text-strong)]">
+              {getMobileTabTitle(activeTab)}
+            </h3>
+            <div className="h-11 w-11 shrink-0" aria-hidden="true" />
+          </div>
+
+          <div ref={contentRef} className="flex-1 overflow-y-auto p-4 custom-scrollbar sm:p-6 will-change-transform">
             {activeTab === 'general' && <GeneralTab {...children.GeneralTab} />}
             {activeTab === 'profile' && <ProfileTab {...children.ProfileTab} />}
             {activeTab === 'personality' && <PersonalizationTab {...children.PersonalizationTab} />}
