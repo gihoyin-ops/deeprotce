@@ -12,6 +12,7 @@ import Tooltip from '@/components/ui/Tooltip';
 import { prefersReducedMotion, triggerSubtleHaptic } from '@/components/mobile/gesture-utils';
 import {
   ChatGenerationSnapshot,
+  type ImageEditRequestPayload,
   type MCPUsageItem,
   getChatGenerationState,
   startChatGeneration,
@@ -25,6 +26,8 @@ import { extractGeneratedImagesFromMarkdown, getGenerationMode, type ExtractedGe
 import { normalizeImageAspectRatio, type ImageAspectRatio } from '@/lib/images/image-aspect-ratio';
 import { defaultComposerToolState, loadComposerToolState, saveComposerToolState } from '@/lib/agent/composer-tool-state';
 import ImageGenerationStage from '@/components/chat/image-generation/ImageGenerationStage';
+import GeneratedImagePreviewModal from '@/components/chat/image-generation/GeneratedImagePreviewModal';
+import { type ImageStudioEditRequest, type ImageStudioMode } from '@/components/chat/image-generation/image-studio-export';
 import {
   Check, CheckCircle2, ChevronDown, ChevronRight, BrainCircuit, ChevronLeft, X, Cpu, Copy, RefreshCw, Edit3, ThumbsUp, ThumbsUpFill, ThumbsDown, ThumbsDownFill, Globe
 } from '@/components/ui/icons';
@@ -227,7 +230,13 @@ export default function ChatView({ chatId }: { chatId: string }) {
   const dotsContainerRef = useRef<HTMLDivElement>(null);
   const initialMsgProcessed = useRef(false);
   const messagesRef = useRef(messages);
-  const sendMessageRef = useRef<((text: string, overrideFiles?: AttachedFile[], overrideWebSearch?: boolean, overrideImageGeneration?: boolean, overrideImageAspectRatio?: ImageAspectRatio) => void | Promise<void>) | null>(null);
+  const sendMessageRef = useRef<((text: string, overrideFiles?: AttachedFile[], overrideWebSearch?: boolean, overrideImageGeneration?: boolean, overrideImageAspectRatio?: ImageAspectRatio, overrideImageEdit?: ImageEditRequestPayload) => void | Promise<void>) | null>(null);
+  const imageStudioSessionRef = useRef(0);
+  const [imageStudioPreview, setImageStudioPreview] = useState<{
+    sessionId: number;
+    image: ExtractedGeneratedImage;
+    initialMode: ImageStudioMode;
+  } | null>(null);
   const [activeUserMsgId, setActiveUserMsgId] = useState<string | null>(null);
   const [activeMobileActionMsgId, setActiveMobileActionMsgId] = useState<string | null>(null);
   const [showScrollBottomBtn, setShowScrollBottomBtn] = useState(false);
@@ -596,7 +605,7 @@ export default function ChatView({ chatId }: { chatId: string }) {
     };
   }, [chatId]);
 
-  const sendMessage = useCallback(async (text: string, overrideFiles?: AttachedFile[], overrideWebSearch?: boolean, overrideImageGeneration?: boolean, overrideImageAspectRatio?: ImageAspectRatio) => {
+  const sendMessage = useCallback(async (text: string, overrideFiles?: AttachedFile[], overrideWebSearch?: boolean, overrideImageGeneration?: boolean, overrideImageAspectRatio?: ImageAspectRatio, overrideImageEdit?: ImageEditRequestPayload) => {
     const filesToUse = overrideFiles || attachedFiles;
     const cleanFilesToUse = filesToUse.map(stripAttachedPreview);
     const useWebSearch = typeof overrideWebSearch === 'boolean' ? overrideWebSearch : webSearchEnabled;
@@ -617,7 +626,7 @@ export default function ChatView({ chatId }: { chatId: string }) {
     };
 
     const assistantMsgId = (Date.now() + 1).toString();
-    const generationMode = useImageGeneration ? 'image' : getSelectedGenerationMode();
+    const generationMode = useImageGeneration || overrideImageEdit ? 'image' : getSelectedGenerationMode();
     const assistantMessage = {
       id: assistantMsgId,
       role: 'assistant',
@@ -647,13 +656,55 @@ export default function ChatView({ chatId }: { chatId: string }) {
     const currentMessages = await getChat(chatId).then(c => (c as ChatPayload | null)?.messages || []);
     const apiMessages = [...currentMessages.filter((m) => m.id !== assistantMsgId)];
 
-    const snapshot = startChatGeneration(chatId, apiMessages, assistantMsgId);
+    const snapshot = startChatGeneration(chatId, apiMessages, assistantMsgId, overrideImageEdit);
     applyGenerationSnapshot(snapshot);
   }, [applyGenerationSnapshot, attachedFiles, chatId, imageAspectRatio, imageGenerationEnabled, isLoading, webSearchEnabled]);
 
   useEffect(() => {
     sendMessageRef.current = sendMessage;
   }, [sendMessage]);
+
+  const handleOpenGeneratedImagePreview = useCallback(
+    (image: ExtractedGeneratedImage, _index: number, initialMode: ImageStudioMode = 'view') => {
+      imageStudioSessionRef.current += 1;
+      setImageStudioPreview({
+        sessionId: imageStudioSessionRef.current,
+        image,
+        initialMode,
+      });
+    },
+    []
+  );
+
+  const handleSubmitImageStudioEdit = useCallback(
+    async (request: ImageStudioEditRequest) => {
+      setImageStudioPreview(null);
+      const sourceThumb: AttachedFile[] = request.thumbnailDataUrl
+        ? [
+            {
+              name: 'source-image.jpg',
+              ext: 'jpg',
+              dataUrl: request.thumbnailDataUrl,
+            },
+          ]
+        : [];
+      await sendMessage(
+        request.userDisplayText,
+        sourceThumb,
+        false,
+        true,
+        request.aspectRatio,
+        {
+          mode: request.mode,
+          prompt: request.modelPrompt,
+          sourceImageDataUrl: request.sourceImageDataUrl,
+          maskDataUrl: request.maskDataUrl,
+          annotatedDataUrl: request.annotatedDataUrl,
+        }
+      );
+    },
+    [sendMessage]
+  );
 
   const handleRegenerate = async (msgId: string) => {
     if (isLoading) return;
@@ -939,6 +990,7 @@ export default function ChatView({ chatId }: { chatId: string }) {
                 message={msg}
                 deferOffscreen={idx < displayMessages.length - 6}
                 requestedAspectRatio={requestedAspectRatio}
+                onOpenGeneratedImagePreview={handleOpenGeneratedImagePreview}
                 onRegenerate={() => handleRegenerate(msg.id)}
                 onSwitchVersion={(delta) => switchVersion(msg.id, delta)}
                 canEditUserMessage={msg.role === 'user' && msg.id === latestUserMessageId}
@@ -1055,6 +1107,18 @@ export default function ChatView({ chatId }: { chatId: string }) {
           initialDetails={feedbackFor(feedbackTarget.messageId, feedbackTarget.versionIndex)?.rating === feedbackTarget.rating ? (feedbackFor(feedbackTarget.messageId, feedbackTarget.versionIndex)?.details ?? '') : ''}
           onClose={closeFeedbackDialog}
           onSubmit={(rating, reasons, details) => handleDialogFeedbackSubmit(feedbackTarget.messageId, rating, reasons, details, feedbackTarget.versionIndex)}
+        />
+      )}
+
+      {imageStudioPreview && (
+        <GeneratedImagePreviewModal
+          key={`img-studio-${imageStudioPreview.sessionId}`}
+          isOpen
+          image={imageStudioPreview.image}
+          initialMode={imageStudioPreview.initialMode}
+          isBusy={isLoading}
+          onClose={() => setImageStudioPreview(null)}
+          onSubmitEdit={handleSubmitImageStudioEdit}
         />
       )}
     </div>
@@ -1408,6 +1472,11 @@ type MessageBubbleProps = {
   message: ChatMessage;
   deferOffscreen?: boolean;
   requestedAspectRatio?: ImageAspectRatio;
+  onOpenGeneratedImagePreview?: (
+    image: ExtractedGeneratedImage,
+    index: number,
+    initialMode?: ImageStudioMode
+  ) => void;
   onRegenerate?: () => void;
   onSwitchVersion?: (delta: number) => void;
   canEditUserMessage?: boolean;
@@ -1470,7 +1539,7 @@ function CopyActionIcon({ copied, className = 'h-4 w-4' }: { copied: boolean; cl
   return <Copy className={className} strokeWidth={2} />;
 }
 
-const MessageBubble = React.memo(function MessageBubble({ message, deferOffscreen = false, requestedAspectRatio, onRegenerate, onSwitchVersion, canEditUserMessage = false, onEditUserMessage, isMobileActionsOpen = false, onActivateMobileActions, feedbackRating = null, onLike, onDislike }: MessageBubbleProps) {
+const MessageBubble = React.memo(function MessageBubble({ message, deferOffscreen = false, requestedAspectRatio, onOpenGeneratedImagePreview, onRegenerate, onSwitchVersion, canEditUserMessage = false, onEditUserMessage, isMobileActionsOpen = false, onActivateMobileActions, feedbackRating = null, onLike, onDislike }: MessageBubbleProps) {
   const isUser = message.role === 'user';
   const [copied, setCopied] = useState(false);
   const [isEditingUserMessage, setIsEditingUserMessage] = useState(false);
@@ -1479,22 +1548,29 @@ const MessageBubble = React.memo(function MessageBubble({ message, deferOffscree
   const [isAttachmentPreviewOpen, setIsAttachmentPreviewOpen] = useState(false);
   const userEditRef = useRef<HTMLTextAreaElement | null>(null);
 
-  const handlePreviewGeneratedImage = useCallback((image: ExtractedGeneratedImage, index: number) => {
-    const src = image.src;
-    const mimeMatch = src.match(/^data:image\/([a-z0-9.+-]+)/i);
-    const pathMatch = src.split('?')[0]?.match(/\.([a-z0-9]+)$/i);
-    const ext = (mimeMatch?.[1] || pathMatch?.[1] || 'png')
-      .toLowerCase()
-      .replace('jpeg', 'jpg')
-      .replace('svg+xml', 'svg');
-    const name = `generated-image-${index + 1}.${ext}`;
-    setPreviewAttachment(
-      src.startsWith('data:')
-        ? { name, ext, dataUrl: src }
-        : { name, ext, previewUrl: src }
-    );
-    setIsAttachmentPreviewOpen(true);
-  }, []);
+  const handlePreviewGeneratedImage = useCallback(
+    (image: ExtractedGeneratedImage, index: number, initialMode: ImageStudioMode = 'view') => {
+      if (onOpenGeneratedImagePreview) {
+        onOpenGeneratedImagePreview(image, index, initialMode);
+        return;
+      }
+      const src = image.src;
+      const mimeMatch = src.match(/^data:image\/([a-z0-9.+-]+)/i);
+      const pathMatch = src.split('?')[0]?.match(/\.([a-z0-9]+)$/i);
+      const ext = (mimeMatch?.[1] || pathMatch?.[1] || 'png')
+        .toLowerCase()
+        .replace('jpeg', 'jpg')
+        .replace('svg+xml', 'svg');
+      const name = `generated-image-${index + 1}.${ext}`;
+      setPreviewAttachment(
+        src.startsWith('data:')
+          ? { name, ext, dataUrl: src }
+          : { name, ext, previewUrl: src }
+      );
+      setIsAttachmentPreviewOpen(true);
+    },
+    [onOpenGeneratedImagePreview]
+  );
 
   useEffect(() => {
     if (!isEditingUserMessage) return;
@@ -1791,4 +1867,4 @@ const MessageBubble = React.memo(function MessageBubble({ message, deferOffscree
       />
     </div>
   );
-}, (prev, next) => prev.message === next.message && prev.deferOffscreen === next.deferOffscreen && prev.requestedAspectRatio === next.requestedAspectRatio && prev.canEditUserMessage === next.canEditUserMessage && prev.onEditUserMessage === next.onEditUserMessage && prev.isMobileActionsOpen === next.isMobileActionsOpen && prev.feedbackRating === next.feedbackRating);
+}, (prev, next) => prev.message === next.message && prev.deferOffscreen === next.deferOffscreen && prev.requestedAspectRatio === next.requestedAspectRatio && prev.onOpenGeneratedImagePreview === next.onOpenGeneratedImagePreview && prev.canEditUserMessage === next.canEditUserMessage && prev.onEditUserMessage === next.onEditUserMessage && prev.isMobileActionsOpen === next.isMobileActionsOpen && prev.feedbackRating === next.feedbackRating);

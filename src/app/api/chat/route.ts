@@ -37,7 +37,7 @@ import {
   type MCPRuntimeUsageItem
 } from '@/lib/mcp/mcp-runtime';
 import { assertEgressUrl } from '@/lib/security/url-guard';
-import { validateChatBody } from '@/lib/security/limits';
+import { MAX_ATTACHMENT_BYTES, MAX_MESSAGE_CHARS, validateChatBody } from '@/lib/security/limits';
 import { checkUsageBudget, recordTokens } from '@/lib/security/usage';
 import { completeChatTokens, estimateChatPromptTokens, meterSseBody } from '@/lib/security/usage-meter';
 import { getClientIp } from '@/lib/security/rate-limit';
@@ -407,6 +407,58 @@ const inlineRemoteGeneratedImages = async (images: GeneratedImageOutput[]) => {
     }
   }
   return inlined;
+};
+
+const DATA_URL_IMAGE_PATTERN = /^data:(image\/(?:png|jpeg|jpg|webp));base64,([a-z0-9+/=\s]+)$/i;
+
+type ValidImageEditPayload = {
+  mode: 'edit' | 'annotate' | 'resize' | 'remove';
+  prompt: string;
+  sourceImageDataUrl: string;
+  maskDataUrl?: string;
+  annotatedDataUrl?: string;
+};
+
+const isValidImageEditDataUrl = (value: unknown): value is string => {
+  if (typeof value !== 'string') return false;
+  const match = value.trim().match(DATA_URL_IMAGE_PATTERN);
+  if (!match) return false;
+  const estimatedBytes = Math.ceil((match[2].replace(/\s+/g, '').length * 3) / 4);
+  return estimatedBytes > 0 && estimatedBytes <= MAX_ATTACHMENT_BYTES;
+};
+
+const normalizeImageEditPayload = (value: unknown): ValidImageEditPayload | null => {
+  if (!value || typeof value !== 'object') return null;
+  const obj = value as Record<string, unknown>;
+  const mode = obj.mode;
+  if (mode !== 'edit' && mode !== 'annotate' && mode !== 'resize' && mode !== 'remove') {
+    return null;
+  }
+  if (!isValidImageEditDataUrl(obj.sourceImageDataUrl)) return null;
+  if (obj.maskDataUrl !== undefined && !isValidImageEditDataUrl(obj.maskDataUrl)) return null;
+  if (obj.annotatedDataUrl !== undefined && !isValidImageEditDataUrl(obj.annotatedDataUrl)) return null;
+  const prompt = typeof obj.prompt === 'string' ? obj.prompt.trim().slice(0, MAX_MESSAGE_CHARS) : '';
+  return {
+    mode,
+    prompt,
+    sourceImageDataUrl: obj.sourceImageDataUrl.trim(),
+    maskDataUrl: typeof obj.maskDataUrl === 'string' ? obj.maskDataUrl.trim() : undefined,
+    annotatedDataUrl: typeof obj.annotatedDataUrl === 'string' ? obj.annotatedDataUrl.trim() : undefined,
+  };
+};
+
+const dataUrlToImageBlob = (dataUrl: string): { blob: Blob; filename: string } | null => {
+  const match = dataUrl.trim().match(DATA_URL_IMAGE_PATTERN);
+  if (!match) return null;
+  const mime = match[1].toLowerCase() === 'image/jpg' ? 'image/jpeg' : match[1].toLowerCase();
+  const base64Body = match[2].replace(/\s+/g, '');
+  const bytes = Buffer.from(base64Body, 'base64');
+  if (bytes.byteLength === 0 || bytes.byteLength > MAX_ATTACHMENT_BYTES) return null;
+  const ext = mime === 'image/jpeg' ? 'jpg' : mime === 'image/webp' ? 'webp' : 'png';
+  return {
+    blob: new Blob([bytes], { type: mime }),
+    filename: `image.${ext}`,
+  };
 };
 
 const parseProviderError = (message: string): string | null => {
@@ -859,10 +911,16 @@ export async function POST(req: Request) {
       skipAgentLoop?: boolean;
       skipRuntimeIntegrations?: boolean;
       imageAspectRatio?: ImageAspectRatio;
+      imageEdit?: unknown;
       injectedPrompt?: string;
       usageKey?: string;
     };
-    const { messages, modelId, connectionId, mcpServers, tools, skipAgentLoop, skipRuntimeIntegrations, imageAspectRatio, injectedPrompt } = payload;
+    const { messages, modelId, connectionId, mcpServers, tools, skipAgentLoop, skipRuntimeIntegrations, imageAspectRatio, imageEdit, injectedPrompt } = payload;
+
+    const validImageEdit = imageEdit !== undefined ? normalizeImageEditPayload(imageEdit) : null;
+    if (imageEdit !== undefined && !validImageEdit) {
+      return NextResponse.json({ error: 'Invalid image edit payload.' }, { status: 400 });
+    }
 
     const violation = validateChatBody(payload);
     if (violation) {
@@ -977,23 +1035,72 @@ export async function POST(req: Request) {
       input: latestUserMessage
     };
 
-    if (requestedImageGeneration || isImageGenerationModel(selectedModel)) {
+    if (requestedImageGeneration || isImageGenerationModel(selectedModel) || validImageEdit) {
       const liveImage = getLiveImageConfig();
       // server image endpoint is env-provisioned only; client strings must not select base or model
       if (!liveImage) {
         return NextResponse.json({ error: 'The image feature is not configured on the server. Everything else is fine, try without an image.' }, { status: 400 });
       }
-      const prompt = getImageGenerationPrompt(messages);
+      const prompt = validImageEdit?.prompt || getImageGenerationPrompt(messages);
       const imageModel = liveImage.model;
-      const body = getOpenAIImageRequestBody(imageModel, prompt, requestedAspectRatio);
-      const res = await fetch(`${liveImage.baseUrl}/v1/images/generations`, {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          Authorization: `Bearer ${liveImage.apiKey}`
-        },
-        body: JSON.stringify(body)
-      });
+
+      let res: Response | null = null;
+      if (validImageEdit) {
+        const primaryUrl =
+          validImageEdit.mode === 'annotate' && validImageEdit.annotatedDataUrl
+            ? validImageEdit.annotatedDataUrl
+            : validImageEdit.sourceImageDataUrl;
+        const primaryFile = dataUrlToImageBlob(primaryUrl);
+        if (primaryFile) {
+          const formData = new FormData();
+          formData.append('model', imageModel);
+          formData.append('prompt', prompt);
+          formData.append('n', '1');
+          formData.append('size', getOpenAIImageSize(imageModel, requestedAspectRatio));
+          formData.append('image', primaryFile.blob, primaryFile.filename);
+
+          if (validImageEdit.maskDataUrl) {
+            const maskFile = dataUrlToImageBlob(validImageEdit.maskDataUrl);
+            if (maskFile) {
+              formData.append('mask', maskFile.blob, 'mask.png');
+            }
+          }
+
+          if (!/\bgpt-image\b/i.test(imageModel)) {
+            formData.append('response_format', 'b64_json');
+          }
+
+          const editRes = await fetch(`${liveImage.baseUrl}/v1/images/edits`, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${liveImage.apiKey}`
+            },
+            body: formData
+          });
+
+          if (editRes.ok) {
+            res = editRes;
+          } else if (editRes.status === 404 || editRes.status === 405 || editRes.status === 501) {
+            const upstreamBody = await getRouteResponseError(editRes);
+            logUpstreamFailure(editRes.status, upstreamBody);
+          } else {
+            res = editRes;
+          }
+        }
+      }
+
+      if (!res) {
+        const body = getOpenAIImageRequestBody(imageModel, prompt, requestedAspectRatio);
+        res = await fetch(`${liveImage.baseUrl}/v1/images/generations`, {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            Authorization: `Bearer ${liveImage.apiKey}`
+          },
+          body: JSON.stringify(body)
+        });
+      }
+
       if (!res.ok) {
         const upstreamBody = await getRouteResponseError(res);
         logUpstreamFailure(res.status, upstreamBody);

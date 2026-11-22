@@ -3,10 +3,11 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import NextImage from 'next/image';
 import { gsap } from 'gsap';
-import { Download, Maximize2 } from '@/components/ui/icons';
+import { Download, Maximize2, PenLine } from '@/components/ui/icons';
 import { prefersReducedMotion } from '@/components/mobile/gesture-utils';
 import { type ExtractedGeneratedImage } from '@/lib/images/image-generation';
 import { type ImageAspectRatio } from '@/lib/images/image-aspect-ratio';
+import { downloadImageSrc, type ImageStudioMode } from './image-studio-export';
 import AbstractStudioCanvas from './AbstractStudioCanvas';
 import ZenSnakeCanvas from './ZenSnakeCanvas';
 
@@ -19,7 +20,11 @@ export interface ImageGenerationStageProps {
   isGenerating: boolean;
   images: ExtractedGeneratedImage[];
   requestedAspectRatio?: ImageAspectRatio;
-  onPreviewImage?: (image: ExtractedGeneratedImage, index: number) => void;
+  onPreviewImage?: (
+    image: ExtractedGeneratedImage,
+    index: number,
+    initialMode?: ImageStudioMode
+  ) => void;
 }
 
 interface BoxSize {
@@ -156,59 +161,6 @@ function computeStageDimensions(
     width: Math.round(w),
     height: Math.round(h),
   };
-}
-
-function getExtensionFromImageSrc(src: string): string {
-  const dataMatch = src.match(/^data:image\/([a-z0-9.+-]+)/i);
-  if (dataMatch) {
-    return dataMatch[1].toLowerCase().replace('jpeg', 'jpg').replace('svg+xml', 'svg');
-  }
-  const pathMatch = src.split('?')[0]?.match(/\.([a-z0-9]+)$/i);
-  if (pathMatch) {
-    return pathMatch[1].toLowerCase();
-  }
-  return 'png';
-}
-
-async function downloadGeneratedImage(src: string, index: number) {
-  const ext = getExtensionFromImageSrc(src);
-  const filename = `deepchat-image-${index + 1}.${ext}`;
-
-  if (src.startsWith('data:')) {
-    try {
-      const commaIdx = src.indexOf(',');
-      const header = src.slice(0, commaIdx);
-      const body = src.slice(commaIdx + 1);
-      const mimeMatch = header.match(/^data:([^;]+)/i);
-      const mime = mimeMatch?.[1] || 'image/png';
-      const binary = atob(body);
-      const bytes = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i += 1) {
-        bytes[i] = binary.charCodeAt(i);
-      }
-      const blob = new Blob([bytes], { type: mime });
-      const blobUrl = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.setTimeout(() => URL.revokeObjectURL(blobUrl), 1200);
-      return;
-    } catch {
-      // Fall through to direct link download if base64 decoding fails
-    }
-  }
-
-  const link = document.createElement('a');
-  link.href = src;
-  link.download = filename;
-  link.target = '_blank';
-  link.rel = 'noopener noreferrer';
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
 }
 
 export default function ImageGenerationStage({
@@ -587,7 +539,16 @@ export default function ImageGenerationStage({
               <div className="dc-img-studio-actions pointer-events-auto absolute right-2.5 top-2.5 z-20 flex items-center gap-1.5">
                 <button
                   type="button"
-                  onClick={() => void downloadGeneratedImage(primaryImage.src, 0)}
+                  onClick={() => onPreviewImage?.(primaryImage, 0, 'edit')}
+                  aria-label="Edit generated image"
+                  title="Edit image"
+                  className="dc-img-studio-pill inline-flex h-8 w-8 items-center justify-center rounded-full shadow-sm active:scale-95"
+                >
+                  <PenLine className="h-3.5 w-3.5" strokeWidth={2.2} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => downloadImageSrc(primaryImage.src, 0)}
                   aria-label="Download generated image"
                   title="Download image"
                   className="dc-img-studio-pill inline-flex h-8 w-8 items-center justify-center rounded-full shadow-sm active:scale-95"
@@ -596,7 +557,7 @@ export default function ImageGenerationStage({
                 </button>
                 <button
                   type="button"
-                  onClick={() => onPreviewImage?.(primaryImage, 0)}
+                  onClick={() => onPreviewImage?.(primaryImage, 0, 'view')}
                   aria-label="Preview full size"
                   title="Expand image"
                   className="dc-img-studio-pill inline-flex h-8 w-8 items-center justify-center rounded-full shadow-sm active:scale-95"
@@ -617,7 +578,7 @@ export default function ImageGenerationStage({
               key={`${img.src.slice(0, 48)}-${idx}`}
               image={img}
               index={idx + 1}
-              onPreview={() => onPreviewImage?.(img, idx + 1)}
+              onPreview={(initialMode) => onPreviewImage?.(img, idx + 1, initialMode)}
             />
           ))}
         </div>
@@ -633,7 +594,7 @@ function SecondaryGeneratedImageCard({
 }: {
   image: ExtractedGeneratedImage;
   index: number;
-  onPreview: () => void;
+  onPreview: (initialMode?: ImageStudioMode) => void;
 }) {
   const [size, setSize] = useState<{ width: number; height: number } | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -647,7 +608,7 @@ function SecondaryGeneratedImageCard({
     >
       <button
         type="button"
-        onClick={onPreview}
+        onClick={() => onPreview('view')}
         aria-label={`Expand ${image.alt || `generated image ${index + 1}`}`}
         className={`relative block h-full w-full cursor-zoom-in border-0 bg-transparent p-0 text-left transition-opacity duration-300 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--dc-studio-clay)] ${
           loaded ? 'opacity-100' : 'opacity-0'
@@ -673,7 +634,16 @@ function SecondaryGeneratedImageCard({
       <div className="dc-img-studio-actions pointer-events-auto absolute right-2 top-2 z-20 flex items-center gap-1.5">
         <button
           type="button"
-          onClick={() => void downloadGeneratedImage(image.src, index)}
+          onClick={() => onPreview('edit')}
+          aria-label={`Edit generated image ${index + 1}`}
+          title="Edit image"
+          className="dc-img-studio-pill inline-flex h-8 w-8 items-center justify-center rounded-full shadow-sm active:scale-95"
+        >
+          <PenLine className="h-3.5 w-3.5" strokeWidth={2.2} />
+        </button>
+        <button
+          type="button"
+          onClick={() => downloadImageSrc(image.src, index)}
           aria-label={`Download generated image ${index + 1}`}
           title="Download image"
           className="dc-img-studio-pill inline-flex h-8 w-8 items-center justify-center rounded-full shadow-sm active:scale-95"
@@ -682,7 +652,7 @@ function SecondaryGeneratedImageCard({
         </button>
         <button
           type="button"
-          onClick={onPreview}
+          onClick={() => onPreview('view')}
           aria-label={`Preview generated image ${index + 1}`}
           title="Expand image"
           className="dc-img-studio-pill inline-flex h-8 w-8 items-center justify-center rounded-full shadow-sm active:scale-95"

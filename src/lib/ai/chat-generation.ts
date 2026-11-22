@@ -116,6 +116,14 @@ export interface ChatGenerationSnapshot {
   status: 'running' | 'completed' | 'stopped' | 'error';
 }
 
+export interface ImageEditRequestPayload {
+  mode: 'edit' | 'annotate' | 'resize' | 'remove';
+  prompt: string;
+  sourceImageDataUrl: string;
+  maskDataUrl?: string;
+  annotatedDataUrl?: string;
+}
+
 interface ChatGenerationTask {
   chatId: string;
   assistantMsgId: string;
@@ -134,6 +142,7 @@ interface ChatGenerationTask {
   stopRequested: boolean;
   connection: SelectedModelConnection | null;
   generationMode?: GenerationMode;
+  imageEdit?: ImageEditRequestPayload;
   promise?: Promise<void>;
   lastEmittedAt: number;
   pendingEmit: ReturnType<typeof setTimeout> | null;
@@ -680,7 +689,10 @@ const consumeStream = async (task: ChatGenerationTask, res: Response) => {
 const runTask = async (task: ChatGenerationTask) => {
   try {
     const latestUserMessage = getLatestUserMessage(task.apiMessages);
-    const toolDecision = await decideBackendTools(task.apiMessages, latestUserMessage, task.connection, task.controller.signal);
+    const isImageTask = task.generationMode === 'image' || Boolean(task.imageEdit);
+    const toolDecision = isImageTask
+      ? { useSearch: false, source: 'heuristic' as const }
+      : await decideBackendTools(task.apiMessages, latestUserMessage, task.connection, task.controller.signal);
     const formattedMessages = formatMessages(task.apiMessages);
     const injectedPrompt = await getInjectedSystemPrompt('', latestUserMessage?.content || '');
     const res = await fetch('/api/chat', {
@@ -692,6 +704,7 @@ const runTask = async (task: ChatGenerationTask) => {
         modelId: task.connection?.id,
         injectedPrompt,
         imageAspectRatio: normalizeImageAspectRatio(latestUserMessage?.imageAspectRatio),
+        imageEdit: task.imageEdit,
         mcpServers: getEnabledMCPRuntimeServers(),
         tools: getEnabledToolRuntimeItems(toolDecision.useSearch)
       }),
@@ -719,7 +732,12 @@ const runTask = async (task: ChatGenerationTask) => {
   }
 };
 
-export const startChatGeneration = (chatId: string, apiMessages: ChatApiMessage[], assistantMsgId: string) => {
+export const startChatGeneration = (
+  chatId: string,
+  apiMessages: ChatApiMessage[],
+  assistantMsgId: string,
+  imageEdit?: ImageEditRequestPayload
+) => {
   const existing = tasks.get(chatId);
   if (existing) return getSnapshot(existing);
   const selectedConnection = getSelectedConnection();
@@ -740,7 +758,11 @@ export const startChatGeneration = (chatId: string, apiMessages: ChatApiMessage[
     status: 'running',
     stopRequested: false,
     connection: selectedConnection,
-    generationMode: shouldRequestImageGeneration(getLatestUserMessage(apiMessages)) ? 'image' : getGenerationMode(selectedConnection?.id),
+    generationMode:
+      imageEdit || shouldRequestImageGeneration(getLatestUserMessage(apiMessages))
+        ? 'image'
+        : getGenerationMode(selectedConnection?.id),
+    imageEdit,
     lastEmittedAt: 0,
     pendingEmit: null
   };
