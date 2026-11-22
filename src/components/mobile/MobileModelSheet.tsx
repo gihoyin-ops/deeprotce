@@ -9,7 +9,6 @@ import {
   SliderWaveSvg,
 } from '@/components/ui/ModelSelectorVisuals';
 import {
-  getModelProvider,
   useSelectedModelState,
   type ModelOption,
 } from '@/lib/ai/model-selection';
@@ -534,7 +533,6 @@ export default function MobileModelSheet({ isOpen, onClose }: MobileModelSheetPr
   const fillStyle = {
     width: `calc(17px + ${effectivePos} * (100% - 34px) + 17px)`,
   };
-  const activeProvider = getModelProvider(selectedModel.id, selectedModel.name);
 
   return createPortal(
     <div
@@ -569,14 +567,9 @@ export default function MobileModelSheet({ isOpen, onClose }: MobileModelSheetPr
 
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <h2 className="truncate text-[17px] font-semibold tracking-tight text-[var(--dc-text-strong)]">
-                  {selectedModel.name}
-                </h2>
-                <span className="shrink-0 rounded-full border border-[var(--dc-border)] bg-[var(--dc-fill)] px-2 py-0.5 text-[11px] font-semibold text-[var(--dc-text-muted)]">
-                  {activeProvider}
-                </span>
-              </div>
+              <h2 className="truncate text-[17px] font-semibold tracking-tight text-[var(--dc-text-strong)]">
+                {selectedModel.name}
+              </h2>
               <p
                 className={`mt-0.5 text-[12px] ${
                   isUltra
@@ -712,7 +705,6 @@ export default function MobileModelSheet({ isOpen, onClose }: MobileModelSheetPr
             ) : models.length > 0 ? (
               models.map((m) => {
                 const isSelected = m.id === selectedModel.id;
-                const provider = getModelProvider(m.id, m.name);
                 return (
                   <button
                     key={m.id}
@@ -728,22 +720,17 @@ export default function MobileModelSheet({ isOpen, onClose }: MobileModelSheetPr
                     }`}
                   >
                     <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <span
-                          className={`text-[14.5px] font-semibold leading-tight ${
-                            isSelected
-                              ? isUltra
-                                ? 'text-[var(--dc-text-strong)]'
-                                : 'text-[#0371DD] dark:text-[#38BDF8]'
-                              : 'text-[var(--dc-text-strong)]'
-                          }`}
-                        >
-                          {m.name}
-                        </span>
-                        <span className="rounded-md bg-[var(--dc-fill)] px-1.5 py-0.5 text-[10.5px] font-semibold text-[var(--dc-text-muted)]">
-                          {provider}
-                        </span>
-                      </div>
+                      <span
+                        className={`block text-[14.5px] font-semibold leading-tight ${
+                          isSelected
+                            ? isUltra
+                              ? 'text-[var(--dc-text-strong)]'
+                              : 'text-[#0371DD] dark:text-[#38BDF8]'
+                            : 'text-[var(--dc-text-strong)]'
+                        }`}
+                      >
+                        {m.name}
+                      </span>
                       {m.description && (
                         <p className="mt-1 line-clamp-2 text-[12px] leading-relaxed text-[var(--dc-text-muted)]">
                           {m.description}
