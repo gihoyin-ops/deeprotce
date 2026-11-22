@@ -5,6 +5,8 @@ import Image from 'next/image';
 import { getChat, saveMessage, uploadFile } from '@/app/actions';
 import MarkdownRenderer from '@/components/ui/MarkdownRenderer';
 import ChatComposer, { getComposerFileIcon } from '@/components/ui/ChatComposer';
+import DotRevealHeadline from '@/components/home/DotRevealHeadline';
+import HomePromptCards, { type SelectedHomePrompt } from '@/components/home/HomePromptCards';
 import Tooltip from '@/components/ui/Tooltip';
 import {
   ChatGenerationSnapshot,
@@ -212,6 +214,7 @@ export default function ChatView({ chatId }: { chatId: string }) {
   const [imageGenerationEnabled, setImageGenerationEnabled] = useState(defaultComposerToolState.imageGenerationEnabled);
   const [imageAspectRatio, setImageAspectRatio] = useState<ImageAspectRatio>(defaultComposerToolState.imageAspectRatio);
   const [isComposerToolStateLoaded, setIsComposerToolStateLoaded] = useState(false);
+  const [isChatHydrated, setIsChatHydrated] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const composerContentRef = useRef<HTMLDivElement>(null);
   const dotsContainerRef = useRef<HTMLDivElement>(null);
@@ -438,6 +441,9 @@ export default function ChatView({ chatId }: { chatId: string }) {
             setMessages(mergeActiveGeneration(chatId, chat.messages.map(normalizeMessageForDisplay)));
           }
         }
+      }
+      if (mounted && (initialMsg === null || (chat?.messages && chat.messages.length > 0))) {
+        setIsChatHydrated(true);
       }
     };
 
@@ -818,9 +824,30 @@ export default function ChatView({ chatId }: { chatId: string }) {
         className={`flex-1 overflow-y-auto px-6 pb-4 pt-8 sm:px-14 sm:pb-6 sm:pt-12 ${showCustomScrollbar ? '[&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]' : 'custom-scrollbar'}`}
       >
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-12 sm:gap-14" style={{ paddingBottom: composerReserve }}>
-          {messages.length === 0 && !isLoading && (
-            <div className="mt-24 flex flex-col items-center justify-center text-center text-slate-400">
-              <h3 className="text-xl font-medium text-slate-500">Start a conversation</h3>
+          {isChatHydrated && messages.length === 0 && !isLoading && (
+            <div className="mx-auto mt-10 flex w-full max-w-[44rem] flex-col items-center gap-6 sm:mt-16">
+              <DotRevealHeadline text="Start a new thought with DeepChat" ready size="compact" />
+              <HomePromptCards
+                compact
+                onSelectPrompt={(selection: SelectedHomePrompt) => {
+                  setInput(selection.prompt);
+                  if (selection.enableWebSearch) {
+                    setImageGenerationEnabled(false);
+                    setWebSearchEnabled(true);
+                  } else if (selection.enableImageGeneration) {
+                    setWebSearchEnabled(false);
+                    setImageGenerationEnabled(true);
+                  }
+                  window.requestAnimationFrame(() => {
+                    const textarea = composerContentRef.current?.querySelector('textarea');
+                    if (textarea) {
+                      textarea.focus();
+                      const len = selection.prompt.length;
+                      textarea.setSelectionRange(len, len);
+                    }
+                  });
+                }}
+              />
             </div>
           )}
 

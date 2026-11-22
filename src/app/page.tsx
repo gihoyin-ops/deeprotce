@@ -1,12 +1,16 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
+import { gsap } from 'gsap';
 import toast from 'react-hot-toast';
 import { createChat, getUserProfile, uploadFile } from './actions';
 import ChatComposer from '@/components/ui/ChatComposer';
+import DotRevealHeadline from '@/components/home/DotRevealHeadline';
+import HomeAnnouncementCard from '@/components/home/HomeAnnouncementCard';
+import HomePromptCards, { type SelectedHomePrompt } from '@/components/home/HomePromptCards';
 import { defaultComposerToolState, saveComposerToolState } from '@/lib/agent/composer-tool-state';
+import { type AnnouncementActionType } from '@/lib/home/home-announcement';
 import { type ImageAspectRatio } from '@/lib/images/image-aspect-ratio';
 
 interface AttachedFile {
@@ -62,6 +66,8 @@ export default function WelcomePage() {
   const [imageGenerationEnabled, setImageGenerationEnabled] = useState(defaultComposerToolState.imageGenerationEnabled);
   const [imageAspectRatio, setImageAspectRatio] = useState<ImageAspectRatio>(defaultComposerToolState.imageAspectRatio);
   const [isClientStateLoaded, setIsClientStateLoaded] = useState(false);
+  const composerWrapRef = useRef<HTMLDivElement>(null);
+  const composerPulseRef = useRef<HTMLDivElement>(null);
   const headline = homeHeadlines[headlineIndex](profileName || 'Guest');
 
   useEffect(() => {
@@ -69,6 +75,7 @@ export default function WelcomePage() {
     const frame = window.requestAnimationFrame(() => {
       if (cancelled) return;
       setInput(localStorage.getItem('deepchat-draft-new') || '');
+      setHeadlineIndex(current => pickHeadlineIndex(current));
       setIsClientStateLoaded(true);
     });
     return () => {
@@ -84,9 +91,6 @@ export default function WelcomePage() {
       if (mounted) setProfileName(savedProfile.name || 'Guest');
     });
     void loadProfile();
-    const headlineFrame = window.requestAnimationFrame(() => {
-      if (mounted) setHeadlineIndex(current => pickHeadlineIndex(current));
-    });
     const refreshHome = () => {
       setInput('');
       setAttachedFiles(prev => {
@@ -103,7 +107,6 @@ export default function WelcomePage() {
     window.addEventListener('profileUpdated', refreshProfile);
     return () => {
       mounted = false;
-      window.cancelAnimationFrame(headlineFrame);
       window.removeEventListener('deepchat:new-home-prompt', refreshHome);
       window.removeEventListener('profileUpdated', refreshProfile);
     };
@@ -118,6 +121,98 @@ export default function WelcomePage() {
     if (!isClientStateLoaded) return;
     saveComposerToolState({ webSearchEnabled, imageGenerationEnabled, imageAspectRatio });
   }, [webSearchEnabled, imageGenerationEnabled, imageAspectRatio, isClientStateLoaded]);
+
+  useEffect(() => {
+    const wrapEl = composerWrapRef.current;
+    if (!isClientStateLoaded || !wrapEl) return;
+
+    const mm = gsap.matchMedia();
+
+    mm.add('(prefers-reduced-motion: reduce)', () => {
+      wrapEl.classList.remove('dc-home-reveal-hidden');
+      gsap.set(wrapEl, { opacity: 1, y: 0 });
+    });
+
+    mm.add('(prefers-reduced-motion: no-preference)', () => {
+      wrapEl.classList.remove('dc-home-reveal-hidden');
+      gsap.fromTo(
+        wrapEl,
+        { opacity: 0, y: 14 },
+        {
+          opacity: 1,
+          y: 0,
+          duration: 0.56,
+          delay: 0.14,
+          ease: 'expo.out',
+          clearProps: 'transform',
+        }
+      );
+    });
+
+    return () => {
+      wrapEl.classList.add('dc-home-reveal-hidden');
+      mm.revert();
+    };
+  }, [isClientStateLoaded]);
+
+  const focusComposerInput = useCallback((withPulse = true) => {
+    window.requestAnimationFrame(() => {
+      const textarea = composerWrapRef.current?.querySelector('textarea');
+      if (textarea) {
+        textarea.focus();
+        const len = textarea.value.length;
+        textarea.setSelectionRange(len, len);
+      }
+    });
+
+    const pulseEl = composerPulseRef.current;
+    if (withPulse && pulseEl && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      gsap.killTweensOf(pulseEl);
+      gsap.fromTo(
+        pulseEl,
+        { opacity: 0, scale: 0.99 },
+        {
+          opacity: 0.85,
+          scale: 1,
+          duration: 0.24,
+          ease: 'power2.out',
+          yoyo: true,
+          repeat: 1,
+          clearProps: 'opacity,transform',
+        }
+      );
+    }
+  }, []);
+
+  const handleAnnouncementAction = useCallback((action: AnnouncementActionType) => {
+    if (action === 'enable-web-search') {
+      setImageGenerationEnabled(false);
+      setWebSearchEnabled(true);
+      focusComposerInput(true);
+      return;
+    }
+    if (action === 'enable-image') {
+      setWebSearchEnabled(false);
+      setImageGenerationEnabled(true);
+      focusComposerInput(true);
+      return;
+    }
+    window.requestAnimationFrame(() => {
+      window.dispatchEvent(new Event('openModelSelector'));
+    });
+  }, [focusComposerInput]);
+
+  const handleSelectPrompt = useCallback((selection: SelectedHomePrompt) => {
+    setInput(selection.prompt);
+    if (selection.enableWebSearch) {
+      setImageGenerationEnabled(false);
+      setWebSearchEnabled(true);
+    } else if (selection.enableImageGeneration) {
+      setWebSearchEnabled(false);
+      setImageGenerationEnabled(true);
+    }
+    focusComposerInput(true);
+  }, [focusComposerInput]);
 
   const handleFilesUpload = async (files: File[]) => {
     if (files.length === 0) return;
@@ -171,43 +266,50 @@ export default function WelcomePage() {
   };
 
   return (
-    <div className="deepchat-home-light flex min-h-0 flex-1 flex-col overflow-hidden bg-white">
-      <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden px-4 py-6 sm:px-8 lg:px-12">
-        <div className="mx-auto flex w-full max-w-[64rem] -translate-y-10 flex-col items-center gap-20 sm:-translate-y-14 sm:gap-24">
-          <motion.h1
-            key={headline}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
-            className="max-w-[58rem] text-center text-[30px] font-normal leading-[1.15] tracking-normal text-black sm:text-[40px]"
-          >
-            {headline}
-          </motion.h1>
+    <div className="deepchat-home-light dc-home-canvas relative flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden custom-scrollbar">
+      <div className="mx-auto flex min-h-full w-full max-w-[46rem] flex-col items-center justify-center px-4 py-6 sm:px-6 sm:py-10">
+        <HomeAnnouncementCard onAction={handleAnnouncementAction} />
 
-          <div className="w-full md:w-[min(50vw,64rem)] md:min-w-[34rem]">
-            <ChatComposer
-              value={input}
-              attachedFiles={attachedFiles}
-              isUploading={isUploading}
-              webSearchEnabled={webSearchEnabled}
-              imageGenerationEnabled={imageGenerationEnabled}
-              imageAspectRatio={imageAspectRatio}
-              onChange={setInput}
-              onSubmit={(value) => startChat(value)}
-              onToggleWebSearch={setWebSearchEnabled}
-              onToggleImageGeneration={setImageGenerationEnabled}
-              onImageAspectRatioChange={setImageAspectRatio}
-              onFilesUpload={handleFilesUpload}
-              onAttachRecentFile={(file) => setAttachedFiles(prev => prev.some(item => item.name === file.name && item.ext === file.ext) ? prev : [...prev, file])}
-              onRemoveFile={(index) => setAttachedFiles(prev => {
-                const next = prev.filter((_, itemIndex) => itemIndex !== index);
-                const removed = prev[index];
-                if (removed) revokeAttachedPreview(removed);
-                return next;
-              })}
-            />
-          </div>
+        <div className="mb-7 mt-1 flex w-full justify-center sm:mb-9">
+          <DotRevealHeadline text={headline} ready={isClientStateLoaded} />
         </div>
+
+        <div ref={composerWrapRef} className="dc-home-reveal-hidden relative z-30 w-full">
+          <div
+            ref={composerPulseRef}
+            className="dc-composer-focus-ring pointer-events-none absolute -inset-[3px] rounded-[29px] opacity-0"
+            aria-hidden="true"
+          />
+          <ChatComposer
+            value={input}
+            attachedFiles={attachedFiles}
+            isUploading={isUploading}
+            webSearchEnabled={webSearchEnabled}
+            imageGenerationEnabled={imageGenerationEnabled}
+            imageAspectRatio={imageAspectRatio}
+            onChange={setInput}
+            onSubmit={(value) => startChat(value)}
+            onToggleWebSearch={setWebSearchEnabled}
+            onToggleImageGeneration={setImageGenerationEnabled}
+            onImageAspectRatioChange={setImageAspectRatio}
+            onFilesUpload={handleFilesUpload}
+            onAttachRecentFile={(file) => setAttachedFiles(prev => prev.some(item => item.name === file.name && item.ext === file.ext) ? prev : [...prev, file])}
+            onRemoveFile={(index) => setAttachedFiles(prev => {
+              const next = prev.filter((_, itemIndex) => itemIndex !== index);
+              const removed = prev[index];
+              if (removed) revokeAttachedPreview(removed);
+              return next;
+            })}
+          />
+        </div>
+
+        <div className="relative z-10 mt-5 w-full sm:mt-6">
+          <HomePromptCards onSelectPrompt={handleSelectPrompt} />
+        </div>
+
+        <p className="mt-5 hidden text-center text-[11px] font-medium text-[var(--dc-text-faint)] sm:block">
+          Press Enter to send · Shift + Enter for a new line
+        </p>
       </div>
     </div>
   );
