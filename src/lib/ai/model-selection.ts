@@ -47,70 +47,22 @@ export const formatFrontendModelName = (modelId: string, modelName?: string): st
   return clean ? clean.charAt(0).toUpperCase() + clean.slice(1) : modelId;
 };
 
-export const getModelProvider = (modelId: string, modelName?: string): string => {
-  const target = `${modelId} ${modelName || ''}`.toLowerCase();
-  if (target.includes('gemma') || target.includes('gemini')) return 'Google';
-  if (target.includes('llama')) return 'Meta';
-  if (target.includes('deepseek')) return 'DeepSeek';
-  if (target.includes('gpt')) return 'OpenAI';
-  if (target.includes('claude')) return 'Anthropic';
-  if (target.includes('mistral') || target.includes('codestral')) return 'Mistral';
-  if (target.includes('qwen')) return 'Alibaba';
-  if (target.includes('phi')) return 'Microsoft';
-  return 'DeepChat';
-};
-
-export const getModelDescription = (modelId: string, modelName?: string, rawDesc?: string): string => {
-  const target = `${modelId} ${modelName || ''}`.toLowerCase();
-  if (target.includes('gemma')) {
-    return 'Model by Google, specialized in deep reasoning, coding, and multilingual dialogue';
+export const getModelDescription = (_modelId: string, _modelName?: string, rawDesc?: string): string => {
+  const trimmed = rawDesc?.trim();
+  if (trimmed && trimmed !== 'Main chat model' && trimmed !== 'Fast & lightweight tasks') {
+    return trimmed;
   }
-  if (target.includes('llama')) {
-    return 'Model by Meta, specialized in versatile conversation, logic, and general knowledge';
-  }
-  if (target.includes('deepseek')) {
-    return 'Model by DeepSeek, specialized in advanced mathematics, code, and step-by-step logic';
-  }
-  if (target.includes('gpt-4o')) {
-    return 'Model by OpenAI, specialized in high-speed multimodal intelligence and complex tasks';
-  }
-  if (target.includes('gpt-4')) {
-    return 'Model by OpenAI, specialized in broad problem solving, writing, and deep analysis';
-  }
-  if (target.includes('claude-3-5') || target.includes('claude-3.5')) {
-    return 'Model by Anthropic, specialized in nuanced coding, detailed writing, and analysis';
-  }
-  if (target.includes('claude')) {
-    return 'Model by Anthropic, specialized in safe reasoning, creative tasks, and writing';
-  }
-  if (target.includes('gemini')) {
-    return 'Model by Google, specialized in multimodal processing and long-context reasoning';
-  }
-  if (target.includes('mistral') || target.includes('codestral')) {
-    return 'Model by Mistral AI, specialized in fast reasoning and concise generation';
-  }
-  if (target.includes('qwen')) {
-    return 'Model by Alibaba Cloud, specialized in multilingual reasoning and programming';
-  }
-  if (target.includes('phi')) {
-    return 'Model by Microsoft, specialized in compact high-efficiency reasoning';
-  }
-  if (rawDesc && rawDesc !== 'Main chat model' && rawDesc !== 'Fast & lightweight tasks') {
-    return rawDesc;
-  }
-  return 'High-performance AI model specialized in reasoning and conversational tasks';
+  return '';
 };
 
 export const DEFAULT_FALLBACK_MODELS: ModelOption[] = [
   {
     id: 'gemma4:31b',
     name: 'Gemma 4',
-    description: getModelDescription('gemma4:31b', 'Gemma 4'),
   },
   {
     id: 'llama4:70b',
     name: 'Llama 4',
-    description: getModelDescription('llama4:70b', 'Llama 4'),
   },
 ];
 
@@ -206,10 +158,11 @@ export const fetchLiveModels = async (): Promise<LiveModelsResult> => {
         .filter((m) => m.badge !== 'Image' && !isImageGenerationModel(m.id))
         .map((m) => {
           const formattedName = formatFrontendModelName(m.id, m.name);
+          const description = getModelDescription(m.id, formattedName, m.description);
           return {
             ...m,
             name: formattedName,
-            description: getModelDescription(m.id, formattedName, m.description),
+            description: description || undefined,
           };
         });
 
