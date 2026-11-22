@@ -7,10 +7,13 @@ import toast from 'react-hot-toast';
 import { createChat, getUserProfile, uploadFile } from './actions';
 import ChatComposer from '@/components/ui/ChatComposer';
 import DotRevealHeadline from '@/components/home/DotRevealHeadline';
-import HomeAnnouncementCard from '@/components/home/HomeAnnouncementCard';
 import HomePromptCards, { type SelectedHomePrompt } from '@/components/home/HomePromptCards';
+import {
+  ACTIVE_PRODUCT_ANNOUNCEMENT,
+  ProductAnnouncementCard,
+  type ProductAnnouncementActionType,
+} from '@/components/notify_annouce_products';
 import { defaultComposerToolState, saveComposerToolState } from '@/lib/agent/composer-tool-state';
-import { type AnnouncementActionType } from '@/lib/home/home-announcement';
 import { type ImageAspectRatio } from '@/lib/images/image-aspect-ratio';
 
 interface AttachedFile {
@@ -184,7 +187,7 @@ export default function WelcomePage() {
     }
   }, []);
 
-  const handleAnnouncementAction = useCallback((action: AnnouncementActionType) => {
+  const handleAnnouncementAction = useCallback((action: ProductAnnouncementActionType) => {
     if (action === 'enable-web-search') {
       setImageGenerationEnabled(false);
       setWebSearchEnabled(true);
@@ -267,8 +270,12 @@ export default function WelcomePage() {
 
   return (
     <div className="deepchat-home-light dc-home-canvas relative flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden custom-scrollbar">
-      <div className="mx-auto flex min-h-full w-full max-w-[46rem] flex-col items-center justify-center px-4 py-6 sm:px-6 sm:py-10">
-        <HomeAnnouncementCard onAction={handleAnnouncementAction} />
+      <div className="mx-auto my-auto flex w-full max-w-[48rem] shrink-0 flex-col items-center px-4 py-6 sm:px-6 sm:py-10">
+        <ProductAnnouncementCard
+          announcement={ACTIVE_PRODUCT_ANNOUNCEMENT}
+          onAction={handleAnnouncementAction}
+          onSelectSamplePrompt={handleSelectPrompt}
+        />
 
         <div className="mb-7 mt-1 flex w-full justify-center sm:mb-9">
           <DotRevealHeadline text={headline} ready={isClientStateLoaded} />

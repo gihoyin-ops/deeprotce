@@ -935,217 +935,300 @@ html[data-appearance="dark"] .dc-home-canvas {
     radial-gradient(45% 35% at 82% 88%, rgb(255 255 255 / 0.02), transparent 76%);
 }
 
-.dc-dot-cell {
-  position: relative;
-  display: inline-block;
-}
-
-.dc-dot-bead {
-  position: absolute;
-  left: 50%;
-  top: 54%;
-  width: 5px;
-  height: 5px;
-  border-radius: 9999px;
-  transform: translate(-50%, -50%);
-  pointer-events: none;
-  will-change: transform, opacity;
-  opacity: 0;
-  background-color: var(--dc-text-strong, #171717);
-  box-shadow: 0 0 8px color-mix(in srgb, var(--deepchat-accent, #4f46e5) 45%, transparent);
-}
-
-@media (min-width: 640px) {
-  .dc-dot-bead {
-    width: 6px;
-    height: 6px;
-  }
-}
-
-html.dark .dc-dot-bead,
-html[data-appearance="dark"] .dc-dot-bead {
-  background-color: #f5f5f5;
-  box-shadow: 0 0 10px color-mix(in srgb, var(--deepchat-accent, #4f46e5) 55%, transparent);
-}
-
-.dc-dot-glyph {
+.dc-headline-char {
   display: inline-block;
   will-change: transform, opacity;
 }
 
-.dc-dot-pending .dc-dot-glyph {
+.dc-headline-pending .dc-headline-char,
+.dc-headline-pending .dc-kinetic-blue-dot {
   opacity: 0;
 }
 
-.dc-dot-tail {
+.dc-kinetic-blue-dot {
   display: inline-block;
-  width: 6px;
-  height: 6px;
-  margin-left: 5px;
+  width: 8px;
+  height: 8px;
+  margin-left: 6px;
   border-radius: 9999px;
   vertical-align: baseline;
-  background-color: var(--deepchat-accent, #4f46e5);
-  box-shadow: 0 0 10px color-mix(in srgb, var(--deepchat-accent, #4f46e5) 45%, transparent);
+  background: radial-gradient(circle at 35% 35%, #60a5fa 0%, #2563eb 72%, #1d4ed8 100%);
+  box-shadow:
+    0 0 12px rgb(37 99 235 / 0.5),
+    0 0 4px rgb(59 130 246 / 0.45);
   will-change: transform, opacity;
 }
 
-.dc-dot-pending .dc-dot-tail {
-  opacity: 0;
-}
-
-html.dark[data-accent-color="black"] .dc-dot-tail,
-html[data-appearance="dark"][data-accent-color="black"] .dc-dot-tail {
-  background-color: #e5e5e5;
-  box-shadow: 0 0 10px rgb(255 255 255 / 0.35);
+html.dark .dc-kinetic-blue-dot,
+html[data-appearance="dark"] .dc-kinetic-blue-dot {
+  background: radial-gradient(circle at 35% 35%, #93c5fd 0%, #3b82f6 68%, #2563eb 100%);
+  box-shadow:
+    0 0 14px rgb(59 130 246 / 0.65),
+    0 0 5px rgb(96 165 250 / 0.55);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .dc-dot-pending .dc-dot-glyph {
+  .dc-headline-pending .dc-headline-char,
+  .dc-headline-pending .dc-kinetic-blue-dot {
     opacity: 1;
-  }
-  .dc-dot-pending .dc-dot-tail {
-    opacity: 0.85;
-  }
-  .dc-dot-bead {
-    display: none;
   }
 }
 
-.dc-home-announcement {
+.dc-product-announce-card {
   --spot-x: 50%;
   --spot-y: 50%;
   --spot-opacity: 0;
   position: relative;
   overflow: hidden;
-  border-radius: 22px;
+  border-radius: 26px;
   border: 1px solid var(--dc-border);
   background: var(--dc-surface-subtle);
   box-shadow:
     0 1px 2px rgb(15 23 42 / 0.04),
-    0 14px 32px -24px rgb(15 23 42 / 0.14);
+    0 20px 44px -28px rgb(15 23 42 / 0.16);
   transition: border-color 220ms ease, box-shadow 220ms ease;
 }
 
-.dc-home-announcement:hover {
+.dc-product-announce-card:hover {
   border-color: var(--dc-border-strong);
 }
 
-.dc-home-announcement::before {
+.dc-product-announce-card::before {
   content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
+  z-index: 25;
   opacity: var(--spot-opacity);
   background: radial-gradient(
-    360px circle at var(--spot-x) var(--spot-y),
-    color-mix(in srgb, var(--deepchat-accent, #4f46e5) 9%, transparent),
+    460px circle at var(--spot-x) var(--spot-y),
+    rgb(37 99 235 / 0.075),
     transparent 66%
   );
   transition: opacity 220ms ease;
 }
 
-html.dark .dc-home-announcement,
-html[data-appearance="dark"] .dc-home-announcement {
-  background: #141414;
-  border-color: rgb(255 255 255 / 0.08);
+html.dark .dc-product-announce-card,
+html[data-appearance="dark"] .dc-product-announce-card {
+  background: #131313;
+  border-color: rgb(255 255 255 / 0.09);
   box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.05),
-    0 18px 40px -28px rgb(0 0 0 / 0.85);
+    inset 0 1px 0 rgb(255 255 255 / 0.06),
+    0 24px 52px -30px rgb(0 0 0 / 0.92);
 }
 
-html.dark .dc-home-announcement:hover,
-html[data-appearance="dark"] .dc-home-announcement:hover {
-  border-color: rgb(255 255 255 / 0.15);
+html.dark .dc-product-announce-card:hover,
+html[data-appearance="dark"] .dc-product-announce-card:hover {
+  border-color: rgb(255 255 255 / 0.16);
 }
 
-html.dark .dc-home-announcement::before,
-html[data-appearance="dark"] .dc-home-announcement::before {
+html.dark .dc-product-announce-card::before,
+html[data-appearance="dark"] .dc-product-announce-card::before {
   background: radial-gradient(
-    360px circle at var(--spot-x) var(--spot-y),
-    color-mix(in srgb, var(--deepchat-accent, #4f46e5) 14%, rgb(255 255 255 / 0.04)),
+    460px circle at var(--spot-x) var(--spot-y),
+    rgb(59 130 246 / 0.12),
     transparent 68%
   );
 }
 
-.dc-home-announcement-icon {
-  display: flex;
-  height: 38px;
-  width: 38px;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
+.dc-product-gallery-stage {
+  position: relative;
+  border-bottom: 1px solid var(--dc-border-subtle);
+  background:
+    radial-gradient(80% 70% at 50% 0%, rgb(37 99 235 / 0.045), transparent 72%),
+    var(--dc-fill);
+}
+
+html.dark .dc-product-gallery-stage,
+html[data-appearance="dark"] .dc-product-gallery-stage {
+  border-bottom-color: rgb(255 255 255 / 0.07);
+  background:
+    radial-gradient(80% 70% at 50% 0%, rgb(59 130 246 / 0.08), transparent 72%),
+    #0c0c0c;
+}
+
+.dc-product-gallery-tile {
+  position: relative;
   border-radius: 13px;
-  background: var(--dc-surface);
-  border: 1px solid var(--dc-border);
-  color: var(--deepchat-accent-text, #4f46e5);
-  box-shadow: 0 1px 2px rgb(15 23 42 / 0.04);
+  border: 1px solid rgb(15 23 42 / 0.08);
+  box-shadow: 0 4px 14px -8px rgb(15 23 42 / 0.28);
+  will-change: transform, opacity;
+  transition: border-color 220ms ease, box-shadow 220ms ease;
 }
 
-html.dark .dc-home-announcement-icon,
-html[data-appearance="dark"] .dc-home-announcement-icon {
-  background: #1e1e1e;
-  border-color: rgb(255 255 255 / 0.08);
-  color: #e5e5e5;
+@media (min-width: 640px) {
+  .dc-product-gallery-tile {
+    border-radius: 15px;
+  }
 }
 
-.dc-home-announcement-badge {
-  display: inline-flex;
+.dc-product-gallery-tile:hover {
+  border-color: rgb(37 99 235 / 0.48);
+  box-shadow:
+    0 12px 26px -12px rgb(15 23 42 / 0.45),
+    0 0 0 1px rgb(37 99 235 / 0.25);
+}
+
+html.dark .dc-product-gallery-tile,
+html[data-appearance="dark"] .dc-product-gallery-tile {
+  border-color: rgb(255 255 255 / 0.12);
+  box-shadow: 0 8px 20px -10px rgb(0 0 0 / 0.75);
+}
+
+html.dark .dc-product-gallery-tile:hover,
+html[data-appearance="dark"] .dc-product-gallery-tile:hover {
+  border-color: rgb(96 165 250 / 0.55);
+  box-shadow:
+    0 16px 30px -12px rgb(0 0 0 / 0.9),
+    0 0 0 1px rgb(96 165 250 / 0.3);
+}
+
+.dc-product-tile-scrim {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 56%;
+  pointer-events: none;
+  background: linear-gradient(to top, rgb(0 0 0 / 0.62) 0%, rgb(0 0 0 / 0.2) 55%, transparent 100%);
+  opacity: 0.62;
+  transition: opacity 240ms ease;
+}
+
+.dc-product-gallery-tile:hover .dc-product-tile-scrim {
+  opacity: 0.94;
+}
+
+.dc-product-gallery-caption {
+  position: absolute;
+  left: 7px;
+  right: 7px;
+  bottom: 7px;
+  z-index: 5;
+  max-width: calc(100% - 14px);
   align-items: center;
-  gap: 5px;
   border-radius: 9999px;
-  padding: 2px 9px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  color: var(--deepchat-accent-text, #4f46e5);
-  background: color-mix(in srgb, var(--deepchat-accent, #4f46e5) 10%, transparent);
-  border: 1px solid color-mix(in srgb, var(--deepchat-accent, #4f46e5) 22%, transparent);
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: #ffffff;
+  background: rgb(15 23 42 / 0.56);
+  border: 1px solid rgb(255 255 255 / 0.16);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  opacity: 0.88;
+  transform: translateY(1px);
+  transition: opacity 220ms ease, transform 220ms ease, background-color 220ms ease;
 }
 
-html.dark .dc-home-announcement-badge,
-html[data-appearance="dark"] .dc-home-announcement-badge {
-  color: #e5e5e5;
-  background: color-mix(in srgb, var(--deepchat-accent, #4f46e5) 22%, rgb(255 255 255 / 0.05));
-  border-color: color-mix(in srgb, var(--deepchat-accent, #4f46e5) 36%, rgb(255 255 255 / 0.1));
+.dc-product-gallery-tile:hover .dc-product-gallery-caption {
+  opacity: 1;
+  transform: translateY(0);
+  background: rgb(15 23 42 / 0.78);
 }
 
-.dc-home-announcement-cta {
+.dc-product-announce-badge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   border-radius: 9999px;
-  padding: 6px 12px;
-  font-size: 12px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #1d4ed8;
+  background: rgb(37 99 235 / 0.1);
+  border: 1px solid rgb(37 99 235 / 0.22);
+}
+
+html.dark .dc-product-announce-badge,
+html[data-appearance="dark"] .dc-product-announce-badge {
+  color: #93c5fd;
+  background: rgb(59 130 246 / 0.16);
+  border-color: rgb(96 165 250 / 0.28);
+}
+
+.dc-product-badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background-color: #2563eb;
+  box-shadow: 0 0 8px rgb(37 99 235 / 0.55);
+}
+
+html.dark .dc-product-badge-dot,
+html[data-appearance="dark"] .dc-product-badge-dot {
+  background-color: #60a5fa;
+  box-shadow: 0 0 8px rgb(96 165 250 / 0.65);
+}
+
+.dc-product-announce-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  padding: 2px 9px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--dc-text-muted);
+  background: var(--dc-fill);
+  border: 1px solid var(--dc-border-subtle);
+}
+
+html.dark .dc-product-announce-chip,
+html[data-appearance="dark"] .dc-product-announce-chip {
+  background: rgb(255 255 255 / 0.05);
+  border-color: rgb(255 255 255 / 0.08);
+}
+
+.dc-product-announce-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border-radius: 9999px;
+  padding: 9px 16px;
+  font-size: 12.5px;
   font-weight: 600;
   line-height: 1;
   white-space: nowrap;
   background: var(--dc-invert);
   color: var(--dc-text-on-invert);
-  transition: background-color 180ms ease, transform 140ms ease;
+  box-shadow: 0 8px 20px -12px rgb(15 23 42 / 0.45);
+  transition: background-color 180ms ease, transform 140ms ease, box-shadow 180ms ease;
 }
 
-.dc-home-announcement-cta:hover {
+.dc-product-announce-cta:hover {
   background: var(--dc-invert-hover);
 }
 
-.dc-home-announcement-cta:active {
+.dc-product-announce-cta:active {
   transform: scale(0.97);
 }
 
-.dc-home-icon-ghost {
+.dc-product-announce-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 30;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 28px;
-  width: 28px;
+  width: 30px;
+  height: 30px;
   border-radius: 9999px;
-  color: var(--dc-text-muted);
-  transition: background-color 160ms ease, color 160ms ease;
+  color: #ffffff;
+  background: rgb(15 23 42 / 0.55);
+  border: 1px solid rgb(255 255 255 / 0.22);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: background-color 180ms ease, transform 140ms ease;
 }
 
-.dc-home-icon-ghost:hover {
-  background: var(--dc-fill-hover);
-  color: var(--dc-text-strong);
+.dc-product-announce-close:hover {
+  background: rgb(15 23 42 / 0.8);
+}
+
+.dc-product-announce-close:active {
+  transform: scale(0.94);
 }
 
 .dc-home-pill-track {
@@ -1285,15 +1368,6 @@ html[data-appearance="dark"] .dc-home-card-tag {
   color: var(--dc-text-muted);
 }
 
-.dc-home-accent-dot {
-  background-color: var(--deepchat-accent, #4f46e5);
-}
-
-html.dark[data-accent-color="black"] .dc-home-accent-dot,
-html[data-appearance="dark"][data-accent-color="black"] .dc-home-accent-dot {
-  background-color: #e5e5e5;
-}
-
 .dc-home-reveal-hidden {
   opacity: 0;
 }
@@ -1309,12 +1383,12 @@ html[data-appearance="dark"][data-accent-color="black"] .dc-home-accent-dot {
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--deepchat-accent, #4f46e5) 14%, transparent);
 }
 
-html[data-contrast="increased"] .dc-home-announcement,
+html[data-contrast="increased"] .dc-product-announce-card,
 html[data-contrast="increased"] .dc-home-card {
   border-color: var(--dc-border-strong);
 }
 
-.dc-home-announcement button:focus-visible,
+.dc-product-announce-card button:focus-visible,
 .dc-home-pill-track button:focus-visible,
 .dc-home-card:focus-visible {
   outline: 2px solid var(--deepchat-accent, #4f46e5);
