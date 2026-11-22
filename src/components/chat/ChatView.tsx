@@ -21,10 +21,10 @@ import {
 import { formatClarificationAnswer, isGeneratedClarificationAnswerContent, parseAgentClarification, type AgentClarification, type AgentClarificationAnswer, type AgentClarificationOption } from '@/lib/agent/agent-clarification';
 import { DISLIKE_REASONS, ERROR_DISLIKE_REASONS, LIKE_REASONS, getFeedbackMap, getFeedbackForVersion, subscribeFeedback, submitMessageFeedback, type MessageRating } from '@/lib/feedback/message-feedback';
 import { FeedbackDialog } from '@/components/chat/FeedbackDialog';
-import { IMAGE_GENERATION_STATUS_TEXTS, getGenerationMode, type GenerationMode } from '@/lib/images/image-generation';
+import { extractGeneratedImagesFromMarkdown, getGenerationMode, type ExtractedGeneratedImage, type GenerationMode } from '@/lib/images/image-generation';
 import { normalizeImageAspectRatio, type ImageAspectRatio } from '@/lib/images/image-aspect-ratio';
 import { defaultComposerToolState, loadComposerToolState, saveComposerToolState } from '@/lib/agent/composer-tool-state';
-import { AnimatePresence, motion } from 'framer-motion';
+import ImageGenerationStage from '@/components/chat/image-generation/ImageGenerationStage';
 import {
   Check, CheckCircle2, ChevronDown, ChevronRight, BrainCircuit, ChevronLeft, X, Cpu, Copy, RefreshCw, Edit3, ThumbsUp, ThumbsUpFill, ThumbsDown, ThumbsDownFill, Globe
 } from '@/components/ui/icons';
@@ -630,6 +630,7 @@ export default function ChatView({ chatId }: { chatId: string }) {
       createdAt: new Date().toISOString(),
       isStreaming: true,
       generationMode,
+      imageAspectRatio: useImageGeneration ? useImageAspectRatio : undefined,
       chatIndex: messagesRef.current.length + 1
     };
 
@@ -664,6 +665,8 @@ export default function ChatView({ chatId }: { chatId: string }) {
     if (assistantMsg.role !== 'assistant') return;
 
     const apiMessages = messages.slice(0, msgIndex);
+    const prevUser = [...apiMessages].reverse().find(m => m.role === 'user');
+    const generationMode = prevUser?.imageGenerationEnabled ? 'image' : getSelectedGenerationMode();
 
     const currentVersions = normalizeVersions(assistantMsg.versions || [{
       content: assistantMsg.content,
@@ -674,14 +677,15 @@ export default function ChatView({ chatId }: { chatId: string }) {
       mcpContentOffset: assistantMsg.mcpContentOffset,
       searchSources: assistantMsg.searchSources,
       clarification: assistantMsg.clarification,
-      clarificationAnswer: assistantMsg.clarificationAnswer
+      clarificationAnswer: assistantMsg.clarificationAnswer,
+      generationMode: assistantMsg.generationMode
     }]);
 
     const newVersionIndex = currentVersions.length;
 
     const updatedAssistantMessage = {
       ...assistantMsg,
-      versions: [...currentVersions, { content: '', reasoning: '', versionIndex: newVersionIndex + 1 }],
+      versions: [...currentVersions, { content: '', reasoning: '', versionIndex: newVersionIndex + 1, generationMode }],
       currentVersionIndex: newVersionIndex,
       content: '',
       reasoning: '',
@@ -694,7 +698,8 @@ export default function ChatView({ chatId }: { chatId: string }) {
       reasoningDuration: undefined,
       isStreaming: true,
       isError: false,
-      generationMode: getSelectedGenerationMode(),
+      generationMode,
+      imageAspectRatio: prevUser?.imageAspectRatio ?? assistantMsg.imageAspectRatio,
       memoriesSaved: false,
       memoriesSavedCount: undefined,
       memoryProvider: undefined,
@@ -735,6 +740,7 @@ export default function ChatView({ chatId }: { chatId: string }) {
       content: nextContent
     };
     const nextMessage = currentMessages[targetIndex + 1];
+    const generationMode = updatedUserMessage.imageGenerationEnabled ? 'image' : getSelectedGenerationMode();
     const assistantMessage = nextMessage?.role === 'assistant'
       ? {
         ...nextMessage,
@@ -749,10 +755,12 @@ export default function ChatView({ chatId }: { chatId: string }) {
         reasoningDuration: undefined,
         versions: undefined,
         currentVersionIndex: undefined,
+        createdAt: new Date().toISOString(),
         isStreaming: true,
         isError: false,
         isStopped: false,
-        generationMode: getSelectedGenerationMode(),
+        generationMode,
+        imageAspectRatio: updatedUserMessage.imageAspectRatio,
         memoriesSaved: false,
         memoriesSavedCount: undefined,
         memoryProvider: undefined,
@@ -770,7 +778,8 @@ export default function ChatView({ chatId }: { chatId: string }) {
         clarificationAnswer: undefined,
         createdAt: new Date().toISOString(),
         isStreaming: true,
-        generationMode: getSelectedGenerationMode(),
+        generationMode,
+        imageAspectRatio: updatedUserMessage.imageAspectRatio,
         chatIndex: targetIndex + 1
       };
     const nextMessages = [
@@ -915,11 +924,21 @@ export default function ChatView({ chatId }: { chatId: string }) {
 
           {displayMessages.map((msg, idx) => {
             const activeVersion = (msg.currentVersionIndex ?? (msg.versions ? msg.versions.length - 1 : 0)) + 1;
+            let requestedAspectRatio = msg.imageAspectRatio;
+            if (!requestedAspectRatio && msg.role === 'assistant') {
+              for (let i = idx - 1; i >= 0; i -= 1) {
+                if (displayMessages[i]?.role === 'user') {
+                  requestedAspectRatio = displayMessages[i]?.imageAspectRatio;
+                  break;
+                }
+              }
+            }
             return (
               <MessageBubble
                 key={msg.id}
                 message={msg}
                 deferOffscreen={idx < displayMessages.length - 6}
+                requestedAspectRatio={requestedAspectRatio}
                 onRegenerate={() => handleRegenerate(msg.id)}
                 onSwitchVersion={(delta) => switchVersion(msg.id, delta)}
                 canEditUserMessage={msg.role === 'user' && msg.id === latestUserMessageId}
@@ -1388,6 +1407,7 @@ function getSearchHost(url: string) {
 type MessageBubbleProps = {
   message: ChatMessage;
   deferOffscreen?: boolean;
+  requestedAspectRatio?: ImageAspectRatio;
   onRegenerate?: () => void;
   onSwitchVersion?: (delta: number) => void;
   canEditUserMessage?: boolean;
@@ -1428,75 +1448,6 @@ function MemorySavedBadgeContent() {
   );
 }
 
-function ImageGenerationLoader() {
-  const [textIndex, setTextIndex] = useState(0);
-  const dotRows = 13;
-  const dotCols = 13;
-
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      setTextIndex(index => (index + 1) % IMAGE_GENERATION_STATUS_TEXTS.length);
-    }, 3200);
-    return () => window.clearInterval(timer);
-  }, []);
-
-  return (
-    <div className="deepchat-image-loader relative aspect-square w-[min(74vw,320px)] overflow-hidden rounded-[2rem] border border-slate-200 bg-white p-5 shadow-lg shadow-slate-200/55">
-      <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 100 100" aria-hidden="true">
-        {Array.from({ length: dotRows * dotCols }).map((_, index) => {
-          const row = Math.floor(index / dotCols);
-          const col = index % dotCols;
-          const diagonalDelay = ((dotRows - 1 - row) + (dotCols - 1 - col)) * 0.075;
-          const cx = 8 + col * 7;
-          const cy = 8 + row * 7;
-          return (
-            <motion.circle
-              key={index}
-              cx={cx}
-              cy={cy}
-              fill="rgb(148 163 184)"
-              animate={{
-                r: [0.42, 0.42, 0.98, 0.42, 0.42],
-                opacity: [0.22, 0.22, 0.68, 0.22, 0.22],
-                filter: [
-                  'drop-shadow(0 0 0 rgba(148, 163, 184, 0))',
-                  'drop-shadow(0 0 0 rgba(148, 163, 184, 0))',
-                  'drop-shadow(0 0 7px rgba(148, 163, 184, 0.42))',
-                  'drop-shadow(0 0 0 rgba(148, 163, 184, 0))',
-                  'drop-shadow(0 0 0 rgba(148, 163, 184, 0))'
-                ]
-              }}
-              transition={{
-                duration: 5.8,
-                ease: 'easeInOut',
-                repeat: Infinity,
-                delay: diagonalDelay,
-                times: [0, 0.42, 0.5, 0.58, 1]
-              }}
-            />
-          );
-        })}
-      </svg>
-      <div className="relative z-10 flex h-full flex-col items-start justify-start">
-        <div className="relative h-8 w-full max-w-[230px]">
-          <AnimatePresence mode="wait">
-            <motion.p
-              key={textIndex}
-              initial={{ y: 12, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: -12, opacity: 0 }}
-              transition={{ duration: 0.68, ease: [0.22, 1, 0.36, 1] }}
-              className="absolute left-0 top-0 text-left text-sm font-bold leading-snug text-slate-500"
-            >
-              {IMAGE_GENERATION_STATUS_TEXTS[textIndex]}
-            </motion.p>
-          </AnimatePresence>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function MessageActionButton({ label, tooltip = label, disabled, className, onClick, ariaPressed, children }: { label: string; tooltip?: string; disabled?: boolean; className: string; onClick?: () => void; ariaPressed?: boolean; children: React.ReactNode }) {
   return (
     <Tooltip label={tooltip}>
@@ -1519,7 +1470,7 @@ function CopyActionIcon({ copied, className = 'h-4 w-4' }: { copied: boolean; cl
   return <Copy className={className} strokeWidth={2} />;
 }
 
-const MessageBubble = React.memo(function MessageBubble({ message, deferOffscreen = false, onRegenerate, onSwitchVersion, canEditUserMessage = false, onEditUserMessage, isMobileActionsOpen = false, onActivateMobileActions, feedbackRating = null, onLike, onDislike }: MessageBubbleProps) {
+const MessageBubble = React.memo(function MessageBubble({ message, deferOffscreen = false, requestedAspectRatio, onRegenerate, onSwitchVersion, canEditUserMessage = false, onEditUserMessage, isMobileActionsOpen = false, onActivateMobileActions, feedbackRating = null, onLike, onDislike }: MessageBubbleProps) {
   const isUser = message.role === 'user';
   const [copied, setCopied] = useState(false);
   const [isEditingUserMessage, setIsEditingUserMessage] = useState(false);
@@ -1527,6 +1478,23 @@ const MessageBubble = React.memo(function MessageBubble({ message, deferOffscree
   const [previewAttachment, setPreviewAttachment] = useState<AttachedFile | null>(null);
   const [isAttachmentPreviewOpen, setIsAttachmentPreviewOpen] = useState(false);
   const userEditRef = useRef<HTMLTextAreaElement | null>(null);
+
+  const handlePreviewGeneratedImage = useCallback((image: ExtractedGeneratedImage, index: number) => {
+    const src = image.src;
+    const mimeMatch = src.match(/^data:image\/([a-z0-9.+-]+)/i);
+    const pathMatch = src.split('?')[0]?.match(/\.([a-z0-9]+)$/i);
+    const ext = (mimeMatch?.[1] || pathMatch?.[1] || 'png')
+      .toLowerCase()
+      .replace('jpeg', 'jpg')
+      .replace('svg+xml', 'svg');
+    const name = `generated-image-${index + 1}.${ext}`;
+    setPreviewAttachment(
+      src.startsWith('data:')
+        ? { name, ext, dataUrl: src }
+        : { name, ext, previewUrl: src }
+    );
+    setIsAttachmentPreviewOpen(true);
+  }, []);
 
   useEffect(() => {
     if (!isEditingUserMessage) return;
@@ -1568,6 +1536,18 @@ const MessageBubble = React.memo(function MessageBubble({ message, deferOffscree
   const preMCPContent = hasMCPUsage && mcpOffset !== undefined ? (message.content || '').slice(0, mcpOffset).trim() : '';
   const postMCPContent = hasMCPUsage && mcpOffset !== undefined ? (message.content || '').slice(mcpOffset).trim() : '';
   const standardContent = hasMCPUsage && mcpOffset !== undefined ? '' : message.content;
+  const mainAssistantContent = !isUser ? (postMCPContent || standardContent || '') : '';
+  const extractedImageContent = React.useMemo(
+    () => extractGeneratedImagesFromMarkdown(mainAssistantContent),
+    [mainAssistantContent]
+  );
+  const hasGeneratedImages = !isUser && !message.isError && extractedImageContent.images.length > 0;
+  const useImageStudioStage =
+    !isUser &&
+    !message.isError &&
+    (!message.reasoning || hasGeneratedImages) &&
+    ((message.generationMode === 'image' && (Boolean(message.isStreaming) || hasGeneratedImages)) ||
+      (!message.isStreaming && hasGeneratedImages && !extractedImageContent.remainingText));
 
   return (
     <div
@@ -1627,7 +1607,26 @@ const MessageBubble = React.memo(function MessageBubble({ message, deferOffscree
           </div>
         )}
 
-        {(standardContent || postMCPContent) ? (
+        {useImageStudioStage ? (
+          <div className="max-w-full">
+            <ImageGenerationStage
+              key={`${message.id}-v${currentIdx}-${message.createdAt || ''}`}
+              isGenerating={Boolean(message.isStreaming)}
+              images={extractedImageContent.images}
+              requestedAspectRatio={requestedAspectRatio ?? message.imageAspectRatio}
+              onPreviewImage={handlePreviewGeneratedImage}
+            />
+            {extractedImageContent.remainingText && (
+              <div className="mt-3 max-w-full px-0 py-0 text-black dark:text-slate-100">
+                <MarkdownRenderer
+                  content={extractedImageContent.remainingText}
+                  isStreaming={message.isStreaming}
+                  searchSources={message.searchSources}
+                />
+              </div>
+            )}
+          </div>
+        ) : (standardContent || postMCPContent) ? (
           <div className={`max-w-full ${isUser
             ? 'rounded-[20px] rounded-br-[6px] border border-[var(--dc-border-subtle)] bg-[var(--dc-fill)] px-4 py-2.5 text-[var(--dc-text-strong)] shadow-none sm:rounded-[1.65rem] sm:border-0 sm:bg-[#aeeefa] sm:px-5 sm:py-3.5 dark:text-slate-100'
             : message.isError
@@ -1672,8 +1671,6 @@ const MessageBubble = React.memo(function MessageBubble({ message, deferOffscree
               <MarkdownRenderer content={postMCPContent || standardContent || ''} isStreaming={message.isStreaming} searchSources={message.searchSources} />
             )}
           </div>
-        ) : message.isStreaming && !message.reasoning && message.generationMode === 'image' ? (
-          <ImageGenerationLoader />
         ) : message.isStreaming && !message.reasoning && (
           <div className="flex min-h-8 w-fit items-center px-1 py-2">
             <div className="flex space-x-1.5">
@@ -1794,4 +1791,4 @@ const MessageBubble = React.memo(function MessageBubble({ message, deferOffscree
       />
     </div>
   );
-}, (prev, next) => prev.message === next.message && prev.deferOffscreen === next.deferOffscreen && prev.canEditUserMessage === next.canEditUserMessage && prev.onEditUserMessage === next.onEditUserMessage && prev.isMobileActionsOpen === next.isMobileActionsOpen && prev.feedbackRating === next.feedbackRating);
+}, (prev, next) => prev.message === next.message && prev.deferOffscreen === next.deferOffscreen && prev.requestedAspectRatio === next.requestedAspectRatio && prev.canEditUserMessage === next.canEditUserMessage && prev.onEditUserMessage === next.onEditUserMessage && prev.isMobileActionsOpen === next.isMobileActionsOpen && prev.feedbackRating === next.feedbackRating);

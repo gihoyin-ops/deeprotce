@@ -1,8 +1,10 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import Image from 'next/image';
+import { gsap } from 'gsap';
+import { prefersReducedMotion } from '@/components/mobile/gesture-utils';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
@@ -142,7 +144,7 @@ const MarkdownRenderer = React.memo(function MarkdownRenderer({ content, isStrea
             img({ src, alt }) {
               const imageSrc = typeof src === 'string' ? src : '';
               if (!imageSrc) return null;
-              return <GeneratedMarkdownImage src={imageSrc} alt={alt || 'Generated image'} />;
+              return <GeneratedMarkdownImage key={imageSrc} src={imageSrc} alt={alt || 'Generated image'} />;
             }
           }}
         >
@@ -218,32 +220,152 @@ function isCodeBlockStreaming(streamingCodeFence: StreamingCodeFence | null, nod
 }
 
 function GeneratedMarkdownImage({ src, alt }: { src: string; alt: string }) {
-  const [imageSize, setImageSize] = useState({ width: 1024, height: 1024 });
-  const ratio = imageSize.width / imageSize.height;
-  const displayWidth = ratio < 1
-    ? Math.min(Math.max(imageSize.width, 260), Math.max(260, Math.round(520 * ratio)))
-    : Math.min(Math.max(imageSize.width, 260), 760);
+  const frameRef = useRef<HTMLSpanElement>(null);
+  const mediaRef = useRef<HTMLSpanElement>(null);
+  const [revealState, setRevealState] = useState<{
+    fromWidth: number;
+    fromHeight: number;
+    toWidth: number;
+    toHeight: number;
+    natWidth: number;
+    natHeight: number;
+  } | null>(null);
+  const [settled, setSettled] = useState(false);
+
+  const ratio = revealState ? revealState.natWidth / revealState.natHeight : 4 / 3;
+  const maxWidth = ratio > 1.25 ? 620 : ratio < 0.85 ? 420 : 480;
+  const targetWidth = revealState ? revealState.toWidth : 380;
+
+  useLayoutEffect(() => {
+    if (!revealState || settled) return;
+    const frameEl = frameRef.current;
+    const mediaEl = mediaRef.current;
+    if (!frameEl || !mediaEl) return;
+
+    const reduce = prefersReducedMotion();
+    if (reduce) {
+      gsap.set(frameEl, {
+        width: `min(100%, ${Math.min(revealState.toWidth, maxWidth)}px)`,
+        aspectRatio: `${revealState.natWidth} / ${revealState.natHeight}`,
+      });
+      gsap.set(mediaEl, { opacity: 1, scale: 1, filter: 'none' });
+      const raf = window.requestAnimationFrame(() => setSettled(true));
+      return () => window.cancelAnimationFrame(raf);
+    }
+
+    gsap.killTweensOf([frameEl, mediaEl]);
+    gsap.set(frameEl, {
+      width: revealState.fromWidth,
+      height: revealState.fromHeight,
+      aspectRatio: 'auto',
+    });
+
+    const tl = gsap.timeline({
+      onComplete: () => {
+        frameEl.style.removeProperty('height');
+        frameEl.style.removeProperty('transform');
+        mediaEl.style.removeProperty('filter');
+        setSettled(true);
+      },
+    });
+
+    tl.to(
+      frameEl,
+      {
+        width: revealState.toWidth,
+        height: revealState.toHeight,
+        duration: 0.62,
+        ease: 'power3.out',
+      },
+      0
+    ).fromTo(
+      mediaEl,
+      {
+        opacity: 0,
+        scale: 1.035,
+        filter: 'blur(10px)',
+      },
+      {
+        opacity: 1,
+        scale: 1,
+        filter: 'blur(0px)',
+        duration: 0.56,
+        ease: 'power2.out',
+        clearProps: 'transform,filter',
+      },
+      0.08
+    );
+
+    return () => {
+      tl.kill();
+    };
+  }, [revealState, settled, maxWidth]);
 
   return (
     <span
-      className="not-prose my-4 block max-w-full overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white p-2 shadow-lg shadow-slate-200/70 dark:border-slate-700 dark:bg-slate-950"
-      style={{
-        width: `min(100%, ${displayWidth}px)`
-      }}
+      ref={frameRef}
+      className="not-prose dc-img-studio dc-img-studio-frame my-4 block max-w-full"
+      style={
+        !revealState
+          ? {
+              width: 'min(100%, 380px)',
+              aspectRatio: '4 / 3',
+            }
+          : settled
+            ? {
+                width: `min(100%, ${Math.min(targetWidth, maxWidth)}px)`,
+                aspectRatio: `${revealState.natWidth} / ${revealState.natHeight}`,
+              }
+            : undefined
+      }
     >
-      {React.createElement('img', {
-        src,
-        alt,
-        loading: 'lazy',
-        decoding: 'async',
-        onLoad: (event: React.SyntheticEvent<HTMLImageElement>) => {
-          const target = event.currentTarget;
-          if (target.naturalWidth > 0 && target.naturalHeight > 0) {
-            setImageSize({ width: target.naturalWidth, height: target.naturalHeight });
-          }
-        },
-        className: 'block h-auto max-h-[72vh] w-full rounded-[1.35rem] object-contain'
-      })}
+      <span
+        ref={mediaRef}
+        className={`relative block h-full w-full ${revealState ? '' : 'opacity-0'}`}
+      >
+        <Image
+          src={src}
+          alt={alt}
+          fill
+          unoptimized
+          sizes="(max-width: 640px) 94vw, 620px"
+          className="object-cover"
+          onLoad={(event) => {
+            if (revealState) return;
+            const img = event.currentTarget;
+            const natWidth = img.naturalWidth || 1024;
+            const natHeight = img.naturalHeight || 1024;
+            const imgRatio = natWidth / natHeight;
+
+            const frameEl = frameRef.current;
+            const parentEl = frameEl?.parentElement;
+            const rect = frameEl?.getBoundingClientRect();
+            const availW = Math.max(220, Math.round(parentEl?.clientWidth || 640));
+            const maxH = Math.min(Math.round((typeof window !== 'undefined' ? window.innerHeight : 800) * 0.68), 580);
+            const capW = Math.min(availW, imgRatio > 1.25 ? 620 : imgRatio < 0.85 ? 420 : 480);
+
+            let toWidth = Math.sqrt(188000 * imgRatio);
+            let toHeight = toWidth / imgRatio;
+            if (toWidth > capW) {
+              toWidth = capW;
+              toHeight = toWidth / imgRatio;
+            }
+            if (toHeight > maxH) {
+              toHeight = maxH;
+              toWidth = toHeight * imgRatio;
+            }
+
+            setRevealState({
+              fromWidth: Math.max(180, Math.round(rect?.width || Math.min(availW, 380))),
+              fromHeight: Math.max(140, Math.round(rect?.height || Math.min(availW, 380) * 0.75)),
+              toWidth: Math.round(toWidth),
+              toHeight: Math.round(toHeight),
+              natWidth,
+              natHeight,
+            });
+          }}
+        />
+      </span>
     </span>
   );
 }

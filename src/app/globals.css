@@ -870,19 +870,223 @@ canvas {
   white-space: normal;
 }
 
-.deepchat-image-loader {
-  background:
-    radial-gradient(circle at 20% 16%, rgb(148 163 184 / 0.08), transparent 34%),
-    radial-gradient(circle at 82% 78%, rgb(148 163 184 / 0.08), transparent 36%),
-    linear-gradient(135deg, rgb(255 255 255 / 0.98), rgb(248 250 252 / 0.94));
+.dc-img-studio {
+  --dc-studio-bg: #faf6f0;
+  --dc-studio-bg-2: #f2eae0;
+  --dc-studio-surface: #fffdf9;
+  --dc-studio-border: rgb(120 102 84 / 0.18);
+  --dc-studio-border-strong: rgb(120 102 84 / 0.34);
+  --dc-studio-ink: #1f1c18;
+  --dc-studio-ink-muted: #655c52;
+  --dc-studio-ink-faint: #92877a;
+  --dc-studio-clay: #d97757;
+  --dc-studio-ochre: #e3bc91;
+  --dc-studio-sage: #8da091;
+  --dc-studio-pill-bg: rgb(250 246 240 / 0.86);
+  --dc-studio-pill-hover: rgb(255 253 249 / 0.98);
+  --dc-studio-sheen: linear-gradient(110deg, transparent 15%, rgb(255 252 246 / 0.55) 48%, rgb(217 119 87 / 0.12) 56%, transparent 85%);
+  --dc-studio-shadow:
+    0 2px 8px -2px rgb(42 33 24 / 0.06),
+    0 18px 42px -24px rgb(42 33 24 / 0.16);
 }
 
-html.dark .deepchat-image-loader,
-html[data-appearance="dark"] .deepchat-image-loader {
-  background:
-    radial-gradient(circle at 20% 16%, rgb(255 255 255 / 0.12), transparent 34%),
-    radial-gradient(circle at 82% 78%, rgb(255 255 255 / 0.1), transparent 36%),
-    linear-gradient(135deg, rgb(20 20 20 / 0.98), rgb(38 38 38 / 0.92));
+html.dark .dc-img-studio,
+html[data-appearance="dark"] .dc-img-studio {
+  --dc-studio-bg: #151412;
+  --dc-studio-bg-2: #1e1b18;
+  --dc-studio-surface: #181614;
+  --dc-studio-border: rgb(245 236 225 / 0.13);
+  --dc-studio-border-strong: rgb(245 236 225 / 0.25);
+  --dc-studio-ink: #f3ede4;
+  --dc-studio-ink-muted: #b0a699;
+  --dc-studio-ink-faint: #7d7469;
+  --dc-studio-clay: #e28666;
+  --dc-studio-ochre: #c89d72;
+  --dc-studio-sage: #7c9082;
+  --dc-studio-pill-bg: rgb(24 22 20 / 0.82);
+  --dc-studio-pill-hover: rgb(36 32 28 / 0.94);
+  --dc-studio-sheen: linear-gradient(110deg, transparent 15%, rgb(255 244 230 / 0.18) 48%, rgb(226 134 102 / 0.14) 56%, transparent 85%);
+  --dc-studio-shadow:
+    inset 0 1px 0 rgb(255 248 240 / 0.06),
+    0 22px 48px -22px rgb(0 0 0 / 0.82);
+}
+
+html[data-contrast="increased"] .dc-img-studio {
+  --dc-studio-border: var(--dc-studio-border-strong);
+  --dc-studio-ink-muted: var(--dc-studio-ink);
+}
+
+.dc-img-studio-frame {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1.5rem;
+  border: 1px solid var(--dc-studio-border);
+  background: linear-gradient(155deg, var(--dc-studio-bg) 0%, var(--dc-studio-bg-2) 100%);
+  color: var(--dc-studio-ink);
+  box-shadow: var(--dc-studio-shadow);
+  container-type: inline-size;
+}
+
+@supports (overflow-clip-margin: content-box) {
+  .dc-img-studio-frame {
+    overflow: clip;
+    overflow-clip-margin: content-box;
+  }
+}
+
+.dc-img-studio-inner {
+  padding: 1.15rem 1.25rem;
+}
+
+.dc-img-quote-text {
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, Cambria, "Times New Roman", serif;
+  font-size: 1.05rem;
+  font-weight: 400;
+  line-height: 1.42;
+  letter-spacing: -0.015em;
+  color: var(--dc-studio-ink);
+  text-wrap: balance;
+}
+
+@media (min-width: 640px) {
+  .dc-img-quote-text {
+    font-size: 1.22rem;
+    line-height: 1.38;
+  }
+}
+
+@supports (container-type: inline-size) {
+  @media (min-width: 640px) {
+    .dc-img-quote-text {
+      font-size: 1.05rem;
+      line-height: 1.42;
+    }
+  }
+
+  @container (min-width: 310px) {
+    .dc-img-studio-inner {
+      padding: 1.35rem 1.5rem;
+    }
+
+    .dc-img-quote-text {
+      font-size: 1.22rem;
+      line-height: 1.38;
+    }
+  }
+
+  @container (min-width: 390px) {
+    .dc-img-studio-inner {
+      padding: 1.55rem 1.75rem;
+    }
+
+    .dc-img-quote-text {
+      font-size: 1.38rem;
+      line-height: 1.34;
+    }
+  }
+}
+
+.dc-img-status-text {
+  color: var(--dc-studio-ink-muted);
+  text-wrap: pretty;
+}
+
+.dc-img-studio-tag {
+  color: var(--dc-studio-ink-faint);
+}
+
+.dc-img-studio-pill {
+  border: 1px solid var(--dc-studio-border);
+  background: var(--dc-studio-pill-bg);
+  color: var(--dc-studio-ink);
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  transition: background-color 160ms ease, border-color 160ms ease, transform 140ms ease, opacity 180ms ease;
+}
+
+.dc-img-studio-pill:hover {
+  background: var(--dc-studio-pill-hover);
+  border-color: var(--dc-studio-border-strong);
+}
+
+.dc-img-studio-pill:focus-visible {
+  outline: 2px solid var(--dc-studio-clay);
+  outline-offset: 2px;
+}
+
+.dc-img-studio-actions {
+  opacity: 0.92;
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .dc-img-studio-actions {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+
+  .dc-img-studio-card:hover .dc-img-studio-actions,
+  .dc-img-studio-card:focus-within .dc-img-studio-actions {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dc-img-snake-focus {
+  border-radius: 1.5rem;
+}
+
+.dc-img-snake-focus:focus-visible {
+  outline: 2px solid var(--dc-studio-clay);
+  outline-offset: 3px;
+}
+
+.dc-snake-dpad {
+  display: none;
+}
+
+@media (pointer: coarse) {
+  .dc-snake-dpad {
+    display: grid;
+  }
+}
+
+.dc-snake-dpad-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-inline-size: 38px;
+  min-block-size: 38px;
+  border-radius: 0.75rem;
+  border: 1px solid var(--dc-studio-border);
+  background: var(--dc-studio-pill-bg);
+  color: var(--dc-studio-ink);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  touch-action: manipulation;
+  transition: background-color 140ms ease, transform 110ms ease;
+}
+
+.dc-snake-dpad-btn:active {
+  transform: scale(0.92);
+  background: var(--dc-studio-pill-hover);
+}
+
+.dc-snake-dpad-btn:focus-visible {
+  outline: 2px solid var(--dc-studio-clay);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dc-img-studio-actions {
+    transition: none;
+  }
+
+  .dc-img-quote-word {
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+  }
 }
 
 .custom-scrollbar::-webkit-scrollbar {
