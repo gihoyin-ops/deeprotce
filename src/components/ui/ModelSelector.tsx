@@ -16,7 +16,6 @@ import Tooltip from '@/components/ui/Tooltip';
 import { isImageGenerationModel } from '@/lib/images/image-generation';
 import {
   AnimatedCheckSvg,
-  ModelTierEmblemSvg,
   SliderWaveSvg,
   UltraPrismBorderSvg,
 } from './ModelSelectorVisuals';
@@ -36,17 +35,16 @@ export interface ModelOption {
 
 interface Tier {
   key: string;
-  shortLabel: string;
   valuetext: string;
   speed: string;
 }
 
 const TIERS: Tier[] = [
-  { key: 'Light', shortLabel: 'Light', valuetext: 'Light - fastest', speed: 'Ultra Fast' },
-  { key: 'Medium', shortLabel: 'Medium', valuetext: 'Medium - balanced', speed: 'Fast' },
-  { key: 'High', shortLabel: 'High', valuetext: 'High - smarter', speed: 'Thinking' },
-  { key: 'Extra High', shortLabel: 'X-High', valuetext: 'Extra High - much smarter', speed: 'Deep Thinking' },
-  { key: 'Ultra', shortLabel: 'Ultra', valuetext: 'Ultra - smartest, consumes usage limits faster', speed: 'Max Reasoning' },
+  { key: 'Light', valuetext: 'Light - fastest', speed: 'Ultra Fast' },
+  { key: 'Medium', valuetext: 'Medium - balanced', speed: 'Fast' },
+  { key: 'High', valuetext: 'High - smarter', speed: 'Thinking' },
+  { key: 'Extra High', valuetext: 'Extra High - much smarter', speed: 'Deep Thinking' },
+  { key: 'Ultra', valuetext: 'Ultra - smartest, consumes usage limits faster', speed: 'Max Reasoning' },
 ];
 
 const LIVE_CHAT_CONNECTION_ID = 'live-chat';
@@ -239,7 +237,6 @@ export default function ModelSelector({
   const [isHoveringSlider, setIsHoveringSlider] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [dragPos, setDragPos] = useState<number | null>(null);
-  const [isTriggerHovered, setIsTriggerHovered] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -1010,7 +1007,7 @@ export default function ModelSelector({
         </div>
       ) : (
         <div key="advanced" className="p-3.5 sm:p-4">
-          <div className="relative mb-3.5 flex min-h-[26px] items-center justify-between gap-2">
+          <div className="relative mb-3 flex min-h-[24px] items-center justify-between gap-2">
             {isUltra ? (
               <>
                 <button
@@ -1022,10 +1019,10 @@ export default function ModelSelector({
                   <ChevronLeft className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5" />
                   <span className="sm:hidden">Back</span>
                 </button>
-                <span className="dc-ms-ultra-text truncate text-[12.5px] font-semibold">
+                <span className="dc-ms-ultra-text flex-1 truncate text-center text-[12.5px] font-semibold">
                   Consumes usage limits faster
                 </span>
-                <ModelTierEmblemSvg tierIndex={tierIndex} isUltra size={16} />
+                <span className="w-6 shrink-0" aria-hidden="true" />
               </>
             ) : isHoveringSlider || isDragging ? (
               <div className="flex w-full items-center justify-between text-[12.5px] font-medium text-[var(--dc-text-muted)]">
@@ -1033,22 +1030,14 @@ export default function ModelSelector({
                 <span>Smarter</span>
               </div>
             ) : (
-              <>
-                <button
-                  type="button"
-                  onClick={() => switchView('menu')}
-                  className="dc-ms-back-btn group"
-                >
-                  <ChevronLeft className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5" />
-                  <span>Back</span>
-                </button>
-                <ModelTierEmblemSvg
-                  tierIndex={tierIndex}
-                  isUltra={false}
-                  size={16}
-                  className="text-[#0371DD] dark:text-[#38BDF8]"
-                />
-              </>
+              <button
+                type="button"
+                onClick={() => switchView('menu')}
+                className="dc-ms-back-btn group"
+              >
+                <ChevronLeft className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5" />
+                <span>Back</span>
+              </button>
             )}
           </div>
 
@@ -1067,7 +1056,7 @@ export default function ModelSelector({
             onPointerMove={handleSliderPointerMove}
             onPointerUp={handleSliderPointerUp}
             onPointerCancel={handleSliderPointerUp}
-            className={`relative h-[40px] select-none touch-none outline-none ${
+            className={`relative h-[38px] select-none touch-none outline-none ${
               isDragging ? 'cursor-grabbing' : 'cursor-grab'
             }`}
           >
@@ -1119,29 +1108,6 @@ export default function ModelSelector({
               ref={confettiCanvasRef}
               className="pointer-events-none absolute -left-8 -top-10 z-10"
             />
-          </div>
-
-          <div className="mt-2.5 flex items-center justify-between gap-1 px-0.5">
-            {TIERS.map((tier, idx) => {
-              const isActive = idx === tierIndex;
-              const isUltraTier = idx === 4;
-              return (
-                <button
-                  key={tier.key}
-                  type="button"
-                  onClick={() => handleCommitTier(idx)}
-                  className={`rounded-md px-1 py-0.5 text-[11px] transition-colors ${
-                    isActive
-                      ? isUltraTier
-                        ? 'dc-ms-ultra-text font-bold'
-                        : 'font-semibold text-[var(--dc-text-strong)]'
-                      : 'font-medium text-[var(--dc-text-faint)] hover:text-[var(--dc-text-muted)]'
-                  }`}
-                >
-                  {tier.shortLabel}
-                </button>
-              );
-            })}
           </div>
         </div>
       )}
@@ -1221,11 +1187,9 @@ export default function ModelSelector({
               openSelector();
             }
           }}
-          onMouseEnter={() => setIsTriggerHovered(true)}
-          onMouseLeave={() => setIsTriggerHovered(false)}
           aria-haspopup="dialog"
           aria-expanded={isOpen}
-          className={`dc-ms-trigger h-9 w-full max-w-[240px] px-3 ${
+          className={`dc-ms-trigger h-9 w-full max-w-[240px] px-3.5 ${
             isUltra
               ? 'dc-ms-trigger-ultra'
               : variant === 'ghost'
@@ -1236,19 +1200,6 @@ export default function ModelSelector({
           <UltraPrismBorderSvg active={isUltra} />
 
           <div className="relative z-10 flex min-w-0 items-center gap-1.5">
-            <ModelTierEmblemSvg
-              tierIndex={tierIndex}
-              isUltra={isUltra}
-              isHovered={isTriggerHovered}
-              size={16}
-              className={
-                isUltra
-                  ? ''
-                  : variant === 'ghost'
-                    ? 'text-slate-600 dark:text-slate-300'
-                    : 'text-slate-700 dark:text-slate-200'
-              }
-            />
             <span className="truncate text-[13px] font-semibold tracking-tight">
               {selectedModel.name}
             </span>
