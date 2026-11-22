@@ -900,7 +900,7 @@ export default function ChatView({ chatId }: { chatId: string }) {
         style={{ scrollPaddingBottom: composerReserve }}
         className={`flex-1 overflow-y-auto px-4 pb-4 pt-4 sm:px-14 sm:pb-6 sm:pt-12 ${showCustomScrollbar ? '[&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]' : 'custom-scrollbar'}`}
       >
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-7 sm:gap-14" style={{ paddingBottom: composerReserve }}>
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 sm:gap-8" style={{ paddingBottom: composerReserve }}>
           {isChatHydrated && messages.length === 0 && !isLoading && (
             <div className="mt-24 flex flex-col items-center justify-center text-center">
               <DotRevealHeadline text="Start a new thought with DeepChat" ready size="compact" />
@@ -1567,7 +1567,7 @@ const MessageBubble = React.memo(function MessageBubble({ message, deferOffscree
       onClick={onActivateMobileActions}
       className={`group/message flex w-full items-start ${isUser ? 'justify-end message-user' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 ${deferOffscreen ? 'dc-mob-msg-deferred' : ''}`}
     >
-      <div className={`flex min-w-0 flex-col ${isUser ? 'max-w-[78%] items-end sm:max-w-[52%]' : 'w-full max-w-[44rem] items-start sm:max-w-[48rem]'}`}>
+      <div className={`relative flex min-w-0 flex-col ${isUser ? 'max-w-[78%] items-end sm:max-w-[52%]' : 'w-full max-w-[44rem] items-start sm:max-w-[48rem]'}`}>
         {!isUser && message.reasoning && (
           <ReasoningSection content={message.reasoning} isStreaming={message.isStreaming && !message.content} duration={message.reasoningDuration} />
         )}
@@ -1664,7 +1664,7 @@ const MessageBubble = React.memo(function MessageBubble({ message, deferOffscree
         )}
 
         {isUser && !isEditingUserMessage && (
-          <div className={`mt-1 flex min-h-9 max-w-full flex-wrap items-center justify-end gap-1 transition-opacity duration-200 sm:h-8 sm:min-h-0 sm:gap-1.5 sm:pointer-events-none sm:opacity-0 sm:group-hover/message:pointer-events-auto sm:group-hover/message:opacity-100 sm:group-focus-within/message:pointer-events-auto sm:group-focus-within/message:opacity-100 ${isMobileActionsOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`}>
+          <div className={`mt-1 max-w-full flex-wrap items-center justify-end gap-1 transition-opacity duration-200 sm:absolute sm:right-0 sm:top-full sm:mt-0 sm:pt-1 sm:flex sm:h-7 sm:min-h-0 sm:gap-1.5 sm:pointer-events-none sm:opacity-0 sm:group-hover/message:pointer-events-auto sm:group-hover/message:opacity-100 sm:group-focus-within/message:pointer-events-auto sm:group-focus-within/message:opacity-100 ${isMobileActionsOpen ? 'flex min-h-9 pointer-events-auto opacity-100' : 'hidden pointer-events-none opacity-0'}`}>
             <MessageActionButton
               label={copied ? 'Copied' : 'Copy message'}
               tooltip={copied ? 'Copied' : 'Copy message'}
@@ -1687,7 +1687,7 @@ const MessageBubble = React.memo(function MessageBubble({ message, deferOffscree
         )}
 
         {!isUser && !message.isStreaming && (
-          <div className={`mt-2 ml-0 flex min-h-9 max-w-full flex-wrap items-center gap-1 transition-opacity duration-200 sm:min-h-8 sm:gap-1.5 sm:pointer-events-none sm:opacity-0 sm:group-hover/message:pointer-events-auto sm:group-hover/message:opacity-100 sm:group-focus-within/message:pointer-events-auto sm:group-focus-within/message:opacity-100 ${isMobileActionsOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-auto opacity-100 sm:pointer-events-none sm:opacity-0'}`}>
+          <div className={`mt-1.5 ml-0 flex min-h-8 max-w-full flex-wrap items-center gap-1 transition-opacity duration-200 sm:absolute sm:left-0 sm:top-full sm:mt-0 sm:pt-1.5 sm:min-h-7 sm:gap-1.5 sm:pointer-events-none sm:opacity-0 sm:group-hover/message:pointer-events-auto sm:group-hover/message:opacity-100 sm:group-focus-within/message:pointer-events-auto sm:group-focus-within/message:opacity-100 ${isMobileActionsOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-auto opacity-100 sm:pointer-events-none sm:opacity-0'}`}>
             {hasVersions && (
               <div className="mr-1 flex items-center gap-1 rounded-full px-1 py-0.5">
                 <MessageActionButton
