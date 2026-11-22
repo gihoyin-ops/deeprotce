@@ -65,9 +65,9 @@ const RESIZE_RATIOS: {
 
 const MODE_LABELS: Record<Exclude<ImageStudioMode, 'view'>, string> = {
   edit: 'Edit',
-  annotate: 'Anotasi',
-  resize: 'Ubah ukuran',
-  remove: 'Hapus objek',
+  annotate: 'Annotate',
+  resize: 'Resize',
+  remove: 'Remove',
 };
 
 const MIN_SCALE = 1;
@@ -1295,7 +1295,7 @@ export default function GeneratedImagePreviewModal({
                           >
                             <div className="mb-1.5 flex items-center justify-between gap-2">
                               <span className="text-[11px] font-semibold uppercase tracking-wider text-[#e28666]">
-                                Titik #{idx + 1}
+                                Point #{idx + 1}
                               </span>
                               <button
                                 type="button"
@@ -1328,7 +1328,7 @@ export default function GeneratedImagePreviewModal({
                                     setActivePinId(null);
                                   }
                                 }}
-                                placeholder={`Ubah bagian #${idx + 1}...`}
+                                placeholder={`Edit point #${idx + 1}...`}
                                 className="min-w-0 flex-1 rounded-xl border border-white/15 bg-white/5 px-2.5 py-1.5 text-[12.5px] outline-none focus:border-[#e28666]"
                               />
                               <button
@@ -1398,7 +1398,7 @@ export default function GeneratedImagePreviewModal({
                 <path d="m9.06 11.9 8.07-8.06a2.85 2.85 0 1 1 4.03 4.03l-8.06 8.08" />
                 <path d="M7.07 14.94c-1.66 0-3 1.35-3 3.02 0 1.33-2.5 1.52-2 2.02 1.08 1.1 2.49 2.02 4 2.02 2.2 0 4-1.8 4-4.04a3.01 3.01 0 0 0-3-3.02z" />
               </svg>
-              <span>Anotasi</span>
+              <span>Annotate</span>
             </button>
 
             <button
@@ -1407,7 +1407,7 @@ export default function GeneratedImagePreviewModal({
               className="dc-lb-btn shrink-0 px-3.5 text-[13px] font-medium"
             >
               <Scan className="h-4 w-4 shrink-0" strokeWidth={2} />
-              <span>Ubah ukuran</span>
+              <span>Resize</span>
             </button>
 
             <button
@@ -1420,7 +1420,7 @@ export default function GeneratedImagePreviewModal({
                 <path d="M22 21H7" />
                 <path d="m5 11 9 9" />
               </svg>
-              <span>Hapus</span>
+              <span>Remove</span>
             </button>
           </div>
         )}
@@ -1452,7 +1452,7 @@ export default function GeneratedImagePreviewModal({
                       setActivePinId(null);
                     }
                   }}
-                  placeholder={`Ubah titik #${activePinIndex + 1}...`}
+                  placeholder={`Edit point #${activePinIndex + 1}...`}
                   className="min-w-0 flex-1 bg-transparent text-[13px] outline-none"
                 />
                 <button
@@ -1495,7 +1495,7 @@ export default function GeneratedImagePreviewModal({
                         {idx + 1}
                       </span>
                       <span className="max-w-[9rem] truncate text-[#f4eee6]/90">
-                        {pin.note.trim() || `Titik ${idx + 1}`}
+                        {pin.note.trim() || `Point ${idx + 1}`}
                       </span>
                     </button>
                     <button
@@ -1531,14 +1531,14 @@ export default function GeneratedImagePreviewModal({
                     if (canSendEdit && !isExporting && !isBusy) void submitStudioEdit();
                   }
                 }}
-                placeholder="Ketuk gambar untuk titik (1, 2…) atau tulis edit..."
+                placeholder="Tap image to place pins (1, 2…) or describe edits..."
                 className="max-h-[88px] min-h-[34px] flex-1 resize-none bg-transparent py-1.5 text-[13.5px] leading-snug outline-none"
               />
               <button
                 type="button"
                 disabled={!canSendEdit || isExporting || isBusy}
                 onClick={() => void submitStudioEdit()}
-                aria-label="Kirim edit gambar"
+                aria-label="Send image edit"
                 aria-busy={isExporting}
                 className="dc-lb-send-btn"
               >
@@ -1567,13 +1567,13 @@ export default function GeneratedImagePreviewModal({
                 type="button"
                 aria-pressed={annotateTool === 'draw'}
                 onClick={() => setAnnotateTool('draw')}
-                aria-label="Pensil coret"
+                aria-label="Pencil draw"
                 className="dc-lb-btn shrink-0 px-2.5 text-[12.5px] font-medium"
               >
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
                 </svg>
-                <span className="hidden sm:inline">Pensil</span>
+                <span className="hidden sm:inline">Pencil</span>
               </button>
 
               <button
@@ -1594,14 +1594,14 @@ export default function GeneratedImagePreviewModal({
                 type="button"
                 aria-pressed={annotateTool === 'erase'}
                 onClick={() => setAnnotateTool('erase')}
-                aria-label="Hapus coretan"
+                aria-label="Erase strokes"
                 className="dc-lb-btn shrink-0 px-2.5 text-[12.5px] font-medium"
               >
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21" />
                   <path d="M22 21H7" />
                 </svg>
-                <span className="hidden sm:inline">Hapus</span>
+                <span className="hidden sm:inline">Eraser</span>
               </button>
             </div>
 
@@ -1619,7 +1619,7 @@ export default function GeneratedImagePreviewModal({
                 max={42}
                 value={annotateBrushPx}
                 onChange={(e) => setAnnotateBrushPx(Number(e.target.value))}
-                aria-label="Ukuran pensil atau mask"
+                aria-label="Brush or mask size"
                 className="dc-lb-range w-16 sm:w-20"
               />
               <span
@@ -1628,7 +1628,7 @@ export default function GeneratedImagePreviewModal({
               />
             </div>
 
-            {/* Color Swatches (only when Pensil is active) */}
+            {/* Color Swatches (only when Pencil is active) */}
             {annotateTool === 'draw' && (
               <>
                 <span className="h-5 w-px shrink-0 bg-white/15" aria-hidden="true" />
@@ -1674,7 +1674,7 @@ export default function GeneratedImagePreviewModal({
               type="button"
               disabled={annotateStrokes.length === 0}
               onClick={() => setAnnotateStrokes([])}
-              aria-label="Reset coretan"
+              aria-label="Clear annotations"
               title="Reset"
               className="dc-lb-btn h-8 w-8 shrink-0"
             >
@@ -1686,11 +1686,11 @@ export default function GeneratedImagePreviewModal({
               type="button"
               onClick={() => {
                 setAnnotateStage('prompt');
-                setStatusAnnouncement('Masukkan deskripsi anotasi');
+                setStatusAnnouncement('Describe your annotation');
               }}
               className="ml-0.5 inline-flex h-8 shrink-0 items-center rounded-full bg-[#e28666] px-3.5 text-[12.5px] font-semibold text-[#151412] transition hover:bg-[#ea9678] active:scale-95"
             >
-              Selesai
+              Done
             </button>
           </div>
         )}
@@ -1703,8 +1703,8 @@ export default function GeneratedImagePreviewModal({
             <button
               type="button"
               onClick={() => setAnnotateStage('drawing')}
-              aria-label="Kembali edit coretan"
-              title="Edit coretan"
+              aria-label="Back to drawing"
+              title="Edit drawing"
               className="dc-lb-btn h-8 w-8 shrink-0"
             >
               <PenLine className="h-4 w-4" strokeWidth={2.1} />
@@ -1725,7 +1725,7 @@ export default function GeneratedImagePreviewModal({
                   if (canSendAnnotate && !isExporting && !isBusy) void submitStudioEdit();
                 }
               }}
-              placeholder="Jelaskan maksud coretan atau mask ini..."
+              placeholder="Describe what to change in these strokes or mask..."
               className="max-h-[84px] min-h-[34px] flex-1 resize-none bg-transparent py-1.5 text-[13.5px] leading-snug outline-none"
             />
 
@@ -1733,7 +1733,7 @@ export default function GeneratedImagePreviewModal({
               type="button"
               disabled={!canSendAnnotate || isExporting || isBusy}
               onClick={() => void submitStudioEdit()}
-              aria-label="Kirim edit anotasi"
+              aria-label="Send annotated edit"
               aria-busy={isExporting}
               className="dc-lb-send-btn"
             >
@@ -1782,14 +1782,14 @@ export default function GeneratedImagePreviewModal({
                     if (!isExporting && !isBusy) void submitStudioEdit();
                   }
                 }}
-                placeholder="Catatan opsional (mis. perluas latar alami)..."
+                placeholder="Optional note (e.g. extend background naturally)..."
                 className="min-w-0 flex-1 bg-transparent py-1 text-[13px] outline-none"
               />
               <button
                 type="button"
                 disabled={isExporting || isBusy}
                 onClick={() => void submitStudioEdit()}
-                aria-label={`Ubah ukuran ke ${resizeRatio}`}
+                aria-label={`Resize to ${resizeRatio}`}
                 aria-busy={isExporting}
                 className="dc-lb-send-btn"
               >
@@ -1809,7 +1809,7 @@ export default function GeneratedImagePreviewModal({
             <button
               type="button"
               onClick={() => setRemoveBrushPx((prev) => clamp(prev - 8, 10, 68))}
-              aria-label="Perkecil ukuran mask"
+              aria-label="Decrease mask size"
               className="dc-lb-btn h-8 w-8 shrink-0"
             >
               <span className="inline-block h-2.5 w-2.5 rounded-full border-2 border-current" aria-hidden="true" />
@@ -1821,14 +1821,14 @@ export default function GeneratedImagePreviewModal({
               max={68}
               value={removeBrushPx}
               onChange={(e) => setRemoveBrushPx(Number(e.target.value))}
-              aria-label="Ukuran mask hapus"
+              aria-label="Remove mask size"
               className="dc-lb-range w-24 sm:w-32"
             />
 
             <button
               type="button"
               onClick={() => setRemoveBrushPx((prev) => clamp(prev + 8, 10, 68))}
-              aria-label="Perbesar ukuran mask"
+              aria-label="Increase mask size"
               className="dc-lb-btn h-8 w-8 shrink-0"
             >
               <span className="inline-block h-4.5 w-4.5 rounded-full border-2 border-current" aria-hidden="true" />
@@ -1838,7 +1838,7 @@ export default function GeneratedImagePreviewModal({
               <button
                 type="button"
                 onClick={() => setRemoveStrokes((prev) => prev.slice(0, -1))}
-                aria-label="Undo mask terakhir"
+                aria-label="Undo last mask stroke"
                 className="dc-lb-btn h-8 w-8 shrink-0"
               >
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -1852,7 +1852,7 @@ export default function GeneratedImagePreviewModal({
               type="button"
               disabled={!canSendRemove || isExporting || isBusy}
               onClick={() => void submitStudioEdit()}
-              aria-label="Kirim hapus objek"
+              aria-label="Send object removal"
               aria-busy={isExporting}
               className="dc-lb-send-btn ml-1"
             >
