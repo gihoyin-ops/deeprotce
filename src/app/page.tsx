@@ -7,7 +7,6 @@ import toast from 'react-hot-toast';
 import { createChat, getUserProfile, uploadFile } from './actions';
 import ChatComposer from '@/components/ui/ChatComposer';
 import DotRevealHeadline from '@/components/home/DotRevealHeadline';
-import HomePromptCards, { type SelectedHomePrompt } from '@/components/home/HomePromptCards';
 import {
   ACTIVE_PRODUCT_ANNOUNCEMENT,
   ProductAnnouncementCard,
@@ -69,6 +68,7 @@ export default function WelcomePage() {
   const [imageGenerationEnabled, setImageGenerationEnabled] = useState(defaultComposerToolState.imageGenerationEnabled);
   const [imageAspectRatio, setImageAspectRatio] = useState<ImageAspectRatio>(defaultComposerToolState.imageAspectRatio);
   const [isClientStateLoaded, setIsClientStateLoaded] = useState(false);
+  const [announcementState, setAnnouncementState] = useState({ checked: false, open: false });
   const composerWrapRef = useRef<HTMLDivElement>(null);
   const composerPulseRef = useRef<HTMLDivElement>(null);
   const headline = homeHeadlines[headlineIndex](profileName || 'Guest');
@@ -187,6 +187,13 @@ export default function WelcomePage() {
     }
   }, []);
 
+  const handleAnnouncementOpenState = useCallback(
+    (state: { checked: boolean; open: boolean }) => {
+      setAnnouncementState(state);
+    },
+    []
+  );
+
   const handleAnnouncementAction = useCallback((action: ProductAnnouncementActionType) => {
     if (action === 'enable-web-search') {
       setImageGenerationEnabled(false);
@@ -203,18 +210,6 @@ export default function WelcomePage() {
     window.requestAnimationFrame(() => {
       window.dispatchEvent(new Event('openModelSelector'));
     });
-  }, [focusComposerInput]);
-
-  const handleSelectPrompt = useCallback((selection: SelectedHomePrompt) => {
-    setInput(selection.prompt);
-    if (selection.enableWebSearch) {
-      setImageGenerationEnabled(false);
-      setWebSearchEnabled(true);
-    } else if (selection.enableImageGeneration) {
-      setWebSearchEnabled(false);
-      setImageGenerationEnabled(true);
-    }
-    focusComposerInput(true);
   }, [focusComposerInput]);
 
   const handleFilesUpload = async (files: File[]) => {
@@ -268,17 +263,19 @@ export default function WelcomePage() {
     router.push(`/chat/${id}${qString ? `?${qString}` : ''}`);
   };
 
+  const isHeadlineReady = isClientStateLoaded && announcementState.checked && !announcementState.open;
+
   return (
     <div className="deepchat-home-light dc-home-canvas relative flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden custom-scrollbar">
-      <div className="mx-auto my-auto flex w-full max-w-[48rem] shrink-0 flex-col items-center px-4 py-6 sm:px-6 sm:py-10">
-        <ProductAnnouncementCard
-          announcement={ACTIVE_PRODUCT_ANNOUNCEMENT}
-          onAction={handleAnnouncementAction}
-          onSelectSamplePrompt={handleSelectPrompt}
-        />
+      <ProductAnnouncementCard
+        announcement={ACTIVE_PRODUCT_ANNOUNCEMENT}
+        onAction={handleAnnouncementAction}
+        onOpenStateChange={handleAnnouncementOpenState}
+      />
 
-        <div className="mb-7 mt-1 flex w-full justify-center sm:mb-9">
-          <DotRevealHeadline text={headline} ready={isClientStateLoaded} />
+      <div className="mx-auto my-auto flex w-full max-w-[46rem] shrink-0 flex-col items-center px-4 pb-12 pt-6 sm:px-6 sm:pb-16 sm:pt-10">
+        <div className="mb-8 flex w-full justify-center sm:mb-10">
+          <DotRevealHeadline text={headline} ready={isHeadlineReady} />
         </div>
 
         <div ref={composerWrapRef} className="dc-home-reveal-hidden relative z-30 w-full">
@@ -309,14 +306,6 @@ export default function WelcomePage() {
             })}
           />
         </div>
-
-        <div className="relative z-10 mt-5 w-full sm:mt-6">
-          <HomePromptCards onSelectPrompt={handleSelectPrompt} />
-        </div>
-
-        <p className="mt-5 hidden text-center text-[11px] font-medium text-[var(--dc-text-faint)] sm:block">
-          Press Enter to send · Shift + Enter for a new line
-        </p>
       </div>
     </div>
   );

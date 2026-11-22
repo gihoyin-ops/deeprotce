@@ -6,7 +6,6 @@ export type {
   ProductAnnouncementActionType,
   ProductAnnouncementData,
   ProductAnnouncementGalleryItem,
-  ProductAnnouncementPromptSelection,
 } from './types';
 
 const imagesModelUpdate: ProductAnnouncementData = imagesModelUpdateJson as ProductAnnouncementData;

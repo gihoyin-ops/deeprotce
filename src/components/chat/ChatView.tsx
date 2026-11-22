@@ -6,7 +6,6 @@ import { getChat, saveMessage, uploadFile } from '@/app/actions';
 import MarkdownRenderer from '@/components/ui/MarkdownRenderer';
 import ChatComposer, { getComposerFileIcon } from '@/components/ui/ChatComposer';
 import DotRevealHeadline from '@/components/home/DotRevealHeadline';
-import HomePromptCards, { type SelectedHomePrompt } from '@/components/home/HomePromptCards';
 import Tooltip from '@/components/ui/Tooltip';
 import {
   ChatGenerationSnapshot,
@@ -825,29 +824,8 @@ export default function ChatView({ chatId }: { chatId: string }) {
       >
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-12 sm:gap-14" style={{ paddingBottom: composerReserve }}>
           {isChatHydrated && messages.length === 0 && !isLoading && (
-            <div className="mx-auto mt-10 flex w-full max-w-[44rem] flex-col items-center gap-6 sm:mt-16">
+            <div className="mt-24 flex flex-col items-center justify-center text-center">
               <DotRevealHeadline text="Start a new thought with DeepChat" ready size="compact" />
-              <HomePromptCards
-                compact
-                onSelectPrompt={(selection: SelectedHomePrompt) => {
-                  setInput(selection.prompt);
-                  if (selection.enableWebSearch) {
-                    setImageGenerationEnabled(false);
-                    setWebSearchEnabled(true);
-                  } else if (selection.enableImageGeneration) {
-                    setWebSearchEnabled(false);
-                    setImageGenerationEnabled(true);
-                  }
-                  window.requestAnimationFrame(() => {
-                    const textarea = composerContentRef.current?.querySelector('textarea');
-                    if (textarea) {
-                      textarea.focus();
-                      const len = selection.prompt.length;
-                      textarea.setSelectionRange(len, len);
-                    }
-                  });
-                }}
-              />
             </div>
           )}
 

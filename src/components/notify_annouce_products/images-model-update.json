@@ -1,16 +1,11 @@
 {
   "id": "images-model-update",
-  "storageVersion": 1,
+  "storageVersion": 2,
   "maxViews": 3,
-  "badge": "New Release",
+  "badge": "New",
   "eyebrow": "DeepChat Images",
   "title": "Our Images Model has been updated",
-  "description": "Sharper lighting, richer material detail, and natural composition across every aspect ratio. Click any preview to test a prompt.",
-  "highlights": [
-    "Photoreal Lighting",
-    "Fine Texture Detail",
-    "Multi-Ratio"
-  ],
+  "description": "Sharper lighting, richer detail, and more natural composition across every aspect ratio.",
   "ctaLabel": "Try Image Model",
   "actionType": "enable-image",
   "gallery": [
@@ -18,80 +13,60 @@
       "id": "img-01",
       "src": "https://picsum.photos/seed/deepchat-glass-01/480/580.webp",
       "alt": "Translucent architectural glass study catching crisp morning refraction",
-      "label": "Studio Glass",
-      "prompt": "Minimalist studio photography of sculpted frosted glass arches refracting warm morning sunlight across matte travertine, razor-sharp editorial focus.",
       "fallbackGradient": "linear-gradient(145deg, #dbeafe 0%, #c7d2fe 52%, #e0e7ff 100%)"
     },
     {
       "id": "img-02",
       "src": "https://picsum.photos/seed/deepchat-arch-02/480/420.webp",
       "alt": "Modernist concrete geometry with sharp golden-hour shadows",
-      "label": "Brutalist Sun",
-      "prompt": "Warm brutalist concrete courtyard bathed in golden afternoon sunbeams casting crisp geometric shadows, clean architectural photography.",
       "fallbackGradient": "linear-gradient(145deg, #fde68a 0%, #fed7aa 55%, #fef3c7 100%)"
     },
     {
       "id": "img-03",
       "src": "https://picsum.photos/seed/deepchat-flora-03/480/420.webp",
       "alt": "Macro botanical leaf study with fine water droplets",
-      "label": "Botanical Macro",
-      "prompt": "Ultra-detailed macro study of velvet sage leaves holding tiny morning dew beads in soft diffused skylight, shallow depth of field.",
       "fallbackGradient": "linear-gradient(145deg, #d1fae5 0%, #a7f3d0 50%, #ecfdf5 100%)"
     },
     {
       "id": "img-04",
       "src": "https://picsum.photos/seed/deepchat-coast-04/480/580.webp",
       "alt": "Calm coastal horizon at blue hour dusk",
-      "label": "Coastal Dusk",
-      "prompt": "Serene basalt coastline at cobalt blue hour with glassy tide reflections and soft horizon mist, medium-format film aesthetic.",
       "fallbackGradient": "linear-gradient(145deg, #93c5fd 0%, #60a5fa 50%, #1e3a8a 100%)"
     },
     {
       "id": "img-05",
       "src": "https://picsum.photos/seed/deepchat-neon-05/480/580.webp",
       "alt": "Moody midnight rain reflection in soft electric blue",
-      "label": "Midnight Neon",
-      "prompt": "Cinematic rainy Tokyo alley at midnight reflecting electric cobalt and amber signage across wet asphalt, crisp atmospheric contrast.",
       "fallbackGradient": "linear-gradient(145deg, #1e1b4b 0%, #312e81 50%, #2563eb 100%)"
     },
     {
       "id": "img-06",
       "src": "https://picsum.photos/seed/deepchat-ceramic-06/480/420.webp",
       "alt": "Minimalist handcrafted ceramic vessel on warm linen",
-      "label": "Ceramic Still",
-      "prompt": "Still life of a speckled stoneware vessel on raw natural linen in soft window light, subtle surface grain and calm shadows.",
       "fallbackGradient": "linear-gradient(145deg, #f5f5f4 0%, #e7e5e4 55%, #d6d3d1 100%)"
     },
     {
       "id": "img-07",
       "src": "https://picsum.photos/seed/deepchat-alpine-07/480/420.webp",
       "alt": "High-altitude alpine ridge emerging through morning mist",
-      "label": "Alpine Mist",
-      "prompt": "Crisp aerial panorama of jagged granite alpine peaks emerging above layered silver cloud mist at dawn, natural color grading.",
       "fallbackGradient": "linear-gradient(145deg, #e2e8f0 0%, #cbd5e1 52%, #94a3b8 100%)"
     },
     {
       "id": "img-08",
       "src": "https://picsum.photos/seed/deepchat-editorial-08/480/580.webp",
       "alt": "Clean editorial interior studio bathed in directional daylight",
-      "label": "Editorial Light",
-      "prompt": "Scandinavian creative studio interior with brushed aluminum desk, warm oak shelving, and directional natural daylight across plaster walls.",
       "fallbackGradient": "linear-gradient(145deg, #f3e8ff 0%, #e0e7ff 52%, #f1f5f9 100%)"
     },
     {
       "id": "img-09",
       "src": "https://picsum.photos/seed/deepchat-desert-09/480/580.webp",
       "alt": "Sculptural desert sand dunes with crisp shadow ridges",
-      "label": "Dune Geometry",
-      "prompt": "Minimalist fine-art photograph of wind-carved sand dunes divided cleanly by light and deep shadow under a clear azure sky.",
       "fallbackGradient": "linear-gradient(145deg, #fed7aa 0%, #fdba74 52%, #c2410c 100%)"
     },
     {
       "id": "img-10",
       "src": "https://picsum.photos/seed/deepchat-prism-10/480/420.webp",
       "alt": "Optical glass prism dispersion in pure studio light",
-      "label": "Prism Study",
-      "prompt": "Macro studio shot of a crystal optical prism splitting a single beam of daylight into crisp sapphire and violet caustics on alabaster.",
       "fallbackGradient": "linear-gradient(145deg, #bfdbfe 0%, #818cf8 55%, #38bdf8 100%)"
     }
   ]

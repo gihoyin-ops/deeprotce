@@ -974,61 +974,35 @@ html[data-appearance="dark"] .dc-kinetic-blue-dot {
   }
 }
 
+.dc-product-modal-backdrop {
+  background: rgb(15 23 42 / 0.42);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+html.dark .dc-product-modal-backdrop,
+html[data-appearance="dark"] .dc-product-modal-backdrop {
+  background: rgb(0 0 0 / 0.68);
+}
+
 .dc-product-announce-card {
-  --spot-x: 50%;
-  --spot-y: 50%;
-  --spot-opacity: 0;
   position: relative;
   overflow: hidden;
   border-radius: 26px;
   border: 1px solid var(--dc-border);
-  background: var(--dc-surface-subtle);
+  background: var(--dc-surface);
   box-shadow:
-    0 1px 2px rgb(15 23 42 / 0.04),
-    0 20px 44px -28px rgb(15 23 42 / 0.16);
-  transition: border-color 220ms ease, box-shadow 220ms ease;
-}
-
-.dc-product-announce-card:hover {
-  border-color: var(--dc-border-strong);
-}
-
-.dc-product-announce-card::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 25;
-  opacity: var(--spot-opacity);
-  background: radial-gradient(
-    460px circle at var(--spot-x) var(--spot-y),
-    rgb(37 99 235 / 0.075),
-    transparent 66%
-  );
-  transition: opacity 220ms ease;
+    0 24px 60px -24px rgb(15 23 42 / 0.28),
+    0 0 0 1px rgb(15 23 42 / 0.03);
 }
 
 html.dark .dc-product-announce-card,
 html[data-appearance="dark"] .dc-product-announce-card {
-  background: #131313;
-  border-color: rgb(255 255 255 / 0.09);
+  background: #141414;
+  border-color: rgb(255 255 255 / 0.1);
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 0.06),
-    0 24px 52px -30px rgb(0 0 0 / 0.92);
-}
-
-html.dark .dc-product-announce-card:hover,
-html[data-appearance="dark"] .dc-product-announce-card:hover {
-  border-color: rgb(255 255 255 / 0.16);
-}
-
-html.dark .dc-product-announce-card::before,
-html[data-appearance="dark"] .dc-product-announce-card::before {
-  background: radial-gradient(
-    460px circle at var(--spot-x) var(--spot-y),
-    rgb(59 130 246 / 0.12),
-    transparent 68%
-  );
+    0 32px 72px -24px rgb(0 0 0 / 0.94);
 }
 
 .dc-product-gallery-stage {
@@ -1053,7 +1027,6 @@ html[data-appearance="dark"] .dc-product-gallery-stage {
   border: 1px solid rgb(15 23 42 / 0.08);
   box-shadow: 0 4px 14px -8px rgb(15 23 42 / 0.28);
   will-change: transform, opacity;
-  transition: border-color 220ms ease, box-shadow 220ms ease;
 }
 
 @media (min-width: 640px) {
@@ -1062,69 +1035,10 @@ html[data-appearance="dark"] .dc-product-gallery-stage {
   }
 }
 
-.dc-product-gallery-tile:hover {
-  border-color: rgb(37 99 235 / 0.48);
-  box-shadow:
-    0 12px 26px -12px rgb(15 23 42 / 0.45),
-    0 0 0 1px rgb(37 99 235 / 0.25);
-}
-
 html.dark .dc-product-gallery-tile,
 html[data-appearance="dark"] .dc-product-gallery-tile {
   border-color: rgb(255 255 255 / 0.12);
   box-shadow: 0 8px 20px -10px rgb(0 0 0 / 0.75);
-}
-
-html.dark .dc-product-gallery-tile:hover,
-html[data-appearance="dark"] .dc-product-gallery-tile:hover {
-  border-color: rgb(96 165 250 / 0.55);
-  box-shadow:
-    0 16px 30px -12px rgb(0 0 0 / 0.9),
-    0 0 0 1px rgb(96 165 250 / 0.3);
-}
-
-.dc-product-tile-scrim {
-  position: absolute;
-  inset-inline: 0;
-  bottom: 0;
-  height: 56%;
-  pointer-events: none;
-  background: linear-gradient(to top, rgb(0 0 0 / 0.62) 0%, rgb(0 0 0 / 0.2) 55%, transparent 100%);
-  opacity: 0.62;
-  transition: opacity 240ms ease;
-}
-
-.dc-product-gallery-tile:hover .dc-product-tile-scrim {
-  opacity: 0.94;
-}
-
-.dc-product-gallery-caption {
-  position: absolute;
-  left: 7px;
-  right: 7px;
-  bottom: 7px;
-  z-index: 5;
-  max-width: calc(100% - 14px);
-  align-items: center;
-  border-radius: 9999px;
-  padding: 2px 8px;
-  font-size: 10px;
-  font-weight: 600;
-  line-height: 1.35;
-  color: #ffffff;
-  background: rgb(15 23 42 / 0.56);
-  border: 1px solid rgb(255 255 255 / 0.16);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  opacity: 0.88;
-  transform: translateY(1px);
-  transition: opacity 220ms ease, transform 220ms ease, background-color 220ms ease;
-}
-
-.dc-product-gallery-tile:hover .dc-product-gallery-caption {
-  opacity: 1;
-  transform: translateY(0);
-  background: rgb(15 23 42 / 0.78);
 }
 
 .dc-product-announce-badge {
@@ -1162,31 +1076,13 @@ html[data-appearance="dark"] .dc-product-badge-dot {
   box-shadow: 0 0 8px rgb(96 165 250 / 0.65);
 }
 
-.dc-product-announce-chip {
-  display: inline-flex;
-  align-items: center;
-  border-radius: 9999px;
-  padding: 2px 9px;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--dc-text-muted);
-  background: var(--dc-fill);
-  border: 1px solid var(--dc-border-subtle);
-}
-
-html.dark .dc-product-announce-chip,
-html[data-appearance="dark"] .dc-product-announce-chip {
-  background: rgb(255 255 255 / 0.05);
-  border-color: rgb(255 255 255 / 0.08);
-}
-
 .dc-product-announce-cta {
   display: inline-flex;
   align-items: center;
   gap: 7px;
   border-radius: 9999px;
-  padding: 9px 16px;
-  font-size: 12.5px;
+  padding: 10px 18px;
+  font-size: 13px;
   font-weight: 600;
   line-height: 1;
   white-space: nowrap;
@@ -1212,11 +1108,11 @@ html[data-appearance="dark"] .dc-product-announce-chip {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   border-radius: 9999px;
   color: #ffffff;
-  background: rgb(15 23 42 / 0.55);
+  background: rgb(15 23 42 / 0.58);
   border: 1px solid rgb(255 255 255 / 0.22);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
@@ -1224,148 +1120,11 @@ html[data-appearance="dark"] .dc-product-announce-chip {
 }
 
 .dc-product-announce-close:hover {
-  background: rgb(15 23 42 / 0.8);
+  background: rgb(15 23 42 / 0.84);
 }
 
 .dc-product-announce-close:active {
   transform: scale(0.94);
-}
-
-.dc-home-pill-track {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  border-radius: 9999px;
-  padding: 3px;
-  background: var(--dc-fill);
-  border: 1px solid var(--dc-border-subtle);
-}
-
-html.dark .dc-home-pill-track,
-html[data-appearance="dark"] .dc-home-pill-track {
-  background: #141414;
-  border-color: rgb(255 255 255 / 0.07);
-}
-
-.dc-home-pill-indicator {
-  position: absolute;
-  top: 3px;
-  bottom: 3px;
-  left: 0;
-  border-radius: 9999px;
-  background: var(--dc-surface);
-  box-shadow:
-    0 1px 3px rgb(15 23 42 / 0.08),
-    0 0 0 1px var(--dc-border-subtle);
-  pointer-events: none;
-  will-change: transform, width;
-}
-
-html.dark .dc-home-pill-indicator,
-html[data-appearance="dark"] .dc-home-pill-indicator {
-  background: #242424;
-  box-shadow:
-    0 1px 4px rgb(0 0 0 / 0.45),
-    0 0 0 1px rgb(255 255 255 / 0.08);
-}
-
-.dc-home-card {
-  --card-x: 50%;
-  --card-y: 50%;
-  --card-spot-opacity: 0;
-  position: relative;
-  overflow: hidden;
-  border-radius: 20px;
-  border: 1px solid var(--dc-border);
-  background: var(--dc-surface-subtle);
-  text-align: left;
-  transition: border-color 200ms ease, box-shadow 220ms ease, background-color 200ms ease;
-  will-change: transform;
-}
-
-.dc-home-card:hover {
-  border-color: var(--dc-border-strong);
-  background: var(--dc-surface);
-  box-shadow: 0 12px 28px -22px rgb(15 23 42 / 0.2);
-}
-
-.dc-home-card::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  opacity: var(--card-spot-opacity);
-  background: radial-gradient(
-    240px circle at var(--card-x) var(--card-y),
-    color-mix(in srgb, var(--deepchat-accent, #4f46e5) 8%, transparent),
-    transparent 68%
-  );
-  transition: opacity 200ms ease;
-}
-
-html.dark .dc-home-card,
-html[data-appearance="dark"] .dc-home-card {
-  background: #141414;
-  border-color: rgb(255 255 255 / 0.08);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.03);
-}
-
-html.dark .dc-home-card:hover,
-html[data-appearance="dark"] .dc-home-card:hover {
-  background: #191919;
-  border-color: rgb(255 255 255 / 0.16);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.06),
-    0 16px 32px -24px rgb(0 0 0 / 0.9);
-}
-
-html.dark .dc-home-card::before,
-html[data-appearance="dark"] .dc-home-card::before {
-  background: radial-gradient(
-    240px circle at var(--card-x) var(--card-y),
-    color-mix(in srgb, var(--deepchat-accent, #4f46e5) 12%, rgb(255 255 255 / 0.04)),
-    transparent 70%
-  );
-}
-
-.dc-home-card-icon {
-  display: flex;
-  height: 34px;
-  width: 34px;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  border-radius: 11px;
-  background: var(--dc-surface);
-  border: 1px solid var(--dc-border);
-  color: var(--dc-text);
-  will-change: transform;
-}
-
-html.dark .dc-home-card-icon,
-html[data-appearance="dark"] .dc-home-card-icon {
-  background: #1f1f1f;
-  border-color: rgb(255 255 255 / 0.08);
-  color: #e5e5e5;
-}
-
-.dc-home-card-tag {
-  border-radius: 9999px;
-  padding: 2px 8px;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  background: var(--dc-fill);
-  color: var(--dc-text-muted);
-  border: 1px solid var(--dc-border-subtle);
-}
-
-html.dark .dc-home-card-tag,
-html[data-appearance="dark"] .dc-home-card-tag {
-  background: rgb(255 255 255 / 0.05);
-  border-color: rgb(255 255 255 / 0.08);
-  color: var(--dc-text-muted);
 }
 
 .dc-home-reveal-hidden {
@@ -1383,14 +1142,11 @@ html[data-appearance="dark"] .dc-home-card-tag {
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--deepchat-accent, #4f46e5) 14%, transparent);
 }
 
-html[data-contrast="increased"] .dc-product-announce-card,
-html[data-contrast="increased"] .dc-home-card {
+html[data-contrast="increased"] .dc-product-announce-card {
   border-color: var(--dc-border-strong);
 }
 
-.dc-product-announce-card button:focus-visible,
-.dc-home-pill-track button:focus-visible,
-.dc-home-card:focus-visible {
+.dc-product-announce-card button:focus-visible {
   outline: 2px solid var(--deepchat-accent, #4f46e5);
   outline-offset: 2px;
 }

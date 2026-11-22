@@ -11,6 +11,22 @@ interface DotRevealHeadlineProps {
   onCycleHeadline?: () => void;
 }
 
+interface CharSample {
+  el: HTMLElement;
+  centerX: number;
+  left: number;
+  right: number;
+  revealed: boolean;
+}
+
+interface VisualLine {
+  anchorTop: number;
+  left: number;
+  right: number;
+  centerY: number;
+  items: CharSample[];
+}
+
 export default function DotRevealHeadline({
   text,
   ready = true,
@@ -32,7 +48,7 @@ export default function DotRevealHeadline({
     mm.add('(prefers-reduced-motion: reduce)', () => {
       const chars = contentEl.querySelectorAll<HTMLElement>('.dc-headline-char');
 
-      gsap.set(chars, { opacity: 1, y: 0, scale: 1 });
+      gsap.set(chars, { opacity: 1, x: 0, y: 0, scale: 1 });
       gsap.set(dotEl, { x: 0, y: 0, scale: 1, opacity: 1 });
       contentEl.classList.remove('dc-headline-pending');
 
@@ -44,7 +60,7 @@ export default function DotRevealHeadline({
     });
 
     mm.add('(prefers-reduced-motion: no-preference)', () => {
-      const chars = contentEl.querySelectorAll<HTMLElement>('.dc-headline-char');
+      const chars = Array.from(contentEl.querySelectorAll<HTMLElement>('.dc-headline-char'));
 
       if (chars.length === 0) {
         gsap.set(dotEl, { x: 0, y: 0, scale: 1, opacity: 1 });
@@ -52,106 +68,213 @@ export default function DotRevealHeadline({
         return;
       }
 
-      const firstRect = chars[0].getBoundingClientRect();
       const dotRect = dotEl.getBoundingClientRect();
+      const dotRestCenterX = dotRect.left + dotRect.width * 0.5;
+      const dotRestCenterY = dotRect.top + dotRect.height * 0.5;
+      const baseRadius = Math.max(dotRect.width * 0.5, 4);
 
-      const dotCenterX = dotRect.left + dotRect.width * 0.5;
-      const dotCenterY = dotRect.top + dotRect.height * 0.5;
-      const targetStartX = firstRect.left - 12 - dotCenterX;
-      const targetStartY = firstRect.top + firstRect.height * 0.52 - dotCenterY;
+      const measured = chars.map((el) => ({
+        el,
+        rect: el.getBoundingClientRect(),
+      }));
 
-      const startX = Number.isFinite(targetStartX) ? targetStartX : -240;
-      const startY = Number.isFinite(targetStartY) ? targetStartY : -10;
+      const firstHeight = Math.max(measured[0].rect.height, 20);
+      const lineTolerance = firstHeight * 0.55;
+      const lines: VisualLine[] = [];
 
-      const sweepDuration = 0.92;
-      const charStagger = (sweepDuration * 0.84) / Math.max(chars.length, 1);
+      for (let i = 0; i < measured.length; i += 1) {
+        const { el, rect } = measured[i];
+        const sample: CharSample = {
+          el,
+          centerX: rect.left + rect.width * 0.5,
+          left: rect.left,
+          right: rect.right,
+          revealed: false,
+        };
+        const centerY = rect.top + rect.height * 0.52;
+        const currentLine = lines[lines.length - 1];
+
+        if (!currentLine || Math.abs(currentLine.anchorTop - rect.top) > lineTolerance) {
+          lines.push({
+            anchorTop: rect.top,
+            left: rect.left,
+            right: rect.right,
+            centerY,
+            items: [sample],
+          });
+        } else {
+          currentLine.items.push(sample);
+          currentLine.left = Math.min(currentLine.left, rect.left);
+          currentLine.right = Math.max(currentLine.right, rect.right);
+          const count = currentLine.items.length;
+          currentLine.centerY =
+            (currentLine.centerY * (count - 1) + centerY) / count;
+        }
+      }
+
+      const startScale = 3.85;
+      const endScale = 1;
+      const firstLine = lines[0];
+      const startX = Number.isFinite(firstLine.left - dotRestCenterX)
+        ? firstLine.left - 18 - dotRestCenterX
+        : -240;
+      const startY = Number.isFinite(firstLine.centerY - dotRestCenterY)
+        ? firstLine.centerY - dotRestCenterY
+        : -10;
 
       gsap.set(chars, {
         opacity: 0,
-        y: 7,
-        scale: 0.92,
-        transformOrigin: '50% 70%',
+        x: -5,
+        y: 3,
+        scale: 0.94,
+        transformOrigin: '50% 65%',
       });
 
-      gsap.set(dotEl, {
+      const dotState = {
         x: startX,
         y: startY,
         scale: 0,
         opacity: 0,
-        transformOrigin: '50% 50%',
-      });
+      };
 
+      const applyDot = () => {
+        gsap.set(dotEl, {
+          x: dotState.x,
+          y: dotState.y,
+          scale: dotState.scale,
+          opacity: dotState.opacity,
+          transformOrigin: '50% 50%',
+        });
+      };
+
+      applyDot();
       contentEl.classList.remove('dc-headline-pending');
 
-      const tl = gsap.timeline({ defaults: { force3D: true } });
+      const charTweens: gsap.core.Tween[] = [];
 
-      tl.to(
-        dotEl,
-        {
-          scale: 3.85,
-          opacity: 1,
-          duration: 0.24,
-          ease: 'back.out(2.0)',
-        },
-        0
-      )
-        .to(
-          dotEl,
-          {
+      const revealChar = (item: CharSample) => {
+        if (item.revealed) return;
+        item.revealed = true;
+        charTweens.push(
+          gsap.to(item.el, {
+            opacity: 1,
             x: 0,
             y: 0,
             scale: 1,
-            duration: sweepDuration,
-            ease: 'power3.inOut',
-          },
-          0.16
-        )
-        .to(
-          chars,
-          {
-            opacity: 1,
-            y: 0,
-            scale: 1,
-            duration: 0.36,
-            ease: 'expo.out',
-            stagger: { each: charStagger, from: 'start' },
+            duration: 0.24,
+            ease: 'power3.out',
             clearProps: 'transform',
-          },
-          0.24
-        )
-        .to(
-          dotEl,
-          {
-            scale: 1.2,
-            duration: 0.14,
-            ease: 'power2.out',
-          },
-          0.16 + sweepDuration
-        )
-        .to(
-          dotEl,
-          {
-            scale: 1,
-            duration: 0.22,
-            ease: 'back.out(2.4)',
-          },
-          0.3 + sweepDuration
-        )
-        .to(
-          dotEl,
-          {
-            scale: 1.16,
-            opacity: 0.82,
-            duration: 2.2,
-            ease: 'sine.inOut',
-            repeat: -1,
-            yoyo: true,
-          },
-          0.54 + sweepDuration
+          })
         );
+      };
+
+      const revealBehindDot = (lineIndex: number) => {
+        const line = lines[lineIndex];
+        if (!line) return;
+        const liveCenterX = dotRestCenterX + dotState.x;
+        const liveRadius = baseRadius * dotState.scale;
+        const frontierX = liveCenterX - liveRadius * 0.45;
+
+        for (let i = 0; i < line.items.length; i += 1) {
+          const item = line.items[i];
+          if (!item.revealed && frontierX >= item.centerX) {
+            revealChar(item);
+          }
+        }
+      };
+
+      const revealLineRemaining = (lineIndex: number) => {
+        const line = lines[lineIndex];
+        if (!line) return;
+        for (let i = 0; i < line.items.length; i += 1) {
+          if (!line.items[i].revealed) {
+            revealChar(line.items[i]);
+          }
+        }
+      };
+
+      const totalSweepDuration = lines.length > 1 ? 1.12 : 0.94;
+      const totalChars = Math.max(chars.length, 1);
+
+      const tl = gsap.timeline({ defaults: { force3D: true } });
+
+      tl.to(dotState, {
+        scale: startScale,
+        opacity: 1,
+        duration: 0.24,
+        ease: 'back.out(2.0)',
+        onUpdate: applyDot,
+      });
+
+      let accumulatedChars = 0;
+      for (let lineIdx = 0; lineIdx < lines.length; lineIdx += 1) {
+        const line = lines[lineIdx];
+        const isFirstLine = lineIdx === 0;
+        const isLastLine = lineIdx === lines.length - 1;
+
+        if (!isFirstLine) {
+          const nextStartX = line.left - 16 - dotRestCenterX;
+          const nextStartY = line.centerY - dotRestCenterY;
+          tl.to(dotState, {
+            x: nextStartX,
+            y: nextStartY,
+            duration: 0.13,
+            ease: 'power2.inOut',
+            onUpdate: applyDot,
+          });
+        }
+
+        accumulatedChars += line.items.length;
+        const progressEnd = accumulatedChars / totalChars;
+        const targetScale = startScale + (endScale - startScale) * progressEnd;
+        const lineDuration = Math.max(
+          0.26,
+          totalSweepDuration * (line.items.length / totalChars)
+        );
+
+        const targetEndX = isLastLine ? 0 : line.right + 14 - dotRestCenterX;
+        const targetEndY = isLastLine ? 0 : line.centerY - dotRestCenterY;
+
+        tl.to(dotState, {
+          x: targetEndX,
+          y: targetEndY,
+          scale: targetScale,
+          duration: lineDuration,
+          ease: 'power2.inOut',
+          onUpdate: () => {
+            applyDot();
+            revealBehindDot(lineIdx);
+          },
+          onComplete: () => {
+            revealLineRemaining(lineIdx);
+          },
+        });
+      }
+
+      tl.to(dotState, {
+        scale: 1.18,
+        duration: 0.12,
+        ease: 'power2.out',
+        onUpdate: applyDot,
+      })
+        .to(dotState, {
+          scale: 1,
+          duration: 0.22,
+          ease: 'back.out(2.4)',
+          onUpdate: applyDot,
+        })
+        .to(dotEl, {
+          scale: 1.16,
+          opacity: 0.84,
+          duration: 2.2,
+          ease: 'sine.inOut',
+          repeat: -1,
+          yoyo: true,
+        });
 
       return () => {
         tl.kill();
+        charTweens.forEach((tween) => tween.kill());
       };
     });
 
