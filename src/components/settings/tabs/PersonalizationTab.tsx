@@ -4,6 +4,7 @@ import React, { useRef, useState } from 'react';
 import NextImage from 'next/image';
 import { HelpCircle, X } from '@/components/ui/icons';
 import ToggleSwitch from '@/components/ui/ToggleSwitch';
+import Tooltip from '@/components/ui/Tooltip';
 import {
   EMOJI_OPTIONS,
   ENTHUSIASTIC_OPTIONS,
@@ -111,14 +112,16 @@ export function PersonalizationTab({
         <div className="flex items-center justify-between border-b border-[var(--dc-border-subtle)] pb-3">
           <div className="flex items-center gap-1.5">
             <h4 className="text-base font-medium text-[var(--dc-text-strong)]">Memory</h4>
-            <button
-              type="button"
-              onClick={onOpenMemoryDocs}
-              aria-label="Learn more about Memory"
-              className="rounded-full p-1 text-[var(--dc-text-muted)] transition-colors hover:bg-[var(--dc-surface-hover)] hover:text-[var(--dc-text-strong)]"
-            >
-              <HelpCircle className="h-3.5 w-3.5" />
-            </button>
+            <Tooltip label="Learn more about Memory" side="right">
+              <button
+                type="button"
+                onClick={onOpenMemoryDocs}
+                aria-label="Learn more about Memory"
+                className="rounded-full p-1 text-[var(--dc-text-muted)] transition-colors hover:bg-[var(--dc-surface-hover)] hover:text-[var(--dc-text-strong)]"
+              >
+                <HelpCircle className="h-3.5 w-3.5" />
+              </button>
+            </Tooltip>
           </div>
         </div>
 

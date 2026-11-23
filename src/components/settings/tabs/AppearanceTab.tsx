@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { ChevronDown, ChevronRight } from '@/components/ui/icons';
 import ToggleSwitch from '@/components/ui/ToggleSwitch';
+import Tooltip from '@/components/ui/Tooltip';
 import {
   ACCENT_COLOR_OPTIONS,
   defaultAppearanceSettings,
@@ -31,18 +32,18 @@ function ColorModePreviewCard({
   const label = mode === 'system' ? 'System' : mode === 'light' ? 'Light' : 'Dark';
 
   return (
-    <button
-      type="button"
-      onClick={onSelect}
-      aria-pressed={selected}
-      aria-label={`Color mode: ${label}`}
-      title={label}
-      className={`group relative h-[62px] w-[96px] overflow-hidden rounded-xl border-2 transition-all ${
-        selected
-          ? 'border-blue-500 ring-2 ring-blue-500/25'
-          : 'border-[var(--dc-border)] hover:border-[var(--dc-border-strong)]'
-      }`}
-    >
+    <Tooltip label={label} side="top">
+      <button
+        type="button"
+        onClick={onSelect}
+        aria-pressed={selected}
+        aria-label={`Color mode: ${label}`}
+        className={`group relative h-[62px] w-[96px] overflow-hidden rounded-xl border-2 transition-all ${
+          selected
+            ? 'border-blue-500 ring-2 ring-blue-500/25'
+            : 'border-[var(--dc-border)] hover:border-[var(--dc-border-strong)]'
+        }`}
+      >
       {mode === 'light' && (
         <div className="flex h-full w-full p-1.5" style={{ backgroundColor: '#ffffff' }}>
           <div className="w-5 shrink-0 rounded-l-md p-1" style={{ backgroundColor: '#f1f5f9' }}>
@@ -115,7 +116,8 @@ function ColorModePreviewCard({
           </div>
         </div>
       )}
-    </button>
+      </button>
+    </Tooltip>
   );
 }
 
