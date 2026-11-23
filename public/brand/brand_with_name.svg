@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 166 36" fill="none">
+  <g transform="translate(2, 2) scale(0.2667)" stroke="#000" stroke-linecap="round">
+    <g transform="translate(1, 0)">
+      <path d="M 29,32 L 29,24 L 55,24 A 36,36 0 0 1 91,60 A 36,36 0 0 1 81,84" stroke-width="10"/>
+      <path d="M 67,94 A 36,36 0 0 1 55,96 L 29,96 L 29,62" stroke-width="10"/>
+      <path d="M 45,40 L 55,40 A 20,20 0 0 1 75,60 A 20,20 0 0 1 55,80 L 45,80" stroke-width="6"/>
+      <circle cx="29" cy="47" r="4" fill="#000" stroke="none"/>
+      <circle cx="74" cy="89" r="4" fill="#000" stroke="none"/>
+      <circle cx="45" cy="60" r="4.5" fill="#000" stroke="none"/>
+    </g>
+  </g>
+  <g fill="#000" font-family="Inter, Arial, Helvetica, sans-serif" font-size="22" font-weight="800" letter-spacing="-0.4">
+    <text x="40" y="25.5">DeepChat</text>
+  </g>
+</svg>

@@ -94,7 +94,23 @@ export default function PricingPage() {
       {/* Standalone top bar (no chat wireframe) */}
       <header className="border-b border-[var(--dc-border-subtle)] bg-[var(--dc-panel)]/80 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-6">
-          <span className="text-lg font-bold tracking-tight text-[var(--dc-text-strong)]">DeepChat</span>
+          <Link href="/" aria-label="DeepChat" className="inline-flex items-center">
+            <span
+              role="img"
+              aria-label="DeepChat"
+              className="inline-block h-8 w-[148px] bg-[var(--dc-text-strong)]"
+              style={{
+                WebkitMaskImage: 'url("/brand/brand_with_name.svg")',
+                maskImage: 'url("/brand/brand_with_name.svg")',
+                WebkitMaskRepeat: 'no-repeat',
+                maskRepeat: 'no-repeat',
+                WebkitMaskPosition: 'left center',
+                maskPosition: 'left center',
+                WebkitMaskSize: 'contain',
+                maskSize: 'contain'
+              }}
+            />
+          </Link>
           <Link
             href="/"
             className="inline-flex items-center gap-2 rounded-full border border-[var(--dc-border)] bg-[var(--dc-surface)] px-4 py-1.5 text-sm font-medium text-[var(--dc-text-strong)] transition-colors hover:bg-[var(--dc-surface-hover)]"
