@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { X } from '@/components/ui/icons';
 
 interface UsageWindow {
   window: '5h' | '7d';
@@ -27,15 +26,6 @@ interface UsageResponse {
   windows?: UsageWindow[];
 }
 
-interface PlanItem {
-  id: string;
-  label: string;
-  limitTokens: number | null;
-  limitLabel: string;
-  unlimited: boolean;
-  windows: string[];
-}
-
 function formatTimeRemaining(iso: string): string {
   const diffMs = Math.max(0, new Date(iso).getTime() - Date.now());
   const totalMinutes = Math.floor(diffMs / 60000);
@@ -55,20 +45,14 @@ function formatTokenCount(value: number | null | undefined): string {
 export function UsageTab() {
   const [subTab, setSubTab] = useState<'overview' | 'analytics'>('overview');
   const [usage, setUsage] = useState<UsageResponse | null>(null);
-  const [plans, setPlans] = useState<PlanItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isPlansOpen, setIsPlansOpen] = useState(false);
 
   useEffect(() => {
     let active = true;
-    Promise.all([
-      fetch('/api/usage').then(r => (r.ok ? r.json() : null)),
-      fetch('/api/usage/plans').then(r => (r.ok ? r.json() : null))
-    ])
-      .then(([usageData, plansData]) => {
-        if (!active) return;
-        if (usageData) setUsage(usageData);
-        if (plansData?.plans) setPlans(plansData.plans);
+    fetch('/api/usage')
+      .then(r => (r.ok ? r.json() : null))
+      .then(usageData => {
+        if (active && usageData) setUsage(usageData);
       })
       .catch(() => {})
       .finally(() => {
@@ -123,7 +107,7 @@ export function UsageTab() {
         <p className="mt-1 text-sm text-[var(--dc-text-muted)]">Track your usage and check your limits</p>
       </header>
 
-      {/* 2 tabs: Overview | Analytics (matches screenshot 4) */}
+      {/* 2 tabs: Overview | Analytics */}
       <div className="flex items-center gap-1.5" role="tablist" aria-label="Usage views">
         <button
           type="button"
@@ -171,13 +155,14 @@ export function UsageTab() {
                 <p className="text-sm font-semibold text-[var(--dc-text-strong)]">DeepChat {planName}</p>
                 <p className="mt-0.5 text-xs text-[var(--dc-text-muted)]">{planLimitLabel}</p>
               </div>
-              <button
-                type="button"
-                onClick={() => setIsPlansOpen(true)}
+              <a
+                href="/pricing"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="rounded-full bg-[var(--dc-fill)] px-4 py-2 text-sm font-medium text-[var(--dc-text-strong)] transition-colors hover:bg-[var(--dc-fill-hover)]"
               >
                 View plans
-              </button>
+              </a>
             </div>
           </section>
 
@@ -187,13 +172,14 @@ export function UsageTab() {
               <h4 className="text-base font-medium text-[var(--dc-text-strong)]">Plan limits</h4>
               <p className="mt-1 text-xs leading-relaxed text-[var(--dc-text-muted)]">
                 Token limits apply per rolling 5-hour and weekly window on your active DeepChat plan.{' '}
-                <button
-                  type="button"
-                  onClick={() => setIsPlansOpen(true)}
+                <a
+                  href="/pricing"
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="font-medium text-blue-600 hover:underline dark:text-blue-400"
                 >
-                  Compare plan limits
-                </button>
+                  Compare limits
+                </a>
               </p>
             </div>
 
@@ -290,72 +276,6 @@ export function UsageTab() {
                 </div>
               );
             })}
-          </div>
-        </div>
-      )}
-
-      {/* View plans modal */}
-      {isPlansOpen && (
-        <div
-          className="fixed inset-0 z-[260] flex items-center justify-center bg-black/50 p-4 backdrop-blur-[2px]"
-          onClick={() => setIsPlansOpen(false)}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="Available plans"
-            className="w-full max-w-lg rounded-3xl border border-[var(--dc-border)] bg-[var(--dc-panel)] p-6 shadow-2xl"
-            onClick={event => event.stopPropagation()}
-          >
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <h3 className="text-lg font-semibold text-[var(--dc-text-strong)]">DeepChat Plans</h3>
-                <p className="mt-0.5 text-xs text-[var(--dc-text-muted)]">
-                  Token allowances per 5-hour and 7-day rolling window
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsPlansOpen(false)}
-                aria-label="Close plans"
-                className="rounded-full p-1.5 text-[var(--dc-text-muted)] transition-colors hover:bg-[var(--dc-surface-hover)] hover:text-[var(--dc-text-strong)]"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="mt-4 space-y-2.5">
-              {plans.map(plan => {
-                const isCurrent = plan.id === (usage?.planId || 'free');
-                return (
-                  <div
-                    key={plan.id}
-                    className={`flex items-center justify-between rounded-2xl border p-4 ${
-                      isCurrent
-                        ? 'border-[var(--dc-text-strong)] bg-[var(--dc-surface-muted)]'
-                        : 'border-[var(--dc-border)] bg-[var(--dc-surface)]'
-                    }`}
-                  >
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-semibold text-[var(--dc-text-strong)]">{plan.label}</p>
-                        {isCurrent && (
-                          <span className="rounded-full bg-[var(--dc-invert)] px-2 py-0.5 text-[10px] font-semibold text-[var(--dc-text-on-invert)]">
-                            Current
-                          </span>
-                        )}
-                      </div>
-                      <p className="mt-0.5 text-xs text-[var(--dc-text-muted)]">
-                        Windows: {plan.windows.join(' & ')}
-                      </p>
-                    </div>
-                    <p className="text-sm font-semibold text-[var(--dc-text-strong)]">
-                      {plan.unlimited ? '∞ Unlimited' : `${plan.limitLabel} tokens`}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
           </div>
         </div>
       )}

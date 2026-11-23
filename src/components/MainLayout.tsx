@@ -791,9 +791,9 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     </div>
   );
 
-  const isNaughty = pathname === '/naughty';
+  const isStandalonePage = pathname === '/naughty' || pathname === '/pricing';
 
-  if (isNaughty) {
+  if (isStandalonePage) {
     // standalone guard page: intentionally outside the app chrome,
     // so it reads as its own screen rather than an in-chat error bubble
     return (
