@@ -190,56 +190,75 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
 
   return (
     <>
-      <div className={`deepchat-rail-light hidden min-h-0 shrink-0 flex-col items-center border-r border-[var(--dc-sidebar-border)] bg-[var(--dc-sidebar)] py-2 text-[var(--dc-text)] transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] sm:flex ${isOpen ? 'w-0 overflow-hidden opacity-0 pointer-events-none border-r-0' : 'w-[44px] opacity-100'}`}>
-        <Tooltip label="Open sidebar" side="right" align="center">
-          <button
-            type="button"
-            onClick={() => setIsOpen(true)}
-            className="group/collapse-logo mb-6 flex h-8 w-8 cursor-e-resize items-center justify-center rounded-xl text-[var(--dc-text-strong)] transition-all hover:bg-black/[0.05] active:scale-95 dark:hover:bg-white/[0.08]"
-            aria-label="Open sidebar"
-          >
-            <Image
-              src="/brands/brand.svg"
-              alt="DeepChat"
-              width={28}
-              height={28}
-              unoptimized
-              className="h-7 w-7 transition-opacity group-hover/collapse-logo:opacity-0 dark:invert"
-            />
-            <PanelLeft className="absolute h-5 w-5 opacity-0 transition-opacity group-hover/collapse-logo:opacity-100" strokeWidth={1.9} />
-          </button>
-        </Tooltip>
+      <div
+        onClick={() => setIsOpen(true)}
+        className={`deepchat-rail-light relative hidden min-h-0 shrink-0 cursor-e-resize flex-col items-center border-r border-[var(--dc-sidebar-border)] bg-[var(--dc-sidebar)] py-3 text-[var(--dc-text)] transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] sm:flex ${isOpen ? 'w-0 overflow-hidden opacity-0 pointer-events-none border-r-0' : 'w-[52px] opacity-100'}`}
+      >
+        <div className="mb-3 flex items-center justify-center">
+          <Tooltip label="Open sidebar" side="right" align="center">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsOpen(true);
+              }}
+              className="group/collapse-logo relative flex h-9 w-9 cursor-e-resize items-center justify-center rounded-xl text-[var(--dc-text-strong)] transition-all hover:bg-black/[0.05] active:scale-95 dark:hover:bg-white/[0.08]"
+              aria-label="Open sidebar"
+            >
+              <Image
+                src="/brands/brand.svg"
+                alt="DeepChat"
+                width={22}
+                height={22}
+                unoptimized
+                className="h-[22px] w-[22px] transition-opacity group-hover/collapse-logo:opacity-0 dark:invert"
+              />
+              <PanelLeft className="absolute h-[18px] w-[18px] opacity-0 transition-opacity group-hover/collapse-logo:opacity-100" strokeWidth={1.9} />
+            </button>
+          </Tooltip>
+        </div>
 
         <div className="flex flex-1 flex-col items-center">
-          <div className="flex flex-col items-center gap-4">
+          <div className="flex flex-col items-center gap-3">
             <CollapsedSidebarButton label="New Chat" shortcuts={[{ label: shortcuts.newChat.join('+'), tone: 'muted' }]} onClick={handleNewChat}>
               <SquarePen className="h-[18px] w-[18px]" strokeWidth={1.9} />
             </CollapsedSidebarButton>
             <CollapsedSidebarButton label="Search" shortcuts={[{ label: shortcuts.search.join('+'), tone: 'muted' }]} onClick={onOpenSearch}>
-              <Search className="h-5 w-5" strokeWidth={2} />
+              <Search className="h-[18px] w-[18px]" strokeWidth={2} />
             </CollapsedSidebarButton>
             <CollapsedSidebarButton label="Action menu" onClick={onOpenActions}>
-              <Ellipsis className="h-5 w-5" strokeWidth={2} />
+              <Ellipsis className="h-[18px] w-[18px]" strokeWidth={2} />
             </CollapsedSidebarButton>
           </div>
 
-          <div className="mt-auto flex flex-col items-center gap-4 pb-1">
+          <div className="mt-auto flex flex-col items-center gap-3 pb-1">
             <CollapsedSidebarButton label="Settings" onClick={() => handleOpenSettings()}>
-              <Settings className="h-5 w-5" strokeWidth={1.9} />
+              <Settings className="h-[18px] w-[18px]" strokeWidth={1.9} />
             </CollapsedSidebarButton>
             <button
               type="button"
-              onClick={() => handleOpenSettings('profile')}
-              className="flex h-8 w-8 items-center justify-center rounded-full transition-transform hover:scale-105 active:scale-95"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleOpenSettings('profile');
+              }}
+              className="flex h-9 w-9 items-center justify-center rounded-full transition-transform hover:scale-105 active:scale-95"
               aria-label="Profile"
             >
               <Image src={safeAvatarSource(profile.avatar)} alt="User" width={28} height={28} unoptimized className="h-7 w-7 rounded-full object-cover" />
             </button>
           </div>
         </div>
+        <div
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsOpen(true);
+          }}
+          className="absolute -right-[3px] top-0 bottom-0 z-20 w-[6px] cursor-e-resize"
+          aria-hidden="true"
+        />
       </div>
 
-      <div className={`deepchat-sidebar-light hidden min-h-0 origin-left overflow-hidden sm:flex flex-col border-r border-[var(--dc-sidebar-border)] bg-[var(--dc-sidebar)] text-[var(--dc-text)] transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[width,opacity,transform] ${isOpen ? 'w-[248px] xl:w-[250px] translate-x-0 opacity-100' : 'w-0 -translate-x-4 opacity-0 pointer-events-none border-r-0'}`}>
+      <div className={`deepchat-sidebar-light relative hidden min-h-0 origin-left overflow-hidden sm:flex flex-col border-r border-[var(--dc-sidebar-border)] bg-[var(--dc-sidebar)] text-[var(--dc-text)] transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[width,opacity,transform] ${isOpen ? 'w-[248px] xl:w-[250px] translate-x-0 opacity-100' : 'w-0 -translate-x-4 opacity-0 pointer-events-none border-r-0'}`}>
         <div className="flex h-14 shrink-0 items-center justify-between px-3">
           <button type="button" className="flex min-w-0 items-center px-1" onClick={() => router.push('/')} aria-label="DeepChat home">
             <span
@@ -351,6 +370,13 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
         <div className="shrink-0 px-3 pb-3 pt-2">
           {renderProfile('expanded', 0)}
         </div>
+        {isOpen && (
+          <div
+            onClick={() => setIsOpen(false)}
+            className="absolute right-0 top-0 bottom-0 z-20 w-[6px] cursor-w-resize transition-colors hover:bg-black/[0.06] dark:hover:bg-white/[0.08]"
+            aria-hidden="true"
+          />
+        )}
       </div>
     </>
   );
@@ -361,8 +387,11 @@ function CollapsedSidebarButton({ children, label, shortcuts = [], onClick }: { 
     <Tooltip label={label} shortcuts={shortcuts} side="right" align="center">
       <button
         type="button"
-        onClick={onClick}
-        className="flex h-8 w-8 items-center justify-center rounded-xl text-[var(--dc-text-body)] transition-all hover:bg-black/[0.05] hover:text-[var(--dc-text-strong)] active:scale-95 dark:hover:bg-white/[0.08]"
+        onClick={(e) => {
+          e.stopPropagation();
+          onClick();
+        }}
+        className="flex h-9 w-9 items-center justify-center rounded-xl text-[var(--dc-text-body)] transition-all hover:bg-black/[0.05] hover:text-[var(--dc-text-strong)] active:scale-95 dark:hover:bg-white/[0.08]"
         aria-label={label}
       >
         {children}
