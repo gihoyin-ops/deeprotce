@@ -12,7 +12,6 @@ import {
 } from '@/components/ui/icons';
 import { useShortcutLabels } from './shortcuts';
 import Tooltip from './ui/Tooltip';
-import { DeepChatLogoMark } from './brand';
 import type { SettingsTab } from './SettingsModal';
 import { deepchatQueryKeys } from '@/lib/query-keys';
 import { safeAvatarSource } from '@/lib/utils';
@@ -199,7 +198,14 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
             className="group/collapse-logo mb-6 flex h-8 w-8 cursor-e-resize items-center justify-center rounded-xl text-[var(--dc-text-strong)] transition-all hover:bg-black/[0.05] active:scale-95 dark:hover:bg-white/[0.08]"
             aria-label="Open sidebar"
           >
-            <DeepChatLogoMark className="h-7 w-7 text-[var(--dc-text-strong)] transition-opacity group-hover/collapse-logo:opacity-0" />
+            <Image
+              src="/brands/brand.svg"
+              alt="DeepChat"
+              width={28}
+              height={28}
+              unoptimized
+              className="h-7 w-7 rounded-lg ring-1 ring-black/10 transition-opacity group-hover/collapse-logo:opacity-0 dark:ring-white/20"
+            />
             <PanelLeft className="absolute h-5 w-5 opacity-0 transition-opacity group-hover/collapse-logo:opacity-100" strokeWidth={1.9} />
           </button>
         </Tooltip>
@@ -235,17 +241,36 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
 
       <div className={`deepchat-sidebar-light hidden min-h-0 origin-left overflow-hidden sm:flex flex-col border-r border-[var(--dc-sidebar-border)] bg-[var(--dc-sidebar)] text-[var(--dc-text)] transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[width,opacity,transform] ${isOpen ? 'w-[248px] xl:w-[250px] translate-x-0 opacity-100' : 'w-0 -translate-x-4 opacity-0 pointer-events-none border-r-0'}`}>
         <div className="flex h-14 shrink-0 items-center justify-between px-3">
-          <button type="button" className="flex min-w-0 items-center" onClick={() => router.push('/')} aria-label="DeepChat home">
-            <span className="truncate text-[25px] font-medium leading-none tracking-normal text-[var(--dc-text-strong)]">DeepChat</span>
+          <button type="button" className="flex min-w-0 items-center px-1" onClick={() => router.push('/')} aria-label="DeepChat home">
+            <span
+              className="truncate text-[18px] font-semibold leading-none tracking-[-0.02em] text-[var(--dc-text-strong)]"
+              style={{ fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}
+            >
+              DeepChat
+            </span>
           </button>
-          <button
-            type="button"
-            onClick={() => setIsOpen(false)}
-            className="flex h-8 w-8 cursor-w-resize items-center justify-center rounded-xl text-[var(--dc-text-muted)] transition-colors hover:bg-black/[0.05] hover:text-[var(--dc-text-strong)] active:scale-95 dark:hover:bg-white/[0.08]"
-            aria-label="Close sidebar"
-          >
-            <PanelLeft className="h-5 w-5" strokeWidth={1.9} />
-          </button>
+          <div className="flex items-center gap-0.5">
+            <Tooltip label="Search" shortcuts={[{ label: shortcuts.search.join('+'), tone: 'muted' }]} side="bottom" align="center">
+              <button
+                type="button"
+                onClick={onOpenSearch}
+                className="flex h-8 w-8 items-center justify-center rounded-xl text-[var(--dc-text-muted)] transition-colors hover:bg-black/[0.05] hover:text-[var(--dc-text-strong)] active:scale-95 dark:hover:bg-white/[0.08]"
+                aria-label="Search chats"
+              >
+                <Search className="h-[18px] w-[18px]" strokeWidth={1.9} />
+              </button>
+            </Tooltip>
+            <Tooltip label="Close sidebar" side="bottom" align="end">
+              <button
+                type="button"
+                onClick={() => setIsOpen(false)}
+                className="flex h-8 w-8 cursor-w-resize items-center justify-center rounded-xl text-[var(--dc-text-muted)] transition-colors hover:bg-black/[0.05] hover:text-[var(--dc-text-strong)] active:scale-95 dark:hover:bg-white/[0.08]"
+                aria-label="Close sidebar"
+              >
+                <PanelLeft className="h-[18px] w-[18px]" strokeWidth={1.9} />
+              </button>
+            </Tooltip>
+          </div>
         </div>
 
         <div className="shrink-0 px-3 pb-4 pt-3">
