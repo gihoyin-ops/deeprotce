@@ -2052,14 +2052,9 @@ html[data-appearance="dark"] .dc-ms-slider-knob {
 }
 
 .dc-mob-drawer {
-  background: var(--dc-surface);
+  background: var(--dc-sidebar);
   color: var(--dc-text);
   overscroll-behavior: contain;
-}
-
-html.dark .dc-mob-drawer,
-html[data-appearance="dark"] .dc-mob-drawer {
-  background: #141416;
 }
 
 .dc-mob-scrim {

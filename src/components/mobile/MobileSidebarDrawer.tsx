@@ -28,7 +28,6 @@ import {
   Trash2,
   X,
 } from '@/components/ui/icons';
-import { DeepChatLogoMark } from '@/components/brand';
 import {
   archiveChat,
   deleteChat,
@@ -513,7 +512,7 @@ const MobileSidebarDrawer = forwardRef<MobileDrawerHandle, MobileSidebarDrawerPr
 
         <aside
           ref={panelRef}
-          className="dc-mob-drawer relative z-10 flex h-[100svh] w-[min(84vw,340px)] flex-col border-r border-[var(--dc-border)] shadow-2xl will-change-transform"
+          className="dc-mob-drawer relative z-10 flex h-[100svh] w-[min(84vw,340px)] flex-col border-r border-[var(--dc-sidebar-border)] shadow-2xl will-change-transform"
         >
           {/* Header */}
           <div className="flex shrink-0 items-center justify-between gap-2 px-4 pb-3 pt-[max(0.85rem,env(safe-area-inset-top))]">
@@ -523,10 +522,9 @@ const MobileSidebarDrawer = forwardRef<MobileDrawerHandle, MobileSidebarDrawerPr
                 snapClose();
                 router.push('/');
               }}
-              className="flex min-h-[44px] items-center gap-2.5 rounded-xl pr-2 text-left"
+              className="flex min-h-[44px] items-center rounded-xl pr-2 text-left"
             >
-              <DeepChatLogoMark className="h-6 w-6 text-[var(--dc-text-strong)]" />
-              <span className="text-[18px] font-semibold tracking-tight text-[var(--dc-text-strong)]">
+              <span className="text-[18px] font-semibold tracking-[-0.02em] text-[var(--dc-text-strong)]">
                 DeepChat
               </span>
             </button>
