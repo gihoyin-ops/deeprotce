@@ -107,7 +107,7 @@ export function UsageTab() {
       ];
 
   const getWindowTitle = (w: '5h' | '7d') =>
-    w === '5h' ? '5-hour usage limit' : '7-day usage limit';
+    w === '5h' ? '5-hour usage limit' : 'Weekly usage limit';
 
   const getRemainingPercent = (w: UsageWindow): number => {
     if (usage?.unlimited || w.remainingTokens === null) return 100;
@@ -186,7 +186,7 @@ export function UsageTab() {
             <div className="border-b border-[var(--dc-border-subtle)] pb-3">
               <h4 className="text-base font-medium text-[var(--dc-text-strong)]">Plan limits</h4>
               <p className="mt-1 text-xs leading-relaxed text-[var(--dc-text-muted)]">
-                Token limits apply per rolling 5-hour and 7-day window on your active DeepChat plan.{' '}
+                Token limits apply per rolling 5-hour and weekly window on your active DeepChat plan.{' '}
                 <button
                   type="button"
                   onClick={() => setIsPlansOpen(true)}
@@ -196,12 +196,6 @@ export function UsageTab() {
                 </button>
               </p>
             </div>
-
-            {usage && !usage.available && (
-              <div className="rounded-2xl border border-amber-200 bg-amber-50/70 px-4 py-3 text-xs text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
-                {usage.error || 'Usage ledger is currently unavailable; limits are not enforced in this environment.'}
-              </div>
-            )}
 
             <div className="space-y-3">
               {windows.map(win => {
@@ -252,7 +246,7 @@ export function UsageTab() {
               <p className="mt-1 text-lg font-semibold text-[var(--dc-text-strong)]">
                 {usage?.unlimited ? '∞ Unlimited' : `${usage?.limitLabel || '40M'} tokens`}
               </p>
-              <p className="mt-1 text-xs text-[var(--dc-text-muted)]">Applies to 5h &amp; 7d windows</p>
+              <p className="mt-1 text-xs text-[var(--dc-text-muted)]">Applies to 5h &amp; weekly windows</p>
             </div>
           </div>
 
