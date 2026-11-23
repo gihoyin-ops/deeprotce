@@ -545,7 +545,7 @@ html[data-appearance="dark"] .deepchat-sidebar-light .bg-\[\#efeeee\],
 html.dark .deepchat-sidebar-light.bg-\[\#ffffff\],
 html[data-appearance="dark"] .deepchat-sidebar-light.bg-\[\#ffffff\],
 html.dark .deepchat-sidebar-light .bg-\[\#ffffff\] {
-  background-color: var(--dc-sidebar) !important;
+  background-color: var(--dc-surface-input) !important;
   color: var(--dc-text) !important;
 }
 
@@ -2051,9 +2051,14 @@ html[data-appearance="dark"] .dc-ms-slider-knob {
 }
 
 .dc-mob-drawer {
-  background: var(--dc-sidebar);
+  background: var(--dc-surface);
   color: var(--dc-text);
   overscroll-behavior: contain;
+}
+
+html.dark .dc-mob-drawer,
+html[data-appearance="dark"] .dc-mob-drawer {
+  background: var(--dc-surface-input);
 }
 
 .dc-mob-scrim {

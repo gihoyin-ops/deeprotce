@@ -51,6 +51,7 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
   const [showAllRecent, setShowAllRecent] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [isPinnedOpen, setIsPinnedOpen] = useState(() => loadStoredBoolean('isPinnedOpen', true));
+  const [isProjectsOpen, setIsProjectsOpen] = useState(() => loadStoredBoolean('isProjectsOpen', true));
   const [isRecentOpen, setIsRecentOpen] = useState(() => loadStoredBoolean('isRecentOpen', true));
   const queryClient = useQueryClient();
   const { data: chats = [] } = useQuery({
@@ -66,6 +67,12 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
     const val = !isPinnedOpen;
     setIsPinnedOpen(val);
     localStorage.setItem('isPinnedOpen', val.toString());
+  };
+
+  const toggleProjects = () => {
+    const val = !isProjectsOpen;
+    setIsProjectsOpen(val);
+    localStorage.setItem('isProjectsOpen', val.toString());
   };
 
   const toggleRecent = () => {
@@ -258,7 +265,7 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
         />
       </div>
 
-      <div className={`deepchat-sidebar-light relative hidden min-h-0 origin-left overflow-hidden sm:flex flex-col border-r border-[var(--dc-sidebar-border)] bg-[var(--dc-sidebar)] text-[var(--dc-text)] transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[width,opacity,transform] ${isOpen ? 'w-[248px] xl:w-[250px] translate-x-0 opacity-100' : 'w-0 -translate-x-4 opacity-0 pointer-events-none border-r-0'}`}>
+      <div className={`deepchat-sidebar-light relative hidden min-h-0 origin-left overflow-hidden sm:flex flex-col border-r border-[var(--dc-sidebar-border)] bg-[var(--dc-surface)] dark:bg-[var(--dc-surface-input)] text-[var(--dc-text)] transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[width,opacity,transform] ${isOpen ? 'w-[248px] xl:w-[250px] translate-x-0 opacity-100' : 'w-0 -translate-x-4 opacity-0 pointer-events-none border-r-0'}`}>
         <div className="flex h-14 shrink-0 items-center justify-between px-3">
           <button type="button" className="flex min-w-0 items-center px-1" onClick={() => router.push('/')} aria-label="DeepChat home">
             <span
@@ -297,45 +304,66 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
             <ExpandedSidebarMenuItem label="New Chat" icon={<SquarePen className="h-[17px] w-[17px]" strokeWidth={1.9} />} onClick={handleNewChat} />
             <ExpandedSidebarMenuItem label="Library" icon={<Library className="h-[17px] w-[17px]" strokeWidth={1.9} />} onClick={() => window.dispatchEvent(new Event('openFileLibrary'))} />
             <ExpandedSidebarMenuItem label="Images" icon={<ImageIcon className="h-[17px] w-[17px]" strokeWidth={1.9} />} onClick={() => toast('Images are available from the composer image tool.')} />
-            <ExpandedSidebarMenuItem label="Project" icon={<Folder className="h-[17px] w-[17px]" strokeWidth={1.9} />} onClick={() => toast('Projects are coming soon.')} />
           </div>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-2.5 pb-4 custom-scrollbar">
-          <button
-            type="button"
-            className="flex h-7 w-full items-center gap-1.5 px-2 text-left text-[12px] font-medium leading-none tracking-wide text-[var(--dc-text-muted)] transition-colors hover:text-[var(--dc-text-strong)]"
-            onClick={togglePinned}
-          >
-            <span>Pin chat</span>
-            <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isPinnedOpen ? '' : '-rotate-90'}`} strokeWidth={1.75} />
-          </button>
-          <div>
-            {isPinnedOpen && (
+          {pinnedChats.length > 0 && (
+            <div className="mb-3">
+              <button
+                type="button"
+                className="flex h-7 w-full items-center gap-1.5 px-2 text-left text-[12px] font-medium leading-none tracking-wide text-[var(--dc-text-muted)] transition-colors hover:text-[var(--dc-text-strong)]"
+                onClick={togglePinned}
+              >
+                <span>Pin chat</span>
+                <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isPinnedOpen ? '' : '-rotate-90'}`} strokeWidth={1.75} />
+              </button>
+              {isPinnedOpen && (
+                <div className="space-y-0.5">
+                  {pinnedChats.map((chat) => (
+                    <ExpandedChatItem
+                      key={chat.id}
+                      chat={chat}
+                      active={pathname === `/chat/${chat.id}`}
+                      onAction={handleAction}
+                      onClick={() => router.push(`/chat/${chat.id}`)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="mb-3">
+            <button
+              type="button"
+              className="flex h-7 w-full items-center gap-1.5 px-2 text-left text-[12px] font-medium leading-none tracking-wide text-[var(--dc-text-muted)] transition-colors hover:text-[var(--dc-text-strong)]"
+              onClick={toggleProjects}
+            >
+              <span>Projects</span>
+              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isProjectsOpen ? '' : '-rotate-90'}`} strokeWidth={1.75} />
+            </button>
+            {isProjectsOpen && (
               <div className="space-y-0.5">
-                {pinnedChats.map((chat) => (
-                  <ExpandedChatItem
-                    key={chat.id}
-                    chat={chat}
-                    active={pathname === `/chat/${chat.id}`}
-                    onAction={handleAction}
-                    onClick={() => router.push(`/chat/${chat.id}`)}
-                  />
-                ))}
-                {pinnedChats.length === 0 && (
-                  <div className="px-2 py-1 text-[13px] font-normal text-[var(--dc-text-faint)]">No pinned chats</div>
-                )}
+                <button
+                  type="button"
+                  onClick={() => toast('Projects are coming soon.')}
+                  className="group flex h-9 w-full items-center gap-2.5 rounded-xl px-2 text-left text-[var(--dc-text-body)] transition-colors hover:bg-black/[0.045] hover:text-[var(--dc-text-strong)] dark:hover:bg-white/[0.06]"
+                >
+                  <Folder className="h-[16px] w-[16px] shrink-0 text-[var(--dc-text-muted)] group-hover:text-[var(--dc-text-strong)]" strokeWidth={1.9} />
+                  <span className="truncate text-[13.5px] font-normal leading-normal">New project</span>
+                </button>
               </div>
             )}
           </div>
 
-          <div className={isPinnedOpen ? 'mt-3' : 'mt-1'}>
+          <div>
             <button
               type="button"
               className="flex h-7 w-full items-center gap-1.5 px-2 text-left text-[12px] font-medium leading-none tracking-wide text-[var(--dc-text-muted)] transition-colors hover:text-[var(--dc-text-strong)]"
               onClick={toggleRecent}
             >
-              <span>Recent</span>
+              <span>Recents</span>
               <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isRecentOpen ? '' : '-rotate-90'}`} strokeWidth={1.75} />
             </button>
             {isRecentOpen && (
@@ -410,7 +438,7 @@ function ExpandedSidebarMenuItem({ icon, label, onClick }: { icon: React.ReactNo
       <span className="flex h-[18px] w-[18px] shrink-0 items-center justify-center text-[var(--dc-text-body)] transition-transform group-hover:scale-105 group-hover:text-[var(--dc-text-strong)]">
         {icon}
       </span>
-      <span className="truncate text-[14px] font-medium leading-none tracking-[-0.01em]">{label}</span>
+      <span className="truncate text-[14px] font-medium leading-normal tracking-[-0.01em]">{label}</span>
     </button>
   );
 }
@@ -436,7 +464,7 @@ function ExpandedChatItem({ chat, active, onAction, onClick }: { chat: ChatItem;
         <button
           type="button"
           onClick={onClick}
-          className="min-w-0 flex-1 truncate text-left text-[13.5px] font-normal leading-none"
+          className="min-w-0 flex-1 truncate text-left text-[13.5px] font-normal leading-normal"
         >
           {chat.title}
         </button>
