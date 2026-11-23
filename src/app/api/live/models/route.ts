@@ -4,7 +4,7 @@ import {
   resolveMaxEffortIndex,
   splitModelEnv,
 } from '@/lib/ai/live-model-env';
-import { getModelConfigValue } from '@/lib/ai/models';
+import { getModelConfigValue, getModelListConfigValue } from '@/lib/ai/models';
 
 export const runtime = 'nodejs';
 
@@ -26,7 +26,7 @@ const formatFrontendModelName = (id: string): string => {
 };
 
 const parseModelsFromEnv = (
-  val: string,
+  val: string | readonly string[],
   badge: string | undefined,
   effortConfig: ReturnType<typeof parseModelMaxEffortEnv>
 ): EnvModelItem[] => {
@@ -56,8 +56,8 @@ export async function GET() {
     }
   };
 
-  const liveModelRaw = getModelConfigValue('LIVE_MODEL');
-  const liteModelRaw = getModelConfigValue('LITE_MODEL');
+  const liveModelRaw = getModelListConfigValue('LIVE_MODEL');
+  const liteModelRaw = getModelListConfigValue('LITE_MODEL');
 
   // main chat models from LIVE_MODEL
   add(parseModelsFromEnv(liveModelRaw, 'Default', effortConfig));

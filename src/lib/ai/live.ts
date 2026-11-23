@@ -4,7 +4,7 @@ import {
   resolveMaxEffortIndex,
   splitModelEnv,
 } from './live-model-env';
-import { getModelConfigValue } from './models';
+import { getModelConfigValue, getModelListConfigValue } from './models';
 
 // server-side live endpoints configured via env
 
@@ -45,7 +45,7 @@ export const getLiveChatConnection = (): LiveConnection | null => {
     name: 'Live',
     apiKey,
     baseUrl,
-    model: splitModelEnv(getModelConfigValue('LIVE_MODEL'))[0]?.id || getModelConfigValue('LIVE_MODEL')
+    model: splitModelEnv(getModelListConfigValue('LIVE_MODEL'))[0]?.id || ''
   };
   return cachedChatConnection;
 };
@@ -64,7 +64,7 @@ export const getLiveLiteConnection = (): LiveConnection | null => {
     name: 'Live Lite',
     apiKey,
     baseUrl,
-    model: splitModelEnv(getModelConfigValue('LITE_MODEL'))[0]?.id || getModelConfigValue('LITE_MODEL')
+    model: splitModelEnv(getModelListConfigValue('LITE_MODEL'))[0]?.id || ''
   };
   return cachedLiteConnection;
 };
@@ -138,7 +138,7 @@ export const getLiveModels = (): LiveModelItem[] => {
     }
   };
 
-  const parseModels = (val: string, badge?: string): LiveModelItem[] => {
+  const parseModels = (val: string | readonly string[], badge?: string): LiveModelItem[] => {
     return splitModelEnv(val).map(e => {
       const name = e.name || formatFrontendModelName(e.id);
       return {
@@ -151,15 +151,15 @@ export const getLiveModels = (): LiveModelItem[] => {
     });
   };
 
-  add(parseModels(getModelConfigValue('LIVE_MODEL'), 'Default'));
-  add(parseModels(getModelConfigValue('LITE_MODEL'), 'Lite'));
+  add(parseModels(getModelListConfigValue('LIVE_MODEL'), 'Default'));
+  add(parseModels(getModelListConfigValue('LITE_MODEL'), 'Lite'));
 
   cachedLiveModels = models;
   return cachedLiveModels;
 };
 
 export const getEnvModelIds = (): string[] => [
-  ...splitModelEnv(getModelConfigValue('LIVE_MODEL')),
-  ...splitModelEnv(getModelConfigValue('LITE_MODEL'))
+  ...splitModelEnv(getModelListConfigValue('LIVE_MODEL')),
+  ...splitModelEnv(getModelListConfigValue('LITE_MODEL'))
 ].map(e => e.id);
 

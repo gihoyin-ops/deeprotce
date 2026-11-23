@@ -73,9 +73,29 @@ export const resolveMaxEffortIndex = (
   return 4;
 };
 
-export const splitModelEnv = (val: string): ModelEnvEntry[] => {
+const splitRawEntries = (val: string | readonly string[]): string[] => {
+  if (Array.isArray(val)) {
+    return val.map(item => item.trim()).filter(Boolean);
+  }
+  const merged: string[] = [];
+  for (const line of val.split(/\r?\n/)) {
+    for (const chunk of line.split(',')) {
+      const firstField = (chunk.split('|')[0] ?? '').trim();
+      // A comma inside a description produces a chunk whose leading field contains spaces;
+      // re-attach it to the previous entry instead of treating prose as a model ID.
+      if (merged.length > 0 && /\s/.test(firstField)) {
+        merged[merged.length - 1] = `${merged[merged.length - 1]},${chunk}`;
+      } else {
+        merged.push(chunk);
+      }
+    }
+  }
+  return merged;
+};
+
+export const splitModelEnv = (val: string | readonly string[]): ModelEnvEntry[] => {
   const out: ModelEnvEntry[] = [];
-  for (const raw of val.split(',')) {
+  for (const raw of splitRawEntries(val)) {
     const fields = raw.split('|').map(f => f.trim());
     const id = fields[0] ?? '';
     if (!id) continue;
