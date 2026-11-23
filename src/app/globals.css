@@ -1611,16 +1611,17 @@ html[data-appearance="dark"] .dc-home-canvas {
 
 .dc-kinetic-blue-dot {
   display: inline-block;
-  width: 8px;
-  height: 8px;
-  margin-left: 6px;
   border-radius: 9999px;
-  vertical-align: baseline;
   background: radial-gradient(circle at 35% 35%, #60a5fa 0%, #2563eb 72%, #1d4ed8 100%);
   box-shadow:
     0 0 12px rgb(37 99 235 / 0.5),
     0 0 4px rgb(59 130 246 / 0.45);
   will-change: transform, opacity;
+}
+
+.dc-kinetic-blue-dot--inline {
+  margin-left: 6px;
+  vertical-align: baseline;
 }
 
 html.dark .dc-kinetic-blue-dot,

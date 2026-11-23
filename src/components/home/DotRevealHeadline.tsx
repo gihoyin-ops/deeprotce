@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import { gsap } from 'gsap';
+import KineticDot from '@/components/ui/KineticDot';
 
 interface DotRevealHeadlineProps {
   text: string;
@@ -310,10 +311,11 @@ export default function DotRevealHeadline({
                 </span>
               ))}
               {isLastWord && (
-                <span
+                <KineticDot
                   ref={dotRef}
-                  className="dc-kinetic-blue-dot"
-                  aria-hidden="true"
+                  mode="manual"
+                  size="md"
+                  inline
                 />
               )}
             </span>
