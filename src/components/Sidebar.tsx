@@ -618,26 +618,30 @@ function ExpandedChatItem({ chat, active, onAction, onClick }: { chat: ChatItem;
 
         {!isRenaming && (
           <div className={`flex shrink-0 items-center gap-0.5 transition-opacity ${menuOpen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                onAction('pin', chat.id);
-              }}
-              className={`flex h-6 w-6 items-center justify-center rounded-lg transition-colors hover:bg-black/[0.07] hover:text-[var(--dc-text-strong)] dark:hover:bg-white/[0.1] ${chat.pinned ? 'text-[var(--dc-text-strong)]' : 'text-[var(--dc-text-muted)]'}`}
-              aria-label={chat.pinned ? `Unpin ${chat.title}` : `Pin ${chat.title}`}
-            >
-              <SidebarSvgIcon name="pin-tilted" className="h-3.5 w-3.5" />
-            </button>
-            <button
-              ref={triggerRef}
-              type="button"
-              onClick={openMenu}
-              className="flex h-6 w-6 items-center justify-center rounded-lg text-[var(--dc-text-muted)] transition-colors hover:bg-black/[0.07] hover:text-[var(--dc-text-strong)] dark:hover:bg-white/[0.1]"
-              aria-label={`Open ${chat.title} menu`}
-            >
-              <SidebarSvgIcon name="more-horizontal" className="h-4 w-4" />
-            </button>
+            <Tooltip label={chat.pinned ? 'Unpin' : 'Pin'} side="top" align="center">
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onAction('pin', chat.id);
+                }}
+                className={`flex h-6 w-6 items-center justify-center rounded-lg transition-colors hover:bg-black/[0.07] hover:text-[var(--dc-text-strong)] dark:hover:bg-white/[0.1] ${chat.pinned ? 'text-[var(--dc-text-strong)]' : 'text-[var(--dc-text-muted)]'}`}
+                aria-label={chat.pinned ? `Unpin ${chat.title}` : `Pin ${chat.title}`}
+              >
+                <SidebarSvgIcon name={chat.pinned ? 'pin-tilted-filled' : 'pin-tilted'} className="h-4 w-4" />
+              </button>
+            </Tooltip>
+            <Tooltip label="More" side="top" align="end" disabled={menuOpen}>
+              <button
+                ref={triggerRef}
+                type="button"
+                onClick={openMenu}
+                className="flex h-6 w-6 items-center justify-center rounded-lg text-[var(--dc-text-muted)] transition-colors hover:bg-black/[0.07] hover:text-[var(--dc-text-strong)] dark:hover:bg-white/[0.1]"
+                aria-label={`More actions for ${chat.title}`}
+              >
+                <SidebarSvgIcon name="more-horizontal" className="h-4 w-4" />
+              </button>
+            </Tooltip>
           </div>
         )}
       </div>
@@ -653,7 +657,7 @@ function ExpandedChatItem({ chat, active, onAction, onClick }: { chat: ChatItem;
             onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onAction('pin', chat.id); }}
             className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-medium text-[var(--dc-text)] transition-colors hover:bg-black/[0.05] dark:hover:bg-white/[0.07]"
           >
-            <SidebarSvgIcon name="pin-tilted" className="h-4 w-4 text-[var(--dc-text-body)]" />
+            <SidebarSvgIcon name={chat.pinned ? 'pin-tilted-filled' : 'pin-tilted'} className="h-[18px] w-[18px] text-[var(--dc-text-body)]" />
             <span>{chat.pinned ? 'Unpin' : 'Pin'}</span>
           </button>
 
