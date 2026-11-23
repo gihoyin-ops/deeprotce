@@ -71,7 +71,6 @@ export default function ProfilePage() {
         username: normalizedUsername
       });
       setProfile(updated);
-      toast.success('Profile updated');
     } catch {
       toast.error('Failed to save profile');
     }
@@ -100,7 +99,6 @@ export default function ProfilePage() {
       setCropImage(null);
       setIsCropClosing(false);
     }, 180);
-    toast.success('Avatar updated');
   };
 
   const displayPlan = backendPlan || profile.plan || 'Free';

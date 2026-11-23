@@ -469,7 +469,6 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
     try {
       await saveUserProfile(nextProfile);
       window.dispatchEvent(new Event('profileUpdated'));
-      toast.success('Account updated');
     } catch {
       toast.error('Failed to update account');
     }
