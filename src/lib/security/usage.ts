@@ -18,7 +18,7 @@ export const USAGE_LEDGER_ENABLED = !isServerless;
 
 const DB_PATH = (() => {
   ensureDataDirectoriesSync();
-  return path.join(DATA_DIR, 'deepchat-usage.sqlite');
+  return path.join(/*turbopackIgnore: true*/ DATA_DIR, 'deepchat-usage.sqlite');
 })();
 
 export type WindowId = 'h5' | 'd7';
