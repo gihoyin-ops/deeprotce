@@ -4,11 +4,11 @@ import React, { useEffect, useState, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { getChats, getUserProfile, togglePinChat, archiveChat, deleteChat } from '@/app/actions';
+import { getChats, getUserProfile, togglePinChat, archiveChat, deleteChat, updateChatTitle, shareChat } from '@/app/actions';
 import toast from 'react-hot-toast';
 import {
-  ChevronDown, Pin, MoreVertical, Archive, Trash2, FileText, User, Brain,
-  Settings, PanelLeft, SquarePen, Search, Ellipsis, Library, Image as ImageIcon, Folder
+  ChevronDown, ChevronRight, Pin, FileText, User, Brain,
+  Settings, PanelLeft, SquarePen, Search, Ellipsis, Library, Image as ImageIcon, Folder, Plus
 } from '@/components/ui/icons';
 import { useShortcutLabels } from './shortcuts';
 import Tooltip from './ui/Tooltip';
@@ -91,11 +91,25 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
     setMobileOpen(false);
   };
 
-  const handleAction = async (action: string, id: string) => {
+  const handleAction = async (action: string, id: string, value?: string) => {
     try {
       if (action === 'pin') {
         await togglePinChat(id);
         toast.success('Chat pin toggled');
+      } else if (action === 'rename') {
+        const trimmed = value?.trim();
+        if (!trimmed) return;
+        await updateChatTitle(id, trimmed);
+        toast.success('Chat renamed');
+      } else if (action === 'share') {
+        const shareId = await shareChat(id);
+        if (shareId) {
+          const shareUrl = `${window.location.origin}/chat/s/${shareId}`;
+          await navigator.clipboard.writeText(shareUrl);
+          toast.success('Share link copied');
+        } else {
+          toast.error('Failed to share chat');
+        }
       } else if (action === 'archive') {
         await archiveChat(id);
         toast.success('Chat archived');
@@ -444,53 +458,288 @@ function ExpandedSidebarMenuItem({ icon, label, onClick }: { icon: React.ReactNo
 }
 
 
-function ExpandedChatItem({ chat, active, onAction, onClick }: { chat: ChatItem; active?: boolean; onAction: (action: string, id: string) => void; onClick?: () => void }) {
+function ThreeDotsIcon({ className = 'h-4 w-4' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 16 16" fill="currentColor" className={className} aria-hidden="true">
+      <circle cx="3.25" cy="8" r="1.25" />
+      <circle cx="8" cy="8" r="1.25" />
+      <circle cx="12.75" cy="8" r="1.25" />
+    </svg>
+  );
+}
+
+function RenamePencilIcon({ className = 'h-4 w-4' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <path d="M11.35 2.45a1.55 1.55 0 0 1 2.2 2.2L5.4 12.8l-3.1.85.85-3.1 8.2-8.1Z" />
+      <path d="M9.85 3.95l2.2 2.2" />
+    </svg>
+  );
+}
+
+function ModernShareIcon({ className = 'h-4 w-4' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <path d="M8 2.25v7.5" />
+      <path d="M5.25 5 8 2.25 10.75 5" />
+      <path d="M3 10.25v2.25A1.75 1.75 0 0 0 4.75 14.25h6.5A1.75 1.75 0 0 0 13 12.5v-2.25" />
+    </svg>
+  );
+}
+
+function ArchiveBoxIcon({ className = 'h-4 w-4' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <rect x="2" y="2.5" width="12" height="3.25" rx="0.9" />
+      <path d="M3.25 5.75v6.5A1.5 1.5 0 0 0 4.75 13.75h6.5a1.5 1.5 0 0 0 1.5-1.5v-6.5" />
+      <path d="M6.5 8.75h3" />
+    </svg>
+  );
+}
+
+function TrashBinIcon({ className = 'h-4 w-4' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <path d="M2.75 4.5h10.5" />
+      <path d="M6 4.5V3.1A1.1 1.1 0 0 1 7.1 2h1.8A1.1 1.1 0 0 1 10 3.1v1.4" />
+      <path d="M4.35 4.5l.55 8.1a1.4 1.4 0 0 0 1.4 1.3h3.4a1.4 1.4 0 0 0 1.4-1.3l.55-8.1" />
+      <path d="M6.75 7.25v4" />
+      <path d="M9.25 7.25v4" />
+    </svg>
+  );
+}
+
+function ExpandedChatItem({ chat, active, onAction, onClick }: { chat: ChatItem; active?: boolean; onAction: (action: string, id: string, value?: string) => void; onClick?: () => void }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [projectsSubmenuOpen, setProjectsSubmenuOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState(chat.title);
   const menuRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const renameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) setMenuOpen(false);
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpen(false);
+        setProjectsSubmenuOpen(false);
+      }
     }
     if (menuOpen) document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [menuOpen]);
 
+  useEffect(() => {
+    if (!menuOpen || isRenaming) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.key === 'a' || event.key === 'A') && !event.metaKey && !event.ctrlKey && !event.altKey) {
+        event.preventDefault();
+        setMenuOpen(false);
+        setProjectsSubmenuOpen(false);
+        onAction('archive', chat.id);
+      } else if (event.key === 'Escape') {
+        setMenuOpen(false);
+        setProjectsSubmenuOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [menuOpen, isRenaming, chat.id, onAction]);
+
+  useEffect(() => {
+    if (isRenaming) {
+      renameInputRef.current?.focus();
+      renameInputRef.current?.select();
+    }
+  }, [isRenaming]);
+
+  const openMenu = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    if (menuOpen) {
+      setMenuOpen(false);
+      setProjectsSubmenuOpen(false);
+      return;
+    }
+    const rect = triggerRef.current?.getBoundingClientRect();
+    if (rect) {
+      const estimatedHeight = 260;
+      const top = rect.bottom + estimatedHeight > window.innerHeight
+        ? Math.max(12, rect.top - estimatedHeight)
+        : rect.bottom + 4;
+      setMenuPos({ top, left: Math.max(12, rect.right - 196) });
+    }
+    setMenuOpen(true);
+  };
+
+  const commitRename = () => {
+    const trimmed = renameValue.trim();
+    setIsRenaming(false);
+    if (trimmed && trimmed !== chat.title) {
+      onAction('rename', chat.id, trimmed);
+    } else {
+      setRenameValue(chat.title);
+    }
+  };
+
   return (
     <div className="relative" ref={menuRef}>
       <div
-        className={`group flex h-9 w-full items-center justify-between gap-2 rounded-xl px-2 text-left transition-colors ${active ? 'bg-black/[0.06] text-[var(--dc-text-strong)] font-medium dark:bg-white/[0.09]' : 'text-[var(--dc-text-body)] hover:bg-black/[0.045] hover:text-[var(--dc-text-strong)] dark:hover:bg-white/[0.06]'}`}
+        className={`group flex h-9 w-full items-center justify-between gap-1.5 rounded-xl px-2 text-left transition-colors ${active || menuOpen ? 'bg-black/[0.06] text-[var(--dc-text-strong)] font-medium dark:bg-white/[0.09]' : 'text-[var(--dc-text-body)] hover:bg-black/[0.045] hover:text-[var(--dc-text-strong)] dark:hover:bg-white/[0.06]'}`}
       >
-        <button
-          type="button"
-          onClick={onClick}
-          className="min-w-0 flex-1 truncate text-left text-[13.5px] font-normal leading-normal"
-        >
-          {chat.title}
-        </button>
-        <button
-          type="button"
-          onClick={(event) => {
-            event.stopPropagation();
-            setMenuOpen(open => !open);
-          }}
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[var(--dc-text-muted)] opacity-0 transition-all hover:bg-black/[0.06] hover:text-[var(--dc-text-strong)] group-hover:opacity-100 dark:hover:bg-white/[0.08]"
-          aria-label={`Open ${chat.title} menu`}
-        >
-          <MoreVertical className="h-4 w-4" strokeWidth={1.75} />
-        </button>
+        {isRenaming ? (
+          <input
+            ref={renameInputRef}
+            type="text"
+            value={renameValue}
+            onChange={(e) => setRenameValue(e.target.value)}
+            onBlur={commitRename}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                commitRename();
+              } else if (e.key === 'Escape') {
+                setRenameValue(chat.title);
+                setIsRenaming(false);
+              }
+            }}
+            className="min-w-0 flex-1 rounded-md bg-white/80 px-1.5 py-0.5 text-[13.5px] font-normal text-[var(--dc-text-strong)] outline-none ring-1 ring-[var(--dc-border-strong)] dark:bg-black/30"
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={onClick}
+            className="min-w-0 flex-1 truncate text-left text-[13.5px] font-normal leading-normal"
+          >
+            {chat.title}
+          </button>
+        )}
+
+        {!isRenaming && (
+          <div className={`flex shrink-0 items-center gap-0.5 transition-opacity ${menuOpen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onAction('pin', chat.id);
+              }}
+              className={`flex h-6 w-6 items-center justify-center rounded-lg transition-colors hover:bg-black/[0.07] hover:text-[var(--dc-text-strong)] dark:hover:bg-white/[0.1] ${chat.pinned ? 'text-[var(--dc-text-strong)]' : 'text-[var(--dc-text-muted)]'}`}
+              aria-label={chat.pinned ? `Unpin ${chat.title}` : `Pin ${chat.title}`}
+            >
+              <Pin className="h-3.5 w-3.5" strokeWidth={1.85} />
+            </button>
+            <button
+              ref={triggerRef}
+              type="button"
+              onClick={openMenu}
+              className="flex h-6 w-6 items-center justify-center rounded-lg text-[var(--dc-text-muted)] transition-colors hover:bg-black/[0.07] hover:text-[var(--dc-text-strong)] dark:hover:bg-white/[0.1]"
+              aria-label={`Open ${chat.title} menu`}
+            >
+              <ThreeDotsIcon className="h-4 w-4" />
+            </button>
+          </div>
+        )}
       </div>
 
-      {menuOpen && (
-        <div className="absolute right-0 top-8 z-50 w-32 overflow-hidden rounded-xl border border-[var(--dc-border)] bg-[var(--dc-panel)] py-1 shadow-xl shadow-black/10 dark:shadow-black/50">
-          <button onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onAction('pin', chat.id); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-[var(--dc-text)] transition-colors hover:bg-black/[0.05] dark:hover:bg-white/[0.07]">
-            <Pin className="h-3.5 w-3.5" /> {chat.pinned ? 'Unpin' : 'Pin'}
+      {menuOpen && menuPos && (
+        <div
+          style={{ top: menuPos.top, left: menuPos.left }}
+          className="fixed z-[90] w-52 rounded-2xl border border-[var(--dc-border)] bg-[var(--dc-panel)] p-1.5 shadow-xl shadow-black/12 dark:shadow-black/55"
+        >
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onAction('pin', chat.id); }}
+            className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-medium text-[var(--dc-text)] transition-colors hover:bg-black/[0.05] dark:hover:bg-white/[0.07]"
+          >
+            <Pin className="h-4 w-4 shrink-0 text-[var(--dc-text-body)]" strokeWidth={1.75} />
+            <span>{chat.pinned ? 'Unpin' : 'Pin'}</span>
           </button>
-          <button onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onAction('archive', chat.id); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-[var(--dc-text)] transition-colors hover:bg-black/[0.05] dark:hover:bg-white/[0.07]">
-            <Archive className="h-3.5 w-3.5" /> Archive
+
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setMenuOpen(false);
+              setRenameValue(chat.title);
+              setIsRenaming(true);
+            }}
+            className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-medium text-[var(--dc-text)] transition-colors hover:bg-black/[0.05] dark:hover:bg-white/[0.07]"
+          >
+            <RenamePencilIcon className="h-4 w-4 shrink-0 text-[var(--dc-text-body)]" />
+            <span>Rename</span>
           </button>
-          <button onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onAction('delete', chat.id); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/10">
-            <Trash2 className="h-3.5 w-3.5" /> Delete
+
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onAction('share', chat.id); }}
+            className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-medium text-[var(--dc-text)] transition-colors hover:bg-black/[0.05] dark:hover:bg-white/[0.07]"
+          >
+            <ModernShareIcon className="h-4 w-4 shrink-0 text-[var(--dc-text-body)]" />
+            <span>Share</span>
+          </button>
+
+          <div
+            className="relative"
+            onMouseEnter={() => setProjectsSubmenuOpen(true)}
+            onMouseLeave={() => setProjectsSubmenuOpen(false)}
+          >
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setProjectsSubmenuOpen((prev) => !prev);
+              }}
+              className="flex w-full items-center justify-between rounded-xl px-2.5 py-2 text-left text-[13px] font-medium text-[var(--dc-text)] transition-colors hover:bg-black/[0.05] dark:hover:bg-white/[0.07]"
+            >
+              <span className="flex items-center gap-2.5">
+                <Folder className="h-4 w-4 shrink-0 text-[var(--dc-text-body)]" strokeWidth={1.75} />
+                <span>Move to project</span>
+              </span>
+              <ChevronRight className="h-3.5 w-3.5 text-[var(--dc-text-muted)]" strokeWidth={1.9} />
+            </button>
+
+            {projectsSubmenuOpen && (
+              <div className="absolute left-full top-0 ml-1.5 w-44 rounded-2xl border border-[var(--dc-border)] bg-[var(--dc-panel)] p-1.5 shadow-xl shadow-black/12 dark:shadow-black/55">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setMenuOpen(false);
+                    setProjectsSubmenuOpen(false);
+                    toast('Projects are coming soon.');
+                  }}
+                  className="flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left text-[13px] font-medium text-[var(--dc-text)] transition-colors hover:bg-black/[0.05] dark:hover:bg-white/[0.07]"
+                >
+                  <Plus className="h-4 w-4 shrink-0 text-[var(--dc-text-body)]" strokeWidth={1.9} />
+                  <span>New project</span>
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="my-1 border-t border-[var(--dc-border-subtle)]" />
+
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onAction('archive', chat.id); }}
+            className="flex w-full items-center justify-between rounded-xl px-2.5 py-2 text-left text-[13px] font-medium text-[var(--dc-text)] transition-colors hover:bg-black/[0.05] dark:hover:bg-white/[0.07]"
+          >
+            <span className="flex items-center gap-2.5">
+              <ArchiveBoxIcon className="h-4 w-4 shrink-0 text-[var(--dc-text-body)]" />
+              <span>Archive</span>
+            </span>
+            <span className="rounded-md bg-black/[0.05] px-1.5 py-0.5 text-[10.5px] font-semibold leading-none text-[var(--dc-text-muted)] dark:bg-white/[0.08]">
+              A
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onAction('delete', chat.id); }}
+            className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-medium text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/10"
+          >
+            <TrashBinIcon className="h-4 w-4 shrink-0" />
+            <span>Delete</span>
           </button>
         </div>
       )}
