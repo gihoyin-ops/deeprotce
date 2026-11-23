@@ -208,32 +208,32 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
               <Image
                 src="/brands/brand.svg"
                 alt="DeepChat"
-                width={22}
-                height={22}
+                width={28}
+                height={28}
                 unoptimized
-                className="h-[22px] w-[22px] transition-opacity group-hover/collapse-logo:opacity-0 dark:invert"
+                className="h-7 w-7 transition-opacity group-hover/collapse-logo:opacity-0 dark:invert"
               />
-              <PanelLeft className="absolute h-[18px] w-[18px] opacity-0 transition-opacity group-hover/collapse-logo:opacity-100" strokeWidth={1.9} />
+              <PanelLeft className="absolute h-[19px] w-[19px] opacity-0 transition-opacity group-hover/collapse-logo:opacity-100" strokeWidth={1.9} />
             </button>
           </Tooltip>
         </div>
 
         <div className="flex flex-1 flex-col items-center">
-          <div className="flex flex-col items-center gap-3">
+          <div className="flex flex-col items-center gap-1.5">
             <CollapsedSidebarButton label="New Chat" shortcuts={[{ label: shortcuts.newChat.join('+'), tone: 'muted' }]} onClick={handleNewChat}>
-              <SquarePen className="h-[18px] w-[18px]" strokeWidth={1.9} />
+              <SquarePen className="h-[19px] w-[19px]" strokeWidth={1.9} />
             </CollapsedSidebarButton>
             <CollapsedSidebarButton label="Search" shortcuts={[{ label: shortcuts.search.join('+'), tone: 'muted' }]} onClick={onOpenSearch}>
-              <Search className="h-[18px] w-[18px]" strokeWidth={2} />
+              <Search className="h-[19px] w-[19px]" strokeWidth={2} />
             </CollapsedSidebarButton>
             <CollapsedSidebarButton label="Action menu" onClick={onOpenActions}>
-              <Ellipsis className="h-[18px] w-[18px]" strokeWidth={2} />
+              <Ellipsis className="h-[19px] w-[19px]" strokeWidth={2} />
             </CollapsedSidebarButton>
           </div>
 
-          <div className="mt-auto flex flex-col items-center gap-3 pb-1">
+          <div className="mt-auto flex flex-col items-center gap-1.5 pb-1">
             <CollapsedSidebarButton label="Settings" onClick={() => handleOpenSettings()}>
-              <Settings className="h-[18px] w-[18px]" strokeWidth={1.9} />
+              <Settings className="h-[19px] w-[19px]" strokeWidth={1.9} />
             </CollapsedSidebarButton>
             <button
               type="button"
