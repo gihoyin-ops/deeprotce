@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { usePathname, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -516,12 +517,16 @@ function ExpandedChatItem({ chat, active, onAction, onClick }: { chat: ChatItem;
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState(chat.title);
   const menuRef = useRef<HTMLDivElement>(null);
+  const portalMenuRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      const insideRow = menuRef.current?.contains(target);
+      const insidePortal = portalMenuRef.current?.contains(target);
+      if (!insideRow && !insidePortal) {
         setMenuOpen(false);
         setProjectsSubmenuOpen(false);
       }
@@ -641,10 +646,11 @@ function ExpandedChatItem({ chat, active, onAction, onClick }: { chat: ChatItem;
         )}
       </div>
 
-      {menuOpen && menuPos && (
+      {menuOpen && menuPos && typeof document !== 'undefined' && createPortal(
         <div
+          ref={portalMenuRef}
           style={{ top: menuPos.top, left: menuPos.left }}
-          className="fixed z-[90] w-52 rounded-2xl border border-[var(--dc-border)] bg-[var(--dc-panel)] p-1.5 shadow-xl shadow-black/12 dark:shadow-black/55"
+          className="fixed z-[120] w-52 rounded-2xl border border-[var(--dc-border)] bg-[var(--dc-panel)] p-1.5 shadow-xl shadow-black/12 dark:shadow-black/55"
         >
           <button
             type="button"
@@ -741,7 +747,8 @@ function ExpandedChatItem({ chat, active, onAction, onClick }: { chat: ChatItem;
             <TrashBinIcon className="h-4 w-4 shrink-0" />
             <span>Delete</span>
           </button>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
