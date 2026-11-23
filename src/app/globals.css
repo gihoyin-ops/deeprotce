@@ -1501,29 +1501,77 @@ dialog.dc-img-lightbox textarea::placeholder {
   }
 }
 
+/* Global ultra-thin scrollbar across the entire website */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(128, 128, 136, 0.32) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: rgba(128, 128, 136, 0.32);
+  border-radius: 9999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(128, 128, 136, 0.55);
+}
+
+html.dark *,
+html[data-appearance="dark"] * {
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+html.dark *::-webkit-scrollbar-thumb,
+html[data-appearance="dark"] *::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.18);
+}
+
+html.dark *::-webkit-scrollbar-thumb:hover,
+html[data-appearance="dark"] *::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.32);
+}
+
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(128, 128, 136, 0.32) transparent;
+}
 .custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 3px;
+  height: 3px;
 }
 .custom-scrollbar::-webkit-scrollbar-track {
   background: transparent;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: #cbd5e1;
-  border-radius: 10px;
+  background-color: rgba(128, 128, 136, 0.32);
+  border-radius: 9999px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background-color: #94a3b8;
+  background-color: rgba(128, 128, 136, 0.55);
+}
+
+html.dark .custom-scrollbar,
+html[data-appearance="dark"] .custom-scrollbar {
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
 }
 
 html.dark .custom-scrollbar::-webkit-scrollbar-thumb,
 html[data-appearance="dark"] .custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: #3d3d3d;
+  background-color: rgba(255, 255, 255, 0.18);
 }
 
 html.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover,
 html[data-appearance="dark"] .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background-color: #4d4d4d;
+  background-color: rgba(255, 255, 255, 0.32);
 }
 
 .no-scrollbar {
