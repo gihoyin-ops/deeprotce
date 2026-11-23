@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Check } from '@/components/ui/icons';
 import { PillDropdown, type PillDropdownOption } from '@/components/settings/PillDropdown';
@@ -8,6 +8,8 @@ import { PillDropdown, type PillDropdownOption } from '@/components/settings/Pil
 interface PlanItem {
   id: string;
   label: string;
+  price: string;
+  period: string;
 }
 
 type RegionCode = 'US' | 'CN' | 'ID' | 'JP' | 'RU';
@@ -20,18 +22,9 @@ const REGION_OPTIONS: PillDropdownOption[] = [
   { label: 'Russia (RUB ₽)', value: 'RU' }
 ];
 
-const REGION_PRICES: Record<RegionCode, Record<'free' | 'supporters' | 'cool', string>> = {
-  US: { free: '$0', supporters: '$12', cool: '$29' },
-  CN: { free: '¥0', supporters: '¥68', cool: '¥168' },
-  ID: { free: 'Rp 0', supporters: 'Rp 79.000', cool: 'Rp 199.000' },
-  JP: { free: '¥0', supporters: '¥1,800', cool: '¥4,200' },
-  RU: { free: '₽0', supporters: '₽890', cool: '₽2,190' }
-};
-
 const PLAN_DETAILS: Record<
   string,
   {
-    period: string;
     subtitle: string;
     ctaLabel: string;
     badge?: string;
@@ -39,7 +32,6 @@ const PLAN_DETAILS: Record<
   }
 > = {
   free: {
-    period: '/ month',
     subtitle: 'Explore DeepChat for everyday questions and quick tasks',
     ctaLabel: 'Free plan',
     features: [
@@ -50,7 +42,6 @@ const PLAN_DETAILS: Record<
     ]
   },
   supporters: {
-    period: '/ month',
     subtitle: 'More capacity and creative tools for regular users',
     ctaLabel: 'Upgrade to Supporters',
     badge: 'Popular',
@@ -62,7 +53,6 @@ const PLAN_DETAILS: Record<
     ]
   },
   cool: {
-    period: '/ month',
     subtitle: 'Maximum power for heavy research, coding, and creation',
     ctaLabel: 'Upgrade to Cools',
     features: [
@@ -79,31 +69,68 @@ export default function PricingPage() {
   const [activePlanId, setActivePlanId] = useState<string>('free');
   const [region, setRegion] = useState<RegionCode>('US');
   const [isLoading, setIsLoading] = useState(true);
+  const [isRegionLoading, setIsRegionLoading] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
+
+  const fetchRegionalPricing = useCallback(async (targetRegion: RegionCode, initial = false) => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    if (initial) {
+      setIsLoading(true);
+    } else {
+      setIsRegionLoading(true);
+    }
+
+    try {
+      const requests: [Promise<Response>, Promise<Response> | null] = [
+        fetch(`/api/usage/pricing?region=${targetRegion}`, { signal: controller.signal }),
+        initial ? fetch('/api/usage', { signal: controller.signal }) : null
+      ];
+
+      const [pricingRes, usageRes] = await Promise.all([
+        requests[0],
+        requests[1] ?? Promise.resolve(null)
+      ]);
+
+      if (controller.signal.aborted) return;
+
+      if (pricingRes.ok) {
+        const pricingData = await pricingRes.json();
+        if (Array.isArray(pricingData?.plans)) {
+          setPlans(pricingData.plans);
+        }
+      }
+
+      if (usageRes && usageRes.ok) {
+        const usageData = await usageRes.json();
+        if (usageData?.planId) {
+          setActivePlanId(String(usageData.planId));
+        }
+      }
+    } catch (error) {
+      if ((error as Error)?.name === 'AbortError') return;
+    } finally {
+      if (!controller.signal.aborted) {
+        setIsLoading(false);
+        setIsRegionLoading(false);
+      }
+    }
+  }, []);
 
   useEffect(() => {
-    let active = true;
-    Promise.all([
-      fetch('/api/usage/plans').then(r => (r.ok ? r.json() : null)),
-      fetch('/api/usage').then(r => (r.ok ? r.json() : null))
-    ])
-      .then(([plansData, usageData]) => {
-        if (!active) return;
-        if (plansData?.plans) {
-          setPlans(
-            (plansData.plans as PlanItem[]).filter(plan => plan.id !== 'owner')
-          );
-        }
-        if (usageData?.planId) setActivePlanId(String(usageData.planId));
-      })
-      .catch(() => {})
-      .finally(() => {
-        if (active) setIsLoading(false);
-      });
-
+    void fetchRegionalPricing('US', true);
     return () => {
-      active = false;
+      abortRef.current?.abort();
     };
-  }, []);
+  }, [fetchRegionalPricing]);
+
+  const handleRegionChange = (nextRegion: string) => {
+    const code = nextRegion as RegionCode;
+    setRegion(code);
+    void fetchRegionalPricing(code, false);
+  };
 
   return (
     <div className="min-h-full w-full bg-[var(--dc-canvas)] text-[var(--dc-text)]">
@@ -157,16 +184,10 @@ export default function PricingPage() {
           <div className="mt-12 grid grid-cols-1 gap-6 md:grid-cols-3">
             {plans.map(plan => {
               const meta = PLAN_DETAILS[plan.id] || {
-                period: '/ month',
                 subtitle: 'DeepChat plan',
                 ctaLabel: `Upgrade to ${plan.label}`,
                 features: ['Standard access']
               };
-              const priceMap = REGION_PRICES[region];
-              const displayPrice =
-                plan.id === 'free' || plan.id === 'supporters' || plan.id === 'cool'
-                  ? priceMap[plan.id]
-                  : priceMap.free;
               const isCurrent = plan.id === activePlanId;
 
               return (
@@ -192,11 +213,17 @@ export default function PricingPage() {
                       ) : null}
                     </div>
 
-                    <div className="mt-4 flex items-baseline gap-1.5">
-                      <span className="text-3xl font-bold tracking-tight text-[var(--dc-text-strong)]">
-                        {displayPrice}
-                      </span>
-                      <span className="text-xs text-[var(--dc-text-muted)]">{meta.period}</span>
+                    <div className="mt-4 flex min-h-[36px] items-baseline gap-1.5">
+                      {isRegionLoading ? (
+                        <div className="h-8 w-28 animate-pulse rounded-xl bg-[var(--dc-surface-muted)]" />
+                      ) : (
+                        <>
+                          <span className="text-3xl font-bold tracking-tight text-[var(--dc-text-strong)]">
+                            {plan.price}
+                          </span>
+                          <span className="text-xs text-[var(--dc-text-muted)]">{plan.period}</span>
+                        </>
+                      )}
                     </div>
 
                     <p className="mt-3 text-xs leading-relaxed text-[var(--dc-text-muted)]">
@@ -229,13 +256,13 @@ export default function PricingPage() {
           </div>
         )}
 
-        {/* Bottom-left region currency selector */}
-        <div className="mt-10 flex items-center justify-start">
+        {/* Bottom-right region currency selector */}
+        <div className="mt-10 flex items-center justify-end">
           <PillDropdown
             value={region}
             options={REGION_OPTIONS}
-            align="left"
-            onChange={value => setRegion(value as RegionCode)}
+            align="right"
+            onChange={handleRegionChange}
             ariaLabel="Select pricing region"
           />
         </div>
