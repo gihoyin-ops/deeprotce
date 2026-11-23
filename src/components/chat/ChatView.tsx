@@ -970,7 +970,7 @@ export default function ChatView({ chatId }: { chatId: string }) {
   return (
     <div className="deepchat-chat-view relative flex min-h-0 flex-1 flex-col bg-[var(--dc-canvas)] text-[var(--dc-text)]">
       {chatTitle && (
-        <div className="relative z-10 hidden h-12 shrink-0 items-center border-b border-[var(--dc-border-subtle)] bg-[var(--dc-canvas)] px-5 shadow-[0_4px_12px_-8px_rgba(15,23,42,0.12)] dark:shadow-[0_4px_12px_-8px_rgba(0,0,0,0.5)] sm:flex">
+        <div className="relative z-10 hidden h-12 shrink-0 items-center bg-[var(--dc-canvas)] px-5 shadow-[0_6px_16px_-10px_rgba(15,23,42,0.12)] dark:shadow-[0_6px_16px_-10px_rgba(0,0,0,0.65)] sm:flex">
           <h1 className="truncate text-[15px] font-semibold tracking-[-0.01em] text-[var(--dc-text-strong)]">
             {chatTitle}
           </h1>
@@ -981,7 +981,7 @@ export default function ChatView({ chatId }: { chatId: string }) {
         style={{ scrollPaddingBottom: composerReserve }}
         className={`flex-1 overflow-y-auto px-4 pb-4 pt-4 sm:px-8 sm:pb-6 sm:pt-6 ${showCustomScrollbar ? '[&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]' : 'custom-scrollbar'}`}
       >
-        <div className="mx-auto flex w-full max-w-3xl flex-col gap-5 sm:gap-7" style={{ paddingBottom: Math.max(composerReserve - 8, 84) }}>
+        <div className="mx-auto flex w-full max-w-3xl flex-col gap-5 sm:gap-7" style={{ paddingBottom: Math.max(composerReserve - 42, 68) }}>
           {isChatHydrated && messages.length === 0 && !isLoading && (
             <div className="mt-24 flex flex-col items-center justify-center text-center">
               <DotRevealHeadline text="Start a new thought with DeepChat" ready size="compact" />
@@ -1020,7 +1020,7 @@ export default function ChatView({ chatId }: { chatId: string }) {
           })}
 
           {displayMessages.length > 0 && (
-            <div className="pt-8 pb-0 text-center">
+            <div className="pt-4 pb-0 text-center">
               <p className="inline-flex px-3 text-[11.5px] font-normal text-[var(--dc-text-muted)] sm:text-[12px]">
                 DeepChat can make mistakes. Verify important information before using it.
               </p>
