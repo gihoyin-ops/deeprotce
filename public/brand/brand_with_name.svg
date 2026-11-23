@@ -1,15 +1,53 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 166 36" fill="none">
-  <g transform="translate(2, 2) scale(0.2667)" stroke="#000" stroke-linecap="round">
-    <g transform="translate(1, 0)">
-      <path d="M 29,32 L 29,24 L 55,24 A 36,36 0 0 1 91,60 A 36,36 0 0 1 81,84" stroke-width="10"/>
-      <path d="M 67,94 A 36,36 0 0 1 55,96 L 29,96 L 29,62" stroke-width="10"/>
-      <path d="M 45,40 L 55,40 A 20,20 0 0 1 75,60 A 20,20 0 0 1 55,80 L 45,80" stroke-width="6"/>
-      <circle cx="29" cy="47" r="4" fill="#000" stroke="none"/>
-      <circle cx="74" cy="89" r="4" fill="#000" stroke="none"/>
-      <circle cx="45" cy="60" r="4.5" fill="#000" stroke="none"/>
+  <g transform="translate(2, 2) scale(0.0625)">
+    <g fill="#000000">
+      <path d="M 98 202
+               L 98 176
+               C 98 164 104 153 115 147
+               L 236 77
+               C 248 70 264 70 276 77
+               L 342 115
+               C 346 118 348 122 348 127
+               L 348 214
+               L 224 142
+               C 214 136 202 136 192 142
+               L 114 187
+               C 104 193 98 197 98 202 Z" />
+      <path d="M 164 385
+               L 115 357
+               C 104 351 98 340 98 328
+               L 98 258
+               C 98 245 105 234 116 228
+               L 245 164
+               L 276 182
+               L 164 242
+               Z" />
+    </g>
+    <g fill="#000000" transform="rotate(180 256 256)">
+      <path d="M 98 202
+               L 98 176
+               C 98 164 104 153 115 147
+               L 236 77
+               C 248 70 264 70 276 77
+               L 342 115
+               C 346 118 348 122 348 127
+               L 348 214
+               L 224 142
+               C 214 136 202 136 192 142
+               L 114 187
+               C 104 193 98 197 98 202 Z" />
+      <path d="M 164 385
+               L 115 357
+               C 104 351 98 340 98 328
+               L 98 258
+               C 98 245 105 234 116 228
+               L 245 164
+               L 276 182
+               L 164 242
+               Z" />
     </g>
   </g>
-  <g fill="#000" font-family="Inter, Arial, Helvetica, sans-serif" font-size="22" font-weight="800" letter-spacing="-0.4">
+  <g fill="#000000" font-family="Inter, Arial, Helvetica, sans-serif" font-size="22" font-weight="800" letter-spacing="-0.4">
     <text x="40" y="25.5">DeepChat</text>
   </g>
 </svg>
