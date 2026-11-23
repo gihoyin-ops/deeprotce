@@ -982,7 +982,7 @@ export default function ChatView({ chatId }: { chatId: string }) {
       <div
         ref={scrollContainerRef}
         style={{ scrollPaddingBottom: composerReserve }}
-        className={`flex-1 overflow-y-auto px-4 pb-4 pt-4 sm:px-8 sm:pb-6 sm:pt-16 ${showCustomScrollbar ? '[&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]' : 'custom-scrollbar'}`}
+        className={`flex-1 overflow-y-auto px-4 pb-4 pt-[calc(env(safe-area-inset-top,0px)+4rem)] sm:px-8 sm:pb-6 sm:pt-16 ${showCustomScrollbar ? '[&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]' : 'custom-scrollbar'}`}
       >
         <div className="mx-auto flex w-full max-w-3xl flex-col gap-5 sm:gap-7" style={{ paddingBottom: Math.max(composerReserve - 42, 68) }}>
           {isChatHydrated && messages.length === 0 && !isLoading && (

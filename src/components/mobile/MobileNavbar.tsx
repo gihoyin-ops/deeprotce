@@ -207,8 +207,8 @@ export default function MobileNavbar({
   );
 
   return (
-    <header className="dc-mob-navbar relative z-20 shrink-0 sm:hidden">
-      <div className="flex min-h-[56px] items-center justify-between gap-1 px-2">
+    <header className="dc-mob-navbar pointer-events-none absolute top-0 left-0 right-0 z-20 sm:hidden">
+      <div className="pointer-events-auto flex min-h-[56px] items-center justify-between gap-1 px-2">
         {/* Left: Menu Trigger (44x44 touch target) */}
         <div className="flex w-[88px] shrink-0 items-center justify-start">
           <button

@@ -2011,10 +2011,9 @@ html[data-appearance="dark"] .dc-ms-slider-knob {
 
 /* === Mobile Architecture (< 640px) === */
 .dc-mob-navbar {
-  background: color-mix(in srgb, var(--dc-canvas) 84%, transparent);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: linear-gradient(to bottom, var(--dc-canvas) 0%, var(--dc-canvas) 62%, transparent 100%);
   padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: 10px;
 }
 
 @keyframes dc-mob-stream-slide {
