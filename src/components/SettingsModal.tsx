@@ -87,7 +87,8 @@ const desktopSections: Array<{
     title: 'App',
     items: [
       { tab: 'general', label: 'General', icon: <SettingsIcon className="h-4 w-4" /> },
-      { tab: 'appearance', label: 'Appearance', icon: <Palette className="h-4 w-4" /> }
+      { tab: 'appearance', label: 'Appearance', icon: <Palette className="h-4 w-4" /> },
+      { tab: 'notifications', label: 'Notifications', icon: <Bell className="h-4 w-4" /> }
     ]
   }
 ];
