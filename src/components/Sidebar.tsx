@@ -8,7 +8,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getChats, getUserProfile, togglePinChat, archiveChat, deleteChat, updateChatTitle, shareChat } from '@/app/actions';
 import toast from 'react-hot-toast';
 import {
-  ChevronDown, ChevronRight, Pin, FileText, User, Brain,
+  ChevronDown, ChevronRight, FileText, User, Brain,
   Settings, PanelLeft, SquarePen, Search, Ellipsis, Library, Image as ImageIcon, Folder, Plus, X, Check
 } from '@/components/ui/icons';
 import { useShortcutLabels } from './shortcuts';
@@ -497,43 +497,63 @@ function ThreeDotsIcon({ className = 'h-4 w-4' }: { className?: string }) {
   );
 }
 
+function TiltedPinIcon({ className = 'h-4 w-4' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <g transform="rotate(45 12 12)">
+        <path d="M9 4h6" />
+        <path d="M10 4v4.5L8 12v1.5h8V12l-2-3.5V4" />
+        <path d="M12 13.5V21" />
+      </g>
+    </svg>
+  );
+}
+
 function RenamePencilIcon({ className = 'h-4 w-4' }: { className?: string }) {
   return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
-      <path d="M11.35 2.45a1.55 1.55 0 0 1 2.2 2.2L5.4 12.8l-3.1.85.85-3.1 8.2-8.1Z" />
-      <path d="M9.85 3.95l2.2 2.2" />
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+      <path d="m14.5 5.5 3 3" />
     </svg>
   );
 }
 
 function ModernShareIcon({ className = 'h-4 w-4' }: { className?: string }) {
   return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
-      <path d="M8 2.25v7.5" />
-      <path d="M5.25 5 8 2.25 10.75 5" />
-      <path d="M3 10.25v2.25A1.75 1.75 0 0 0 4.75 14.25h6.5A1.75 1.75 0 0 0 13 12.5v-2.25" />
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <path d="M12 3v11" />
+      <path d="m8 7 4-4 4 4" />
+      <path d="M4 14v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" />
+    </svg>
+  );
+}
+
+function FolderMenuIcon({ className = 'h-4 w-4' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <path d="M3 6.5A2.5 2.5 0 0 1 5.5 4h3.9a2 2 0 0 1 1.6.8l1 1.2H18.5A2.5 2.5 0 0 1 21 8.5v9A2.5 2.5 0 0 1 18.5 20h-13A2.5 2.5 0 0 1 3 17.5Z" />
     </svg>
   );
 }
 
 function ArchiveBoxIcon({ className = 'h-4 w-4' }: { className?: string }) {
   return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
-      <rect x="2" y="2.5" width="12" height="3.25" rx="0.9" />
-      <path d="M3.25 5.75v6.5A1.5 1.5 0 0 0 4.75 13.75h6.5a1.5 1.5 0 0 0 1.5-1.5v-6.5" />
-      <path d="M6.5 8.75h3" />
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <rect x="3" y="4" width="18" height="4.5" rx="1.2" />
+      <path d="M5 8.5v9.5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8.5" />
+      <path d="M9.5 13h5" />
     </svg>
   );
 }
 
 function TrashBinIcon({ className = 'h-4 w-4' }: { className?: string }) {
   return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
-      <path d="M2.75 4.5h10.5" />
-      <path d="M6 4.5V3.1A1.1 1.1 0 0 1 7.1 2h1.8A1.1 1.1 0 0 1 10 3.1v1.4" />
-      <path d="M4.35 4.5l.55 8.1a1.4 1.4 0 0 0 1.4 1.3h3.4a1.4 1.4 0 0 0 1.4-1.3l.55-8.1" />
-      <path d="M6.75 7.25v4" />
-      <path d="M9.25 7.25v4" />
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <path d="M4 7h16" />
+      <path d="M9 7V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V7" />
+      <path d="M6.5 7l.85 11.5A2 2 0 0 0 9.35 20.5h5.3a2 2 0 0 0 2-2L17.5 7" />
+      <path d="M10 11v5.5" />
+      <path d="M14 11v5.5" />
     </svg>
   );
 }
@@ -659,7 +679,7 @@ function ExpandedChatItem({ chat, active, onAction, onClick }: { chat: ChatItem;
               className={`flex h-6 w-6 items-center justify-center rounded-lg transition-colors hover:bg-black/[0.07] hover:text-[var(--dc-text-strong)] dark:hover:bg-white/[0.1] ${chat.pinned ? 'text-[var(--dc-text-strong)]' : 'text-[var(--dc-text-muted)]'}`}
               aria-label={chat.pinned ? `Unpin ${chat.title}` : `Pin ${chat.title}`}
             >
-              <Pin className="h-3.5 w-3.5" strokeWidth={1.85} />
+              <TiltedPinIcon className="h-3.5 w-3.5" />
             </button>
             <button
               ref={triggerRef}
@@ -685,7 +705,7 @@ function ExpandedChatItem({ chat, active, onAction, onClick }: { chat: ChatItem;
             onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onAction('pin', chat.id); }}
             className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-medium text-[var(--dc-text)] transition-colors hover:bg-black/[0.05] dark:hover:bg-white/[0.07]"
           >
-            <Pin className="h-4 w-4 shrink-0 text-[var(--dc-text-body)]" strokeWidth={1.75} />
+            <TiltedPinIcon className="h-4 w-4 shrink-0 text-[var(--dc-text-body)]" />
             <span>{chat.pinned ? 'Unpin' : 'Pin'}</span>
           </button>
 
@@ -726,7 +746,7 @@ function ExpandedChatItem({ chat, active, onAction, onClick }: { chat: ChatItem;
               className="flex w-full items-center justify-between rounded-xl px-2.5 py-2 text-left text-[13px] font-medium text-[var(--dc-text)] transition-colors hover:bg-black/[0.05] dark:hover:bg-white/[0.07]"
             >
               <span className="flex items-center gap-2.5">
-                <Folder className="h-4 w-4 shrink-0 text-[var(--dc-text-body)]" strokeWidth={1.75} />
+                <FolderMenuIcon className="h-4 w-4 shrink-0 text-[var(--dc-text-body)]" />
                 <span>Move to project</span>
               </span>
               <ChevronRight className="h-3.5 w-3.5 text-[var(--dc-text-muted)]" strokeWidth={1.9} />
