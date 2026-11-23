@@ -970,8 +970,11 @@ export default function ChatView({ chatId }: { chatId: string }) {
   return (
     <div className="deepchat-chat-view relative flex min-h-0 flex-1 flex-col bg-[var(--dc-canvas)] text-[var(--dc-text)]">
       {chatTitle && (
-        <div className="relative z-10 hidden h-12 shrink-0 items-center bg-[var(--dc-canvas)] px-5 shadow-[0_6px_16px_-10px_rgba(15,23,42,0.12)] dark:shadow-[0_6px_16px_-10px_rgba(0,0,0,0.65)] sm:flex">
-          <h1 className="truncate text-[15px] font-semibold tracking-[-0.01em] text-[var(--dc-text-strong)]">
+        <div
+          className="pointer-events-none absolute top-0 left-0 right-0 z-10 hidden h-16 items-start px-5 pt-3.5 sm:flex"
+          style={{ background: 'linear-gradient(to bottom, var(--dc-canvas) 0%, var(--dc-canvas) 52%, transparent 100%)' }}
+        >
+          <h1 className="pointer-events-auto truncate text-[15px] font-semibold tracking-[-0.01em] text-[var(--dc-text-strong)]">
             {chatTitle}
           </h1>
         </div>
@@ -979,7 +982,7 @@ export default function ChatView({ chatId }: { chatId: string }) {
       <div
         ref={scrollContainerRef}
         style={{ scrollPaddingBottom: composerReserve }}
-        className={`flex-1 overflow-y-auto px-4 pb-4 pt-4 sm:px-8 sm:pb-6 sm:pt-6 ${showCustomScrollbar ? '[&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]' : 'custom-scrollbar'}`}
+        className={`flex-1 overflow-y-auto px-4 pb-4 pt-4 sm:px-8 sm:pb-6 sm:pt-16 ${showCustomScrollbar ? '[&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]' : 'custom-scrollbar'}`}
       >
         <div className="mx-auto flex w-full max-w-3xl flex-col gap-5 sm:gap-7" style={{ paddingBottom: Math.max(composerReserve - 42, 68) }}>
           {isChatHydrated && messages.length === 0 && !isLoading && (
