@@ -13,7 +13,10 @@ const getOptionLabel = (options: DropdownOption[], value: string) => {
 };
 
 const TAB_ICON_TONE: Record<SettingsTab, string> = {
+  account: 'bg-indigo-500/12 text-indigo-600 dark:text-indigo-400',
+  usage: 'bg-cyan-500/12 text-cyan-600 dark:text-cyan-400',
   general: 'bg-slate-500/12 text-slate-700 dark:text-slate-200',
+  appearance: 'bg-pink-500/12 text-pink-600 dark:text-pink-400',
   profile: 'bg-indigo-500/12 text-indigo-600 dark:text-indigo-400',
   notifications: 'bg-amber-500/12 text-amber-600 dark:text-amber-400',
   tools: 'bg-sky-500/12 text-sky-600 dark:text-sky-400',
