@@ -8,6 +8,7 @@ import {
   type AppearanceSettings
 } from '@/lib/settings/appearance-settings';
 import { PillDropdown } from '../PillDropdown';
+import { ColorPickerPill } from '../ColorPickerPill';
 
 interface AppearanceTabProps {
   settings: AppearanceSettings;
@@ -111,52 +112,6 @@ function ColorModePreviewCard({
         </div>
       )}
     </button>
-  );
-}
-
-function ColorPickerPill({
-  value,
-  fallbackHex,
-  onChange,
-  onReset,
-  ariaLabel
-}: {
-  value: string;
-  fallbackHex: string;
-  onChange: (hex: string) => void;
-  onReset: () => void;
-  ariaLabel: string;
-}) {
-  const isCustom = value !== 'default' && /^#[0-9a-fA-F]{6}$/.test(value);
-  const displayHex = (isCustom ? value : fallbackHex).toUpperCase();
-
-  return (
-    <div className="flex shrink-0 items-center gap-2">
-      {isCustom && (
-        <button
-          type="button"
-          onClick={onReset}
-          className="text-xs font-medium text-[var(--dc-text-muted)] transition-colors hover:text-[var(--dc-text-strong)]"
-        >
-          Reset
-        </button>
-      )}
-      <label className="relative inline-flex h-9 cursor-pointer items-center gap-2.5 rounded-full border border-[var(--dc-border)] bg-[var(--dc-surface)] px-3.5 text-sm font-medium text-[var(--dc-text-strong)] transition-colors hover:bg-[var(--dc-surface-hover)]">
-        <span
-          className="inline-block h-4 w-4 shrink-0 rounded-full border border-black/15 dark:border-white/20"
-          style={{ backgroundColor: displayHex }}
-          aria-hidden="true"
-        />
-        <span className="font-mono text-xs tracking-wide">{displayHex}</span>
-        <input
-          type="color"
-          aria-label={ariaLabel}
-          value={displayHex.toLowerCase()}
-          onChange={event => onChange(event.target.value)}
-          className="sr-only"
-        />
-      </label>
-    </div>
   );
 }
 
