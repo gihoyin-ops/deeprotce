@@ -4,7 +4,6 @@ import React, { useEffect, useState } from 'react';
 
 interface UsageWindow {
   window: '5h' | '7d';
-  limitLabel: string;
   usedTokens: number;
   remainingTokens: number | null;
   exhausted: boolean;
@@ -18,10 +17,6 @@ interface UsageResponse {
   error?: string;
   plan?: string;
   planId?: string;
-  limitTokens?: number | null;
-  limitLabel?: string;
-  usedTokens?: number;
-  remainingTokens?: number | null;
   unlimited?: boolean;
   windows?: UsageWindow[];
 }
@@ -35,11 +30,6 @@ function formatTimeRemaining(iso: string): string {
   if (days > 0) return `Resets in ${days}d ${hours}h`;
   if (hours > 0) return `Resets in ${hours}h ${minutes}m`;
   return `Resets in ${Math.max(1, minutes)}m`;
-}
-
-function formatTokenCount(value: number | null | undefined): string {
-  if (value === null || value === undefined) return 'Unlimited';
-  return new Intl.NumberFormat('en-US').format(value);
 }
 
 export function UsageTab() {
@@ -65,26 +55,24 @@ export function UsageTab() {
   }, []);
 
   const planName = usage?.plan || 'Free';
-  const planLimitLabel = usage?.unlimited
-    ? 'Unlimited tokens'
-    : `${usage?.limitLabel || '40M'} tokens per window`;
+  const planSubtitle = usage?.unlimited
+    ? 'Unlimited usage'
+    : 'Includes 5-hour and weekly usage limits';
 
   const windows: UsageWindow[] = usage?.windows?.length
     ? usage.windows
     : [
         {
           window: '5h',
-          limitLabel: usage?.limitLabel || '40M',
           usedTokens: 0,
-          remainingTokens: usage?.limitTokens ?? 40_000_000,
+          remainingTokens: 100,
           exhausted: false,
           resetsAt: new Date(Date.now() + 5 * 60 * 60 * 1000).toISOString()
         },
         {
           window: '7d',
-          limitLabel: usage?.limitLabel || '40M',
           usedTokens: 0,
-          remainingTokens: usage?.limitTokens ?? 40_000_000,
+          remainingTokens: 100,
           exhausted: false,
           resetsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
         }
@@ -153,7 +141,7 @@ export function UsageTab() {
             <div className="flex items-center justify-between gap-4 py-4">
               <div>
                 <p className="text-sm font-semibold text-[var(--dc-text-strong)]">DeepChat {planName}</p>
-                <p className="mt-0.5 text-xs text-[var(--dc-text-muted)]">{planLimitLabel}</p>
+                <p className="mt-0.5 text-xs text-[var(--dc-text-muted)]">{planSubtitle}</p>
               </div>
               <a
                 href="/pricing"
@@ -171,7 +159,7 @@ export function UsageTab() {
             <div className="border-b border-[var(--dc-border-subtle)] pb-3">
               <h4 className="text-base font-medium text-[var(--dc-text-strong)]">Plan limits</h4>
               <p className="mt-1 text-xs leading-relaxed text-[var(--dc-text-muted)]">
-                Token limits apply per rolling 5-hour and weekly window on your active DeepChat plan.{' '}
+                Usage limits apply per rolling 5-hour and weekly window on your active DeepChat plan.{' '}
                 <a
                   href="/pricing"
                   target="_blank"
@@ -228,17 +216,18 @@ export function UsageTab() {
               </p>
             </div>
             <div className="rounded-2xl border border-[var(--dc-border)] bg-[var(--dc-surface)] p-4">
-              <p className="text-xs font-medium text-[var(--dc-text-muted)]">Window Allowance</p>
+              <p className="text-xs font-medium text-[var(--dc-text-muted)]">Usage Windows</p>
               <p className="mt-1 text-lg font-semibold text-[var(--dc-text-strong)]">
-                {usage?.unlimited ? '∞ Unlimited' : `${usage?.limitLabel || '40M'} tokens`}
+                {usage?.unlimited ? 'Unlimited' : '5h & Weekly'}
               </p>
-              <p className="mt-1 text-xs text-[var(--dc-text-muted)]">Applies to 5h &amp; weekly windows</p>
+              <p className="mt-1 text-xs text-[var(--dc-text-muted)]">Rolling reset schedule</p>
             </div>
           </div>
 
           <div className="space-y-3">
             {windows.map(win => {
               const pct = getRemainingPercent(win);
+              const usedPct = 100 - pct;
               return (
                 <div
                   key={win.window}
@@ -249,7 +238,7 @@ export function UsageTab() {
                       {getWindowTitle(win.window)}
                     </p>
                     <span className="rounded-full bg-[var(--dc-fill)] px-2.5 py-0.5 text-xs font-medium text-[var(--dc-text-strong)]">
-                      {win.exhausted ? 'Exhausted' : `${pct}% left`}
+                      {usage?.unlimited ? 'Unlimited' : win.exhausted ? 'Exhausted' : `${pct}% left`}
                     </span>
                   </div>
 
@@ -257,19 +246,19 @@ export function UsageTab() {
                     <div>
                       <p className="text-[var(--dc-text-muted)]">Used</p>
                       <p className="mt-0.5 font-medium text-[var(--dc-text-strong)]">
-                        {formatTokenCount(win.usedTokens)}
+                        {usage?.unlimited ? '—' : `${usedPct}%`}
                       </p>
                     </div>
                     <div>
                       <p className="text-[var(--dc-text-muted)]">Remaining</p>
                       <p className="mt-0.5 font-medium text-[var(--dc-text-strong)]">
-                        {formatTokenCount(win.remainingTokens)}
+                        {usage?.unlimited ? 'Unlimited' : `${pct}%`}
                       </p>
                     </div>
                     <div>
-                      <p className="text-[var(--dc-text-muted)]">Window Cap</p>
+                      <p className="text-[var(--dc-text-muted)]">Reset</p>
                       <p className="mt-0.5 font-medium text-[var(--dc-text-strong)]">
-                        {win.limitLabel}
+                        {formatTimeRemaining(win.resetsAt).replace('Resets in ', '')}
                       </p>
                     </div>
                   </div>
