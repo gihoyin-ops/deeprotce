@@ -885,9 +885,7 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
             className="absolute right-4 top-4 z-10 hidden rounded-full p-2 text-[var(--dc-text-muted)] transition-colors hover:bg-[var(--dc-surface-hover)] hover:text-[var(--dc-text-strong)] sm:right-5 sm:top-5 sm:block"
             aria-label="Close settings"
           >
-            <GsapMorphSvg rotate={90} scale={1.25}>
-              <X className="h-5 w-5" />
-            </GsapMorphSvg>
+            <X className="h-5 w-5" />
           </button>
 
           {/* Unified Mobile Settings Detail Header */}
