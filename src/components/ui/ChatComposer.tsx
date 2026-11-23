@@ -918,7 +918,7 @@ export default function ChatComposer({
           event.preventDefault();
           uploadFiles(files);
         }}
-        className={`dc-composer-shell relative rounded-[26px] bg-[var(--dc-surface-input)] ring-1 ring-inset ring-[var(--dc-border)] shadow-[0_6px_24px_-12px_rgba(15,23,42,0.08)] dark:shadow-[0_18px_40px_-24px_rgba(0,0,0,0.85)] dark:ring-white/[0.08] ${
+        className={`dc-composer-shell relative rounded-[26px] border border-[var(--dc-border)] bg-[var(--dc-surface)] shadow-none dark:border-white/[0.1] dark:bg-[var(--dc-surface-input)] ${
           isToolComposerActive ? 'px-4 py-3 sm:px-5 sm:py-3.5' : 'px-2 py-1'
         } ${isDraggingFile ? 'ring-2 ring-indigo-400 dark:ring-indigo-500/40' : ''}`}
       >

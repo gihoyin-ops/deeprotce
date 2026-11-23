@@ -114,6 +114,7 @@ type ChatMessage = {
 };
 
 type ChatPayload = {
+  title?: string;
   messages?: ChatMessage[];
   pendingAttachedFiles?: AttachedFile[];
 };
@@ -215,6 +216,7 @@ const getSelectedGenerationMode = () => {
 };
 
 export default function ChatView({ chatId }: { chatId: string }) {
+  const [chatTitle, setChatTitle] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -493,6 +495,10 @@ export default function ChatView({ chatId }: { chatId: string }) {
 
       if (!mounted) return;
 
+      if (chat?.title) {
+        setChatTitle(chat.title);
+      }
+
       if (chat?.pendingAttachedFiles && chat.pendingAttachedFiles.length > 0 && !initialMsgProcessed.current) {
         setAttachedFiles(chat.pendingAttachedFiles);
       }
@@ -594,7 +600,9 @@ export default function ChatView({ chatId }: { chatId: string }) {
       const detail = event instanceof CustomEvent ? event.detail : undefined;
       if (detail?.chatId && detail.chatId !== chatId) return;
       const chat = await getChat(chatId) as ChatPayload | null;
-      if (!mounted || !chat?.messages) return;
+      if (!mounted) return;
+      if (chat?.title) setChatTitle(chat.title);
+      if (!chat?.messages) return;
       setMessages(mergeActiveGeneration(chatId, chat.messages.map(normalizeMessageForDisplay)));
     };
 
@@ -961,10 +969,17 @@ export default function ChatView({ chatId }: { chatId: string }) {
 
   return (
     <div className="deepchat-chat-view relative flex min-h-0 flex-1 flex-col bg-[var(--dc-canvas)] text-[var(--dc-text)]">
+      {chatTitle && (
+        <div className="hidden h-12 shrink-0 items-center px-5 sm:flex">
+          <h1 className="truncate text-[15px] font-semibold tracking-[-0.01em] text-[var(--dc-text-strong)]">
+            {chatTitle}
+          </h1>
+        </div>
+      )}
       <div
         ref={scrollContainerRef}
         style={{ scrollPaddingBottom: composerReserve }}
-        className={`flex-1 overflow-y-auto px-4 pb-4 pt-4 sm:px-8 sm:pb-6 sm:pt-10 ${showCustomScrollbar ? '[&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]' : 'custom-scrollbar'}`}
+        className={`flex-1 overflow-y-auto px-4 pb-4 pt-4 sm:px-8 sm:pb-6 sm:pt-6 ${showCustomScrollbar ? '[&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]' : 'custom-scrollbar'}`}
       >
         <div className="mx-auto flex w-full max-w-3xl flex-col gap-5 sm:gap-7" style={{ paddingBottom: composerReserve }}>
           {isChatHydrated && messages.length === 0 && !isLoading && (
@@ -1056,8 +1071,13 @@ export default function ChatView({ chatId }: { chatId: string }) {
         </div>
       )}
 
-      <div className="deepchat-composer-dock pointer-events-none absolute bottom-0 left-0 z-20 flex w-full flex-col items-center px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-6 sm:px-8 sm:pb-7 sm:pt-10">
+      <div className="deepchat-composer-dock pointer-events-none absolute bottom-0 left-0 z-20 flex w-full flex-col items-center px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-6 sm:px-8 sm:pb-5 sm:pt-10">
         <div ref={composerContentRef} className="pointer-events-auto flex w-full max-w-[40rem] flex-col gap-2 sm:max-w-[48rem]">
+          <div className="text-center">
+            <p className="inline-flex px-3 text-[11.5px] font-normal text-[var(--dc-text-muted)] sm:text-[12px]">
+              DeepChat can make mistakes. Verify important information before using it.
+            </p>
+          </div>
           {activeClarificationMessage?.clarification ? (
             <ClarificationDock
               clarification={activeClarificationMessage.clarification}
@@ -1090,9 +1110,6 @@ export default function ChatView({ chatId }: { chatId: string }) {
               })}
             />
           )}
-          <div className="mt-3 text-center">
-            <p className="inline-flex px-3 py-1 text-[11px] font-semibold text-[#cbd5e1] sm:text-xs dark:text-slate-600">DeepChat can make mistakes. Verify important information before using it.</p>
-          </div>
         </div>
       </div>
 
