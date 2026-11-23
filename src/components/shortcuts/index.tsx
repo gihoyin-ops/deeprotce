@@ -1,55 +1,63 @@
 'use client';
 
-import React, { useSyncExternalStore } from 'react';
+import React, { useEffect, useState } from 'react';
+import {
+  defaultKeyboardSettings,
+  formatShortcutKeys,
+  loadKeyboardSettings,
+  matchesShortcutBinding,
+  subscribeKeyboardSettings,
+  type KeyboardSettings,
+  type KeyboardShortcutId
+} from '@/lib/settings/keyboard-settings';
 
-type ShortcutId = 'newChat' | 'search' | 'uploadFile' | 'selectModel' | 'dictation';
+type ShortcutId = KeyboardShortcutId;
 type ShortcutPlatform = 'apple' | 'default';
 export type ShortcutLabels = Record<ShortcutId, string[]>;
-
-const shortcutKeys: Record<ShortcutPlatform, ShortcutLabels> = {
-  apple: {
-    newChat: ['Cmd', 'K'],
-    search: ['Cmd', 'F'],
-    uploadFile: ['Cmd', 'U'],
-    selectModel: ['Cmd', 'Shift', 'M'],
-    dictation: ['Cmd', 'Shift', 'D']
-  },
-  default: {
-    newChat: ['Ctrl', 'K'],
-    search: ['Ctrl', 'F'],
-    uploadFile: ['Ctrl', 'U'],
-    selectModel: ['Ctrl', 'Shift', 'M'],
-    dictation: ['Ctrl', 'Shift', 'D']
-  }
-};
 
 const getPlatform = (): ShortcutPlatform => {
   if (typeof navigator === 'undefined') return 'default';
   return /Mac|iPhone|iPad|iPod/i.test(navigator.platform) ? 'apple' : 'default';
 };
 
-export function useShortcutLabels() {
-  const platform = useSyncExternalStore<ShortcutPlatform>(() => () => undefined, getPlatform, () => 'default');
-  return shortcutKeys[platform];
+const toShortcutLabels = (settings: KeyboardSettings, platform: ShortcutPlatform): ShortcutLabels => ({
+  newChat: formatShortcutKeys(settings.newChat, platform),
+  branchChat: formatShortcutKeys(settings.branchChat, platform),
+  sendInBackground: formatShortcutKeys(settings.sendInBackground, platform),
+  dictation: formatShortcutKeys(settings.dictation, platform),
+  search: formatShortcutKeys(settings.search, platform),
+  uploadFile: formatShortcutKeys(settings.uploadFile, platform),
+  selectModel: formatShortcutKeys(settings.selectModel, platform),
+  toggleSidebar: formatShortcutKeys(settings.toggleSidebar, platform),
+  openSettings: formatShortcutKeys(settings.openSettings, platform)
+});
+
+export function useShortcutLabels(): ShortcutLabels {
+  const [labels, setLabels] = useState<ShortcutLabels>(() =>
+    toShortcutLabels(defaultKeyboardSettings, 'default')
+  );
+
+  useEffect(() => {
+    const sync = (settings?: KeyboardSettings) => {
+      setLabels(toShortcutLabels(settings ?? loadKeyboardSettings(), getPlatform()));
+    };
+    sync();
+    return subscribeKeyboardSettings(next => sync(next));
+  }, []);
+
+  return labels;
 }
 
 export function isShortcutEvent(event: KeyboardEvent, shortcut: ShortcutId) {
-  const key = event.key.toLowerCase();
-  const modifierPressed = getPlatform() === 'apple' ? event.metaKey : event.ctrlKey;
-
-  if (!modifierPressed || event.altKey) return false;
-  if (shortcut === 'selectModel') return event.shiftKey && key === 'm';
-  if (shortcut === 'dictation') return event.shiftKey && key === 'd';
-  if (event.shiftKey) return false;
-  if (shortcut === 'newChat') return key === 'k';
-  if (shortcut === 'search') return key === 'f';
-  return key === 'u';
+  const settings = loadKeyboardSettings();
+  return matchesShortcutBinding(event, settings[shortcut], getPlatform());
 }
 
 export function ShortcutCombo({ keys, tone = 'light' }: { keys: string[]; tone?: 'light' | 'dark' }) {
+  if (keys.length === 0) return null;
   const className = tone === 'dark'
     ? 'bg-indigo-500/50 text-indigo-100 border border-indigo-400/30'
-    : 'bg-white text-slate-400 border border-slate-200 shadow-sm';
+    : 'bg-white text-slate-400 border border-slate-200 shadow-sm dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700';
 
   return (
     <span className="inline-flex items-center gap-1">

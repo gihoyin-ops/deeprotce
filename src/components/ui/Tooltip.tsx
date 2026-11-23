@@ -38,6 +38,7 @@ const shortcutClass = {
 
 export default function Tooltip({ label, shortcuts = [], children, side = 'bottom', align = 'center', disabled = false }: TooltipProps) {
   const positionClass = side === 'right' ? sideClass.right : `${sideClass[side]} ${alignClass[align]}`;
+  const visibleShortcuts = shortcuts.filter(shortcut => Boolean(shortcut.label));
 
   return (
     <span className="deepchat-tooltip group/tooltip relative inline-flex">
@@ -48,9 +49,9 @@ export default function Tooltip({ label, shortcuts = [], children, side = 'botto
         >
           <span className="inline-flex items-center gap-1.5">
             <span>{label}</span>
-            {shortcuts.length > 0 && (
+            {visibleShortcuts.length > 0 && (
               <span className="inline-flex items-center gap-1">
-                {shortcuts.map((shortcut, index) => (
+                {visibleShortcuts.map((shortcut, index) => (
                   <span key={index} className={`inline-flex items-center text-[11px] font-medium leading-none ${shortcutClass[shortcut.tone || 'key']}`}>
                     {shortcut.label}
                   </span>

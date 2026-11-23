@@ -18,6 +18,7 @@ const TAB_ICON_TONE: Record<SettingsTab, string> = {
   general: 'bg-slate-500/12 text-slate-700 dark:text-slate-200',
   appearance: 'bg-pink-500/12 text-pink-600 dark:text-pink-400',
   voice: 'bg-sky-500/12 text-sky-600 dark:text-sky-400',
+  keyboard: 'bg-violet-500/12 text-violet-600 dark:text-violet-400',
   profile: 'bg-indigo-500/12 text-indigo-600 dark:text-indigo-400',
   notifications: 'bg-amber-500/12 text-amber-600 dark:text-amber-400',
   tools: 'bg-sky-500/12 text-sky-600 dark:text-sky-400',

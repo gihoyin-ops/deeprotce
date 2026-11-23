@@ -131,7 +131,7 @@ const loadStoredBoolean = (key: string, fallback: boolean) => {
 };
 
 const detailFromEvent = (event: CustomEvent<DeepChatNotificationDetail>) => event.detail;
-const settingsTabs: SettingsTab[] = ['account', 'usage', 'general', 'appearance', 'notifications', 'voice', 'profile', 'personality', 'tools', 'agent', 'data', 'storage'];
+const settingsTabs: SettingsTab[] = ['account', 'usage', 'general', 'appearance', 'notifications', 'voice', 'keyboard', 'profile', 'personality', 'tools', 'agent', 'data', 'storage'];
 const isSettingsTab = (value: unknown): value is SettingsTab => typeof value === 'string' && settingsTabs.includes(value as SettingsTab);
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
@@ -367,12 +367,15 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       } else if (isShortcutEvent(event, 'newChat')) {
         event.preventDefault();
         void handleCreateChat();
+      } else if (isShortcutEvent(event, 'openSettings')) {
+        event.preventDefault();
+        openSettings('general');
       }
     };
 
     window.addEventListener('keydown', handleShortcut);
     return () => window.removeEventListener('keydown', handleShortcut);
-  }, [handleCreateChat]);
+  }, [handleCreateChat, openSettings]);
 
   // Idle-warm mobile drawer chunks so first swipe responds at 60fps
   useEffect(() => {

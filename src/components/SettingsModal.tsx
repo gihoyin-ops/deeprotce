@@ -31,11 +31,20 @@ import { getMobileTabTitle, modalAnimationMs } from './settings/constants';
 import { prefersReducedMotion, triggerSubtleHaptic } from '@/components/mobile/gesture-utils';
 import { type GeneralSettings, loadGeneralSettings, saveGeneralSettings } from '@/lib/settings/general-settings';
 import { type AppearanceSettings, loadAppearanceSettings, saveAppearanceSettings } from '@/lib/settings/appearance-settings';
+import {
+  loadKeyboardSettings,
+  resetKeyboardSettings,
+  saveKeyboardSettings,
+  type KeyboardSettings,
+  type KeyboardShortcutId,
+  type ShortcutBinding
+} from '@/lib/settings/keyboard-settings';
 import { IconMask, MobileSettingsHome } from './settings/mobile';
 import { AccountTab } from './settings/tabs/AccountTab';
 import { UsageTab } from './settings/tabs/UsageTab';
 import { AppearanceTab } from './settings/tabs/AppearanceTab';
 import { VoiceTab } from './settings/tabs/VoiceTab';
+import { KeyboardTab } from './settings/tabs/KeyboardTab';
 import { GeneralTab } from './settings/tabs/GeneralTab';
 import { ProfileTab } from './settings/tabs/ProfileTab';
 import { PersonalizationTab } from './settings/tabs/PersonalizationTab';
@@ -96,7 +105,8 @@ const desktopSections: Array<{
       { tab: 'appearance', label: 'Appearance', icon: <Palette className="h-4 w-4" /> },
       { tab: 'notifications', label: 'Notifications', icon: <Bell className="h-4 w-4" /> },
       { tab: 'voice', label: 'Voice', icon: <Mic className="h-4 w-4" /> },
-      { tab: 'personality', label: 'Personalization', icon: <IconMask icon="/icons/personalization.svg" source="local" className="h-4 w-4" /> }
+      { tab: 'personality', label: 'Personalization', icon: <IconMask icon="/icons/personalization.svg" source="local" className="h-4 w-4" /> },
+      { tab: 'keyboard', label: 'Keyboard', icon: <IconMask icon="/icons/keyboard.svg" source="local" className="h-4 w-4" /> }
     ]
   }
 ];
@@ -129,6 +139,7 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
   // tab data
   const [generalSettings, setGeneralSettings] = useState<GeneralSettings>(() => loadGeneralSettings());
   const [appearanceSettings, setAppearanceSettings] = useState<AppearanceSettings>(() => loadAppearanceSettings());
+  const [keyboardSettings, setKeyboardSettings] = useState<KeyboardSettings>(() => loadKeyboardSettings());
   const [searchQuery, setSearchQuery] = useState('');
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [profile, setProfile] = useState<UserProfile>({ name: '', username: '', avatar: '', plan: '', age: '18 or older' });
@@ -475,6 +486,9 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
   // general, appearance, profile, persona
   const updateGeneral = (patch: Partial<GeneralSettings>) => setGeneralSettings(prev => saveGeneralSettings({ ...prev, ...patch }));
   const updateAppearance = (patch: Partial<AppearanceSettings>) => setAppearanceSettings(prev => saveAppearanceSettings({ ...prev, ...patch }));
+  const updateKeyboardShortcut = (id: KeyboardShortcutId, binding: ShortcutBinding | null) =>
+    setKeyboardSettings(prev => saveKeyboardSettings({ ...prev, [id]: binding }));
+  const handleResetKeyboardShortcuts = () => setKeyboardSettings(resetKeyboardSettings());
   const updatePersona = (patch: Partial<PersonaState>) => setPersona(prev => ({ ...prev, ...patch }));
 
   const updateProfilePatch = async (patch: Partial<UserProfile>) => {
@@ -933,6 +947,15 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
             {activeTab === 'general' && <GeneralTab {...children.GeneralTab} />}
             {activeTab === 'appearance' && <AppearanceTab {...children.AppearanceTab} />}
             {activeTab === 'voice' && <VoiceTab settings={generalSettings} onChange={updateGeneral} />}
+            {activeTab === 'keyboard' && (
+              <KeyboardTab
+                settings={keyboardSettings}
+                generalSettings={generalSettings}
+                onChangeShortcut={updateKeyboardShortcut}
+                onResetAll={handleResetKeyboardShortcuts}
+                onChangeGeneral={updateGeneral}
+              />
+            )}
             {activeTab === 'profile' && <ProfileTab {...children.ProfileTab} />}
             {activeTab === 'personality' && <PersonalizationTab {...children.PersonalizationTab} />}
             {activeTab === 'notifications' && <NotificationsTab {...children.NotificationsTab} />}
