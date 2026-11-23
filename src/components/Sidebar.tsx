@@ -151,12 +151,42 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
   };
 
   const profileMenuRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const profilePopoverRef = useRef<HTMLDivElement | null>(null);
+  const [popoverCoords, setPopoverCoords] = useState<{ left: number; bottom: number; width: number } | null>(null);
+
+  useEffect(() => {
+    if (!profileMenuOpen || typeof window === 'undefined') {
+      setHelpMenuOpen(false);
+      return;
+    }
+    const updateCoords = () => {
+      const anchor = profileMenuRefs.current.find(node => {
+        if (!node) return false;
+        const r = node.getBoundingClientRect();
+        return r.width > 0 && r.height > 0;
+      });
+      if (!anchor) return;
+      const rect = anchor.getBoundingClientRect();
+      setPopoverCoords({
+        left: Math.max(8, rect.left),
+        bottom: Math.max(8, window.innerHeight - rect.top + 8),
+        width: Math.max(248, rect.width)
+      });
+    };
+    updateCoords();
+    window.addEventListener('resize', updateCoords);
+    return () => window.removeEventListener('resize', updateCoords);
+  }, [profileMenuOpen]);
+
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       const target = event.target as Node;
-      const isInsideProfileMenu = profileMenuRefs.current.some(node => node?.contains(target));
+      const isInsideProfileMenu =
+        profileMenuRefs.current.some(node => node?.contains(target)) ||
+        Boolean(profilePopoverRef.current?.contains(target));
       if (!isInsideProfileMenu) {
         setProfileMenuOpen(false);
+        setHelpMenuOpen(false);
       }
     }
     if (profileMenuOpen) document.addEventListener("mousedown", handleClickOutside);
@@ -228,13 +258,17 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
         </button>
       )}
       
-      {profileMenuOpen && (
+      {profileMenuOpen && popoverCoords && typeof document !== 'undefined' && createPortal(
         <div
-          className={
-            isExpanded
-              ? 'absolute bottom-full left-0 right-0 z-50 mb-2 rounded-2xl border border-[var(--dc-border)] bg-[var(--dc-panel)] p-1.5 shadow-xl shadow-black/10 dark:shadow-black/50'
-              : 'absolute bottom-16 left-0 right-0 z-50 rounded-2xl border border-slate-700 bg-slate-800 p-1.5 shadow-xl'
-          }
+          ref={profilePopoverRef}
+          style={{
+            position: 'fixed',
+            left: popoverCoords.left,
+            bottom: popoverCoords.bottom,
+            width: popoverCoords.width,
+            zIndex: 450
+          }}
+          className="rounded-2xl border border-[var(--dc-border)] bg-[var(--dc-panel)] p-1.5 shadow-xl shadow-black/15 dark:shadow-black/60"
         >
           {/* Header user card */}
           <button
@@ -369,7 +403,8 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
             <IconMask icon="/icons/log-out.svg" className="h-4 w-4 shrink-0" />
             <span>Log out</span>
           </button>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
     );
