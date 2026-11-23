@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import { usePathname, useRouter } from 'next/navigation';
 import { gsap } from 'gsap';
 import GsapMorphSvg from '@/components/ui/GsapMorphSvg';
-import { Archive, ArrowLeft, Bell, Brain, Database, ExternalLink, Gauge, Palette, Search, Settings as SettingsIcon, User, X } from '@/components/ui/icons';
+import { Archive, ArrowLeft, Bell, Brain, Database, ExternalLink, Gauge, Mic, Palette, Search, Settings as SettingsIcon, User, X } from '@/components/ui/icons';
 import {
   archiveAllChats,
   deleteAllChats,
@@ -35,6 +35,7 @@ import { MobileSettingsHome } from './settings/mobile';
 import { AccountTab } from './settings/tabs/AccountTab';
 import { UsageTab } from './settings/tabs/UsageTab';
 import { AppearanceTab } from './settings/tabs/AppearanceTab';
+import { VoiceTab } from './settings/tabs/VoiceTab';
 import { GeneralTab } from './settings/tabs/GeneralTab';
 import { ProfileTab } from './settings/tabs/ProfileTab';
 import { PersonalizationTab } from './settings/tabs/PersonalizationTab';
@@ -88,7 +89,8 @@ const desktopSections: Array<{
     items: [
       { tab: 'general', label: 'General', icon: <SettingsIcon className="h-4 w-4" /> },
       { tab: 'appearance', label: 'Appearance', icon: <Palette className="h-4 w-4" /> },
-      { tab: 'notifications', label: 'Notifications', icon: <Bell className="h-4 w-4" /> }
+      { tab: 'notifications', label: 'Notifications', icon: <Bell className="h-4 w-4" /> },
+      { tab: 'voice', label: 'Voice', icon: <Mic className="h-4 w-4" /> }
     ]
   }
 ];
@@ -910,6 +912,7 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
             {activeTab === 'usage' && <UsageTab />}
             {activeTab === 'general' && <GeneralTab {...children.GeneralTab} />}
             {activeTab === 'appearance' && <AppearanceTab {...children.AppearanceTab} />}
+            {activeTab === 'voice' && <VoiceTab settings={generalSettings} onChange={updateGeneral} />}
             {activeTab === 'profile' && <ProfileTab {...children.ProfileTab} />}
             {activeTab === 'personality' && <PersonalizationTab {...children.PersonalizationTab} />}
             {activeTab === 'notifications' && <NotificationsTab {...children.NotificationsTab} />}

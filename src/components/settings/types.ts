@@ -5,6 +5,7 @@ export type SettingsTab =
   | 'usage'
   | 'general'
   | 'appearance'
+  | 'voice'
   | 'profile'
   | 'personality'
   | 'notifications'

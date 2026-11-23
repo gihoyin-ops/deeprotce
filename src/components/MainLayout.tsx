@@ -131,7 +131,7 @@ const loadStoredBoolean = (key: string, fallback: boolean) => {
 };
 
 const detailFromEvent = (event: CustomEvent<DeepChatNotificationDetail>) => event.detail;
-const settingsTabs: SettingsTab[] = ['account', 'usage', 'general', 'appearance', 'profile', 'personality', 'notifications', 'tools', 'agent', 'data', 'storage'];
+const settingsTabs: SettingsTab[] = ['account', 'usage', 'general', 'appearance', 'notifications', 'voice', 'profile', 'personality', 'tools', 'agent', 'data', 'storage'];
 const isSettingsTab = (value: unknown): value is SettingsTab => typeof value === 'string' && settingsTabs.includes(value as SettingsTab);
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {

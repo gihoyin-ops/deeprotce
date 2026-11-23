@@ -98,6 +98,7 @@ export const getMobileTabTitle = (tab: SettingsTab) => {
     usage: 'Usage',
     general: 'General',
     appearance: 'Appearance',
+    voice: 'Voice',
     profile: 'Profile',
     personality: 'Personalization',
     notifications: 'Notification',
