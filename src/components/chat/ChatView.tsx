@@ -970,7 +970,7 @@ export default function ChatView({ chatId }: { chatId: string }) {
   return (
     <div className="deepchat-chat-view relative flex min-h-0 flex-1 flex-col bg-[var(--dc-canvas)] text-[var(--dc-text)]">
       {chatTitle && (
-        <div className="hidden h-12 shrink-0 items-center px-5 sm:flex">
+        <div className="relative z-10 hidden h-12 shrink-0 items-center border-b border-[var(--dc-border-subtle)] bg-[var(--dc-canvas)] px-5 shadow-[0_4px_12px_-8px_rgba(15,23,42,0.12)] dark:shadow-[0_4px_12px_-8px_rgba(0,0,0,0.5)] sm:flex">
           <h1 className="truncate text-[15px] font-semibold tracking-[-0.01em] text-[var(--dc-text-strong)]">
             {chatTitle}
           </h1>
@@ -978,9 +978,10 @@ export default function ChatView({ chatId }: { chatId: string }) {
       )}
       <div
         ref={scrollContainerRef}
+        style={{ scrollPaddingBottom: composerReserve }}
         className={`flex-1 overflow-y-auto px-4 pb-4 pt-4 sm:px-8 sm:pb-6 sm:pt-6 ${showCustomScrollbar ? '[&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]' : 'custom-scrollbar'}`}
       >
-        <div className="mx-auto flex w-full max-w-3xl flex-col gap-5 sm:gap-7">
+        <div className="mx-auto flex w-full max-w-3xl flex-col gap-5 sm:gap-7" style={{ paddingBottom: Math.max(composerReserve - 8, 84) }}>
           {isChatHydrated && messages.length === 0 && !isLoading && (
             <div className="mt-24 flex flex-col items-center justify-center text-center">
               <DotRevealHeadline text="Start a new thought with DeepChat" ready size="compact" />
@@ -1019,7 +1020,7 @@ export default function ChatView({ chatId }: { chatId: string }) {
           })}
 
           {displayMessages.length > 0 && (
-            <div className="pt-4 pb-2 text-center">
+            <div className="pt-8 pb-0 text-center">
               <p className="inline-flex px-3 text-[11.5px] font-normal text-[var(--dc-text-muted)] sm:text-[12px]">
                 DeepChat can make mistakes. Verify important information before using it.
               </p>
@@ -1077,8 +1078,8 @@ export default function ChatView({ chatId }: { chatId: string }) {
         </div>
       )}
 
-      <div className="relative z-20 flex w-full shrink-0 flex-col items-center bg-[var(--dc-canvas)] px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 sm:px-8 sm:pb-5 sm:pt-2">
-        <div ref={composerContentRef} className="flex w-full max-w-[40rem] flex-col gap-2 sm:max-w-[48rem]">
+      <div className="pointer-events-none absolute bottom-0 left-0 z-20 flex w-full flex-col items-center bg-transparent px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 sm:px-8 sm:pb-5 sm:pt-2">
+        <div ref={composerContentRef} className="pointer-events-auto flex w-full max-w-[40rem] flex-col gap-2 sm:max-w-[48rem]">
           {activeClarificationMessage?.clarification ? (
             <ClarificationDock
               clarification={activeClarificationMessage.clarification}
