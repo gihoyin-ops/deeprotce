@@ -131,7 +131,7 @@ const loadStoredBoolean = (key: string, fallback: boolean) => {
 };
 
 const detailFromEvent = (event: CustomEvent<DeepChatNotificationDetail>) => event.detail;
-const settingsTabs: SettingsTab[] = ['account', 'usage', 'general', 'appearance', 'notifications', 'voice', 'keyboard', 'archived', 'profile', 'personality', 'tools', 'agent', 'data', 'storage'];
+const settingsTabs: SettingsTab[] = ['account', 'usage', 'general', 'appearance', 'notifications', 'voice', 'personality', 'keyboard', 'archived', 'storage', 'data'];
 const isSettingsTab = (value: unknown): value is SettingsTab => typeof value === 'string' && settingsTabs.includes(value as SettingsTab);
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
@@ -691,7 +691,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
   const openProfileSettings = () => {
     setProfileMenuOpen(false);
-    openSettings('profile');
+    openSettings('account');
   };
 
   const openGeneralSettings = () => {

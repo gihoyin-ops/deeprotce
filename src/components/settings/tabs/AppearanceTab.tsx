@@ -38,84 +38,153 @@ function ColorModePreviewCard({
         onClick={onSelect}
         aria-pressed={selected}
         aria-label={`Color mode: ${label}`}
-        className={`group relative h-[62px] w-[96px] overflow-hidden rounded-xl border-2 transition-all ${
+        className={`group relative h-[76px] w-[58px] overflow-hidden rounded-xl border-2 transition-all sm:h-[62px] sm:w-[96px] ${
           selected
             ? 'border-blue-500 ring-2 ring-blue-500/25'
             : 'border-[var(--dc-border)] hover:border-[var(--dc-border-strong)]'
         }`}
       >
-      {mode === 'light' && (
-        <div className="flex h-full w-full p-1.5" style={{ backgroundColor: '#ffffff' }}>
-          <div className="w-5 shrink-0 rounded-l-md p-1" style={{ backgroundColor: '#f1f5f9' }}>
-            <span className="block h-1.5 w-1.5 rounded-full" style={{ backgroundColor: '#cbd5e1' }} />
-          </div>
-          <div className="flex flex-1 flex-col justify-between p-1.5" style={{ backgroundColor: '#ffffff' }}>
-            <div className="space-y-1">
-              <span className="ml-auto block h-1 w-8 rounded-full" style={{ backgroundColor: '#3b82f6' }} />
-              <span className="block h-1 w-7 rounded-full" style={{ backgroundColor: '#e2e8f0' }} />
-              <span className="block h-1 w-5 rounded-full" style={{ backgroundColor: '#e2e8f0' }} />
-              <span className="ml-auto block h-1 w-9 rounded-full" style={{ backgroundColor: '#3b82f6' }} />
-            </div>
-            <div className="flex items-center justify-end rounded-full border px-1 py-0.5" style={{ borderColor: '#e2e8f0' }}>
-              <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: '#3b82f6' }} />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {mode === 'dark' && (
-        <div className="flex h-full w-full p-1.5" style={{ backgroundColor: '#111317' }}>
-          <div className="w-5 shrink-0 rounded-l-md p-1" style={{ backgroundColor: '#1c1f26' }}>
-            <span className="block h-1.5 w-1.5 rounded-full" style={{ backgroundColor: '#475569' }} />
-          </div>
-          <div className="flex flex-1 flex-col justify-between p-1.5" style={{ backgroundColor: '#111317' }}>
-            <div className="space-y-1">
-              <span className="ml-auto block h-1 w-8 rounded-full" style={{ backgroundColor: '#3b82f6' }} />
-              <span className="block h-1 w-7 rounded-full" style={{ backgroundColor: '#334155' }} />
-              <span className="block h-1 w-5 rounded-full" style={{ backgroundColor: '#334155' }} />
-              <span className="ml-auto block h-1 w-9 rounded-full" style={{ backgroundColor: '#3b82f6' }} />
-            </div>
-            <div className="flex items-center justify-end rounded-full border px-1 py-0.5" style={{ borderColor: '#334155' }}>
-              <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: '#3b82f6' }} />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {mode === 'system' && (
-        <div className="relative flex h-full w-full">
-          {/* Left half light */}
-          <div className="flex h-full w-1/2 p-1.5 pr-0" style={{ backgroundColor: '#ffffff' }}>
-            <div className="w-4 shrink-0 rounded-l-md p-1" style={{ backgroundColor: '#f1f5f9' }}>
-              <span className="block h-1.5 w-1.5 rounded-full" style={{ backgroundColor: '#cbd5e1' }} />
-            </div>
-            <div className="flex flex-1 flex-col justify-between py-1.5 pl-1" style={{ backgroundColor: '#ffffff' }}>
-              <div className="space-y-1">
-                <span className="block h-1 w-5 rounded-full" style={{ backgroundColor: '#e2e8f0' }} />
-                <span className="block h-1 w-4 rounded-full" style={{ backgroundColor: '#e2e8f0' }} />
-                <span className="ml-auto block h-1 w-4 rounded-l-full" style={{ backgroundColor: '#3b82f6' }} />
+        {/* Mobile phone-style preview (no sidebar) */}
+        <div className="h-full w-full sm:hidden">
+          {mode === 'light' && (
+            <div className="flex h-full w-full flex-col justify-between p-1.5" style={{ backgroundColor: '#ffffff' }}>
+              <div className="flex items-center justify-between pb-1" style={{ borderBottom: '1px solid #f1f5f9' }}>
+                <span className="h-1 w-2.5 rounded-full" style={{ backgroundColor: '#cbd5e1' }} />
+                <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: '#cbd5e1' }} />
               </div>
-              <div className="h-2 rounded-l-full border border-r-0" style={{ borderColor: '#e2e8f0' }} />
-            </div>
-          </div>
-          {/* Right half dark */}
-          <div className="flex h-full w-1/2 p-1.5 pl-0" style={{ backgroundColor: '#111317' }}>
-            <div className="w-4 shrink-0 p-1" style={{ backgroundColor: '#1c1f26' }}>
-              <span className="block h-1.5 w-1.5 rounded-full" style={{ backgroundColor: '#475569' }} />
-            </div>
-            <div className="flex flex-1 flex-col justify-between py-1.5 pr-1" style={{ backgroundColor: '#111317' }}>
-              <div className="space-y-1">
-                <span className="ml-auto block h-1 w-5 rounded-full" style={{ backgroundColor: '#3b82f6' }} />
-                <span className="block h-1 w-5 rounded-r-full" style={{ backgroundColor: '#334155' }} />
-                <span className="block h-1 w-4 rounded-r-full" style={{ backgroundColor: '#334155' }} />
+              <div className="space-y-1.5 py-1">
+                <span className="ml-auto block h-1.5 w-7 rounded-full" style={{ backgroundColor: '#3b82f6' }} />
+                <span className="block h-1.5 w-8 rounded-full" style={{ backgroundColor: '#e2e8f0' }} />
+                <span className="block h-1.5 w-5 rounded-full" style={{ backgroundColor: '#e2e8f0' }} />
+                <span className="ml-auto block h-1.5 w-6 rounded-full" style={{ backgroundColor: '#3b82f6' }} />
               </div>
-              <div className="flex items-center justify-end rounded-r-full border border-l-0 px-1 py-0.5" style={{ borderColor: '#334155' }}>
+              <div className="flex items-center justify-end rounded-full border px-1 py-0.5" style={{ borderColor: '#e2e8f0' }}>
                 <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: '#3b82f6' }} />
               </div>
             </div>
-          </div>
+          )}
+
+          {mode === 'dark' && (
+            <div className="flex h-full w-full flex-col justify-between p-1.5" style={{ backgroundColor: '#111317' }}>
+              <div className="flex items-center justify-between pb-1" style={{ borderBottom: '1px solid #1e293b' }}>
+                <span className="h-1 w-2.5 rounded-full" style={{ backgroundColor: '#475569' }} />
+                <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: '#475569' }} />
+              </div>
+              <div className="space-y-1.5 py-1">
+                <span className="ml-auto block h-1.5 w-7 rounded-full" style={{ backgroundColor: '#3b82f6' }} />
+                <span className="block h-1.5 w-8 rounded-full" style={{ backgroundColor: '#334155' }} />
+                <span className="block h-1.5 w-5 rounded-full" style={{ backgroundColor: '#334155' }} />
+                <span className="ml-auto block h-1.5 w-6 rounded-full" style={{ backgroundColor: '#3b82f6' }} />
+              </div>
+              <div className="flex items-center justify-end rounded-full border px-1 py-0.5" style={{ borderColor: '#334155' }}>
+                <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: '#3b82f6' }} />
+              </div>
+            </div>
+          )}
+
+          {mode === 'system' && (
+            <div className="flex h-full w-full">
+              <div className="flex h-full w-1/2 flex-col justify-between p-1.5 pr-0.5" style={{ backgroundColor: '#ffffff' }}>
+                <div className="pb-1" style={{ borderBottom: '1px solid #f1f5f9' }}>
+                  <span className="block h-1 w-2.5 rounded-full" style={{ backgroundColor: '#cbd5e1' }} />
+                </div>
+                <div className="space-y-1.5 py-1">
+                  <span className="block h-1.5 w-4 rounded-full" style={{ backgroundColor: '#e2e8f0' }} />
+                  <span className="ml-auto block h-1.5 w-3 rounded-l-full" style={{ backgroundColor: '#3b82f6' }} />
+                  <span className="block h-1.5 w-4 rounded-full" style={{ backgroundColor: '#e2e8f0' }} />
+                </div>
+                <div className="h-2 rounded-l-full border border-r-0" style={{ borderColor: '#e2e8f0' }} />
+              </div>
+              <div className="flex h-full w-1/2 flex-col justify-between p-1.5 pl-0.5" style={{ backgroundColor: '#111317' }}>
+                <div className="flex justify-end pb-1" style={{ borderBottom: '1px solid #1e293b' }}>
+                  <span className="block h-1.5 w-1.5 rounded-full" style={{ backgroundColor: '#475569' }} />
+                </div>
+                <div className="space-y-1.5 py-1">
+                  <span className="ml-auto block h-1.5 w-4 rounded-full" style={{ backgroundColor: '#3b82f6' }} />
+                  <span className="block h-1.5 w-3 rounded-r-full" style={{ backgroundColor: '#334155' }} />
+                  <span className="ml-auto block h-1.5 w-4 rounded-full" style={{ backgroundColor: '#3b82f6' }} />
+                </div>
+                <div className="flex items-center justify-end rounded-r-full border border-l-0 px-0.5 py-0.5" style={{ borderColor: '#334155' }}>
+                  <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: '#3b82f6' }} />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
-      )}
+
+        {/* Desktop window preview (with sidebar) */}
+        <div className="hidden h-full w-full sm:block">
+          {mode === 'light' && (
+            <div className="flex h-full w-full p-1.5" style={{ backgroundColor: '#ffffff' }}>
+              <div className="w-5 shrink-0 rounded-l-md p-1" style={{ backgroundColor: '#f1f5f9' }}>
+                <span className="block h-1.5 w-1.5 rounded-full" style={{ backgroundColor: '#cbd5e1' }} />
+              </div>
+              <div className="flex flex-1 flex-col justify-between p-1.5" style={{ backgroundColor: '#ffffff' }}>
+                <div className="space-y-1">
+                  <span className="ml-auto block h-1 w-8 rounded-full" style={{ backgroundColor: '#3b82f6' }} />
+                  <span className="block h-1 w-7 rounded-full" style={{ backgroundColor: '#e2e8f0' }} />
+                  <span className="block h-1 w-5 rounded-full" style={{ backgroundColor: '#e2e8f0' }} />
+                  <span className="ml-auto block h-1 w-9 rounded-full" style={{ backgroundColor: '#3b82f6' }} />
+                </div>
+                <div className="flex items-center justify-end rounded-full border px-1 py-0.5" style={{ borderColor: '#e2e8f0' }}>
+                  <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: '#3b82f6' }} />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {mode === 'dark' && (
+            <div className="flex h-full w-full p-1.5" style={{ backgroundColor: '#111317' }}>
+              <div className="w-5 shrink-0 rounded-l-md p-1" style={{ backgroundColor: '#1c1f26' }}>
+                <span className="block h-1.5 w-1.5 rounded-full" style={{ backgroundColor: '#475569' }} />
+              </div>
+              <div className="flex flex-1 flex-col justify-between p-1.5" style={{ backgroundColor: '#111317' }}>
+                <div className="space-y-1">
+                  <span className="ml-auto block h-1 w-8 rounded-full" style={{ backgroundColor: '#3b82f6' }} />
+                  <span className="block h-1 w-7 rounded-full" style={{ backgroundColor: '#334155' }} />
+                  <span className="block h-1 w-5 rounded-full" style={{ backgroundColor: '#334155' }} />
+                  <span className="ml-auto block h-1 w-9 rounded-full" style={{ backgroundColor: '#3b82f6' }} />
+                </div>
+                <div className="flex items-center justify-end rounded-full border px-1 py-0.5" style={{ borderColor: '#334155' }}>
+                  <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: '#3b82f6' }} />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {mode === 'system' && (
+            <div className="relative flex h-full w-full">
+              <div className="flex h-full w-1/2 p-1.5 pr-0" style={{ backgroundColor: '#ffffff' }}>
+                <div className="w-4 shrink-0 rounded-l-md p-1" style={{ backgroundColor: '#f1f5f9' }}>
+                  <span className="block h-1.5 w-1.5 rounded-full" style={{ backgroundColor: '#cbd5e1' }} />
+                </div>
+                <div className="flex flex-1 flex-col justify-between py-1.5 pl-1" style={{ backgroundColor: '#ffffff' }}>
+                  <div className="space-y-1">
+                    <span className="block h-1 w-5 rounded-full" style={{ backgroundColor: '#e2e8f0' }} />
+                    <span className="block h-1 w-4 rounded-full" style={{ backgroundColor: '#e2e8f0' }} />
+                    <span className="ml-auto block h-1 w-4 rounded-l-full" style={{ backgroundColor: '#3b82f6' }} />
+                  </div>
+                  <div className="h-2 rounded-l-full border border-r-0" style={{ borderColor: '#e2e8f0' }} />
+                </div>
+              </div>
+              <div className="flex h-full w-1/2 p-1.5 pl-0" style={{ backgroundColor: '#111317' }}>
+                <div className="w-4 shrink-0 p-1" style={{ backgroundColor: '#1c1f26' }}>
+                  <span className="block h-1.5 w-1.5 rounded-full" style={{ backgroundColor: '#475569' }} />
+                </div>
+                <div className="flex flex-1 flex-col justify-between py-1.5 pr-1" style={{ backgroundColor: '#111317' }}>
+                  <div className="space-y-1">
+                    <span className="ml-auto block h-1 w-5 rounded-full" style={{ backgroundColor: '#3b82f6' }} />
+                    <span className="block h-1 w-5 rounded-r-full" style={{ backgroundColor: '#334155' }} />
+                    <span className="block h-1 w-4 rounded-r-full" style={{ backgroundColor: '#334155' }} />
+                  </div>
+                  <div className="flex items-center justify-end rounded-r-full border border-l-0 px-1 py-0.5" style={{ borderColor: '#334155' }}>
+                    <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: '#3b82f6' }} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </button>
     </Tooltip>
   );

@@ -5,16 +5,13 @@ export type SettingsTab =
   | 'usage'
   | 'general'
   | 'appearance'
+  | 'notifications'
   | 'voice'
+  | 'personality'
   | 'keyboard'
   | 'archived'
-  | 'profile'
-  | 'personality'
-  | 'notifications'
-  | 'tools'
-  | 'agent'
-  | 'data'
-  | 'storage';
+  | 'storage'
+  | 'data';
 
 export type CropArea = { x: number; y: number; width: number; height: number };
 

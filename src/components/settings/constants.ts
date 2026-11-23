@@ -79,21 +79,29 @@ export const mobileDetailAnimationMs = 260;
 
 export const mobileSettingsSections: MobileSettingsMenuSection[] = [
   {
-    title: 'Settings',
+    title: 'Account',
     items: [
-      { tab: 'general', label: 'General', icon: '/icons/settings.svg', source: 'local' },
-      { tab: 'profile', label: 'My Profile', icon: '/icons/user.svg', source: 'local' },
-      { tab: 'notifications', label: 'Notification', icon: '/icons/bell.svg', source: 'local' }
+      { tab: 'account', label: 'Account', icon: '/icons/user.svg', source: 'local' },
+      { tab: 'usage', label: 'Usage', icon: '/icons/gauge.svg', source: 'local' }
     ]
   },
   {
-    title: 'Model & Services',
+    title: 'App',
     items: [
-      { tab: 'tools', label: 'Tools Configuration', icon: '/icons/sliders-horizontal.svg', source: 'local' },
-      { tab: 'agent', label: 'Agent', icon: '/icons/agent.svg', source: 'local' },
+      { tab: 'general', label: 'General', icon: '/icons/settings.svg', source: 'local' },
+      { tab: 'appearance', label: 'Appearance', icon: '/icons/palette.svg', source: 'local' },
+      { tab: 'notifications', label: 'Notifications', icon: '/icons/bell.svg', source: 'local' },
+      { tab: 'voice', label: 'Voice', icon: '/icons/mic.svg', source: 'local' },
       { tab: 'personality', label: 'Personalization', icon: '/icons/personalization.svg', source: 'local' },
-      { tab: 'data', label: 'Data control', icon: '/icons/database.svg', source: 'local' },
-      { tab: 'storage', label: 'Storage', icon: '/icons/archive.svg', source: 'local' }
+      { tab: 'keyboard', label: 'Keyboard', icon: '/icons/keyboard.svg', source: 'local' }
+    ]
+  },
+  {
+    title: 'Data & Privacy',
+    items: [
+      { tab: 'archived', label: 'Archived chats', icon: '/icons/archive.svg', source: 'local' },
+      { tab: 'storage', label: 'Storage', icon: '/icons/database.svg', source: 'local' },
+      { tab: 'data', label: 'Data controls', icon: '/icons/shield-alert.svg', source: 'local' }
     ]
   }
 ];
@@ -104,16 +112,13 @@ export const getMobileTabTitle = (tab: SettingsTab) => {
     usage: 'Usage',
     general: 'General',
     appearance: 'Appearance',
+    notifications: 'Notifications',
     voice: 'Voice',
+    personality: 'Personalization',
     keyboard: 'Keyboard',
     archived: 'Archived chats',
-    profile: 'Profile',
-    personality: 'Personalization',
-    notifications: 'Notification',
-    tools: 'Tools Configuration',
-    agent: 'Agent',
-    data: 'Data control',
-    storage: 'Storage'
+    storage: 'Storage',
+    data: 'Data controls'
   };
   return titles[tab];
 };

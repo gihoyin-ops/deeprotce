@@ -46,11 +46,8 @@ import { AppearanceTab } from './settings/tabs/AppearanceTab';
 import { VoiceTab } from './settings/tabs/VoiceTab';
 import { KeyboardTab } from './settings/tabs/KeyboardTab';
 import { GeneralTab } from './settings/tabs/GeneralTab';
-import { ProfileTab } from './settings/tabs/ProfileTab';
 import { PersonalizationTab } from './settings/tabs/PersonalizationTab';
 import { NotificationsTab } from './settings/tabs/NotificationsTab';
-import { ToolsTab } from './settings/tabs/ToolsTab';
-import { AgentTab } from './settings/tabs/AgentTab';
 import { DataTab } from './settings/tabs/DataTab';
 import { StorageTab } from './settings/tabs/StorageTab';
 import { ArchivedChatsTab } from './settings/tabs/ArchivedChatsTab';
@@ -317,7 +314,7 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
   // lazy load active tab data
   useEffect(() => {
     if (!isOpen) return;
-    if (activeTab === 'profile') void loadProfile();
+    if (activeTab === 'account') void loadProfile();
     if (activeTab === 'notifications') refreshPushPermission();
     if (activeTab === 'personality') void loadPersona();
     if (activeTab === 'storage') void loadStorage();
@@ -767,9 +764,7 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
   const children = {
     GeneralTab: {
       settings: generalSettings,
-      appearanceSettings,
-      onChange: updateGeneral,
-      onChangeAppearance: updateAppearance
+      onChange: updateGeneral
     },
     AppearanceTab: {
       settings: appearanceSettings,
@@ -782,7 +777,6 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
       onDeleteAccount: deleteAccount,
       isDeletingAccount
     },
-    ProfileTab: { profile, isLoading: isProfileLoading, setProfile, onSave: saveProfile, onAvatarPicked: pickAvatar, fileInputRef },
     PersonalizationTab: {
       persona,
       onChange: updatePersona,
@@ -803,7 +797,6 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
       onEnablePush: enablePush,
       onSendTest: sendTestNotification
     },
-    ToolsTab: { settings: toolSettings, onChange: updateToolFeatures },
     StorageTab: { storage, onRefresh: loadStorage }
   };
 
@@ -825,7 +818,16 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
         className="settings-root-panel deepchat-mobile-settings-light relative flex h-dvh w-full flex-col overflow-hidden bg-[var(--dc-panel)] text-[var(--dc-text)] shadow-xl will-change-transform sm:h-[min(90dvh,740px)] sm:max-w-[920px] sm:flex-row sm:rounded-3xl sm:border sm:border-[var(--dc-border)] dark:shadow-2xl dark:shadow-black/50"
         onClick={event => event.stopPropagation()}
       >
-        <MobileSettingsHome profile={profile} onClose={closeToSidebar} onOpenTab={openMobileTab} hidden={isMobileDetailOpen && !isMobileDetailClosing} />
+        <MobileSettingsHome
+          profile={profile}
+          onClose={closeToSidebar}
+          onOpenTab={openMobileTab}
+          onOpenProfilePage={() => {
+            onClose();
+            router.push('/profile');
+          }}
+          hidden={isMobileDetailOpen && !isMobileDetailClosing}
+        />
 
         {/* Desktop Sidebar Navigation (matches screenshot 1 & 2) */}
         <nav className="hidden shrink-0 flex-col border-b border-[var(--dc-border-subtle)] bg-[var(--dc-sidebar)] p-4 sm:flex sm:w-64 sm:border-b-0 sm:border-r sm:p-4">
@@ -965,11 +967,8 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
                 onChangeGeneral={updateGeneral}
               />
             )}
-            {activeTab === 'profile' && <ProfileTab {...children.ProfileTab} />}
             {activeTab === 'personality' && <PersonalizationTab {...children.PersonalizationTab} />}
             {activeTab === 'notifications' && <NotificationsTab {...children.NotificationsTab} />}
-            {activeTab === 'tools' && <ToolsTab {...children.ToolsTab} />}
-            {activeTab === 'agent' && <AgentTab />}
             {activeTab === 'archived' && <ArchivedChatsTab onOpenChat={openArchivedChat} />}
             {activeTab === 'data' && (
               <DataTab

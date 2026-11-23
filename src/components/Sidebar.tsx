@@ -17,7 +17,7 @@ import type { SettingsTab } from './SettingsModal';
 import { deepchatQueryKeys } from '@/lib/query-keys';
 import { safeAvatarSource } from '@/lib/utils';
 
-type SidebarSettingsTab = Extract<SettingsTab, 'general' | 'profile' | 'personality'>;
+type SidebarSettingsTab = Extract<SettingsTab, 'general' | 'account' | 'personality'>;
 
 interface SidebarProps {
   isOpen: boolean;
@@ -200,7 +200,7 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
           <button type="button" onClick={() => handleOpenSettings('general')} className={isExpanded ? "flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm font-medium text-[var(--dc-text)] transition-colors hover:bg-black/[0.05] dark:hover:bg-white/[0.07]" : "flex w-full items-center gap-2 px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-700 hover:text-white"}>
             <Settings className="h-4 w-4 shrink-0" strokeWidth={1.9} /> Settings
           </button>
-          <button type="button" onClick={() => handleOpenSettings('profile')} className={isExpanded ? "flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm font-medium text-[var(--dc-text)] transition-colors hover:bg-black/[0.05] dark:hover:bg-white/[0.07]" : "flex w-full items-center gap-2 px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-700 hover:text-white"}>
+          <button type="button" onClick={() => handleOpenSettings('account')} className={isExpanded ? "flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm font-medium text-[var(--dc-text)] transition-colors hover:bg-black/[0.05] dark:hover:bg-white/[0.07]" : "flex w-full items-center gap-2 px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-700 hover:text-white"}>
             <User className="h-4 w-4 shrink-0" strokeWidth={1.9} /> Profile
           </button>
           <button type="button" onClick={() => handleOpenSettings('personality')} className={isExpanded ? "flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm font-medium text-[var(--dc-text)] transition-colors hover:bg-black/[0.05] dark:hover:bg-white/[0.07]" : "flex w-full items-center gap-2 px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-700 hover:text-white"}>
@@ -266,7 +266,7 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                handleOpenSettings('profile');
+                handleOpenSettings('account');
               }}
               className="rail-action flex h-9 w-9 items-center justify-center rounded-full transition-transform hover:scale-105 active:scale-95"
               aria-label="Profile"

@@ -725,7 +725,7 @@ const MobileSidebarDrawer = forwardRef<MobileDrawerHandle, MobileSidebarDrawerPr
                 type="button"
                 onClick={() => {
                   snapClose();
-                  onOpenSettings('profile');
+                  onOpenSettings('account');
                 }}
                 className="flex min-h-[48px] min-w-0 flex-1 items-center gap-2.5 rounded-2xl px-2 py-1.5 text-left transition-colors active:scale-[0.99] hover:bg-[var(--dc-fill)]"
               >

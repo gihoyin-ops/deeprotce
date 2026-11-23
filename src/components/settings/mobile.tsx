@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import NextImage from 'next/image';
-import { ArrowLeft, ChevronDown, ChevronRight, User, Check, Edit3 } from '@/components/ui/icons';
+import { ArrowLeft, ChevronDown, ChevronRight, ExternalLink, User, Check } from '@/components/ui/icons';
 import { type DropdownOption } from '@/components/ui/CustomDropdown';
 import { mobileSettingsSections } from './constants';
 import type { SettingsIconSource, SettingsTab, UserProfile } from './types';
@@ -17,17 +18,36 @@ const TAB_ICON_TONE: Record<SettingsTab, string> = {
   usage: 'bg-cyan-500/12 text-cyan-600 dark:text-cyan-400',
   general: 'bg-slate-500/12 text-slate-700 dark:text-slate-200',
   appearance: 'bg-pink-500/12 text-pink-600 dark:text-pink-400',
+  notifications: 'bg-amber-500/12 text-amber-600 dark:text-amber-400',
   voice: 'bg-sky-500/12 text-sky-600 dark:text-sky-400',
+  personality: 'bg-emerald-500/12 text-emerald-600 dark:text-emerald-400',
   keyboard: 'bg-violet-500/12 text-violet-600 dark:text-violet-400',
   archived: 'bg-amber-500/12 text-amber-600 dark:text-amber-400',
-  profile: 'bg-indigo-500/12 text-indigo-600 dark:text-indigo-400',
-  notifications: 'bg-amber-500/12 text-amber-600 dark:text-amber-400',
-  tools: 'bg-sky-500/12 text-sky-600 dark:text-sky-400',
-  agent: 'bg-violet-500/12 text-violet-600 dark:text-violet-400',
-  personality: 'bg-emerald-500/12 text-emerald-600 dark:text-emerald-400',
-  data: 'bg-blue-500/12 text-blue-600 dark:text-blue-400',
   storage: 'bg-orange-500/12 text-orange-600 dark:text-orange-400',
+  data: 'bg-blue-500/12 text-blue-600 dark:text-blue-400',
 };
+
+function useHasPhysicalKeyboard(): boolean {
+  const [hasPhysicalKeyboard, setHasPhysicalKeyboard] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const finePointer = window.matchMedia('(any-pointer: fine)');
+    const hoverQuery = window.matchMedia('(hover: hover)');
+    const sync = () => {
+      setHasPhysicalKeyboard(finePointer.matches && hoverQuery.matches);
+    };
+    sync();
+    finePointer.addEventListener('change', sync);
+    hoverQuery.addEventListener('change', sync);
+    return () => {
+      finePointer.removeEventListener('change', sync);
+      hoverQuery.removeEventListener('change', sync);
+    };
+  }, []);
+
+  return hasPhysicalKeyboard;
+}
 
 // mobile only views
 
@@ -37,7 +57,7 @@ export function MobileGeneralSelectRow({
   value,
   options,
   onChange,
-  menuClassName = 'min-w-[110px]',
+  menuClassName = 'min-w-[140px]',
 }: {
   label: string;
   icon: string;
@@ -67,135 +87,6 @@ export function MobileGeneralSelectRow({
   );
 }
 
-export function MobileProfileSettings({
-  profile,
-  setProfile,
-  isLoading,
-  fileInputRef,
-  onFileChange,
-  onSave,
-}: {
-  profile: UserProfile;
-  setProfile: React.Dispatch<React.SetStateAction<UserProfile>>;
-  isLoading: boolean;
-  fileInputRef: React.RefObject<HTMLInputElement | null>;
-  onFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
-  onSave: () => void;
-}) {
-  const nameInputRef = useRef<HTMLInputElement>(null);
-  const usernameInputRef = useRef<HTMLInputElement>(null);
-  const [editingField, setEditingField] = useState<'name' | 'username' | null>(null);
-  const username = profile.plan?.trim() || profile.name.trim().toLowerCase().replace(/\s+/g, '') || 'username';
-
-  useEffect(() => {
-    if (editingField === 'name') nameInputRef.current?.focus();
-    if (editingField === 'username') usernameInputRef.current?.focus();
-  }, [editingField]);
-
-  const updateUsername = (value: string) => {
-    setProfile(current => ({ ...current, plan: value.replace(/^@+/, '') }));
-  };
-
-  const finishEditing = () => {
-    setEditingField(null);
-    void onSave();
-  };
-
-  const handleEditAction = (field: 'name' | 'username') => {
-    if (editingField === field) {
-      finishEditing();
-      return;
-    }
-    setEditingField(field);
-  };
-
-  return (
-    <div className="sm:hidden">
-      <div className="mt-4 flex flex-col items-center">
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          aria-label="Change avatar"
-          className="relative h-[104px] w-[104px] rounded-full transition-transform active:scale-95"
-        >
-          <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-full border-2 border-[var(--dc-border)] bg-indigo-500/12 text-indigo-600 dark:text-indigo-300">
-            {profile.avatar ? (
-              <NextImage src={profile.avatar} width={104} height={104} unoptimized className="h-full w-full object-cover" alt="User avatar" />
-            ) : (
-              <User className="h-14 w-14" strokeWidth={2.2} />
-            )}
-          </div>
-          <span className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full border border-[var(--dc-border)] bg-[var(--dc-surface)] text-[var(--dc-text-strong)] shadow-sm">
-            <Edit3 className="h-4 w-4" strokeWidth={2.2} />
-          </span>
-        </button>
-        <input
-          type="file"
-          accept="image/*"
-          className="hidden"
-          ref={fileInputRef}
-          onChange={onFileChange}
-        />
-      </div>
-
-      <section className="mt-8">
-        <p className="mb-2.5 px-1 text-[12px] font-semibold uppercase tracking-wider text-[var(--dc-text-muted)]">
-          Profile Details
-        </p>
-        <div className="overflow-hidden rounded-[20px] border border-[var(--dc-border-subtle)] bg-[var(--dc-surface-muted)] divide-y divide-[var(--dc-border-subtle)]">
-          <div className="flex min-h-[54px] items-center justify-between px-4 py-1.5 text-[var(--dc-text-strong)]">
-            <input
-              ref={nameInputRef}
-              value={profile.name}
-              readOnly={editingField !== 'name'}
-              disabled={isLoading}
-              onKeyDown={event => {
-                if (event.key === 'Enter') finishEditing();
-              }}
-              onChange={event => setProfile(current => ({ ...current, name: event.target.value }))}
-              className={`min-w-0 flex-1 bg-transparent text-[15px] font-semibold text-[var(--dc-text-strong)] outline-none disabled:opacity-70 ${editingField === 'name' ? 'cursor-text' : 'cursor-default'}`}
-              placeholder="Name"
-            />
-            <button
-              type="button"
-              onClick={() => handleEditAction('name')}
-              aria-label={editingField === 'name' ? 'Save name' : 'Edit name'}
-              className="ml-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[var(--dc-text-strong)] transition-colors hover:bg-[var(--dc-fill)]"
-            >
-              {editingField === 'name' ? <Check className="h-[18px] w-[18px] text-emerald-600" strokeWidth={2.5} /> : <Edit3 className="h-[17px] w-[17px]" strokeWidth={2.2} />}
-            </button>
-          </div>
-          <div className="flex min-h-[54px] items-center justify-between px-4 py-1.5 text-[var(--dc-text-strong)]">
-            <div className="flex min-w-0 flex-1 items-center">
-              <span className="text-[15px] font-semibold text-[var(--dc-text-muted)]">@</span>
-              <input
-                ref={usernameInputRef}
-                value={username}
-                readOnly={editingField !== 'username'}
-                disabled={isLoading}
-                onKeyDown={event => {
-                  if (event.key === 'Enter') finishEditing();
-                }}
-                onChange={event => updateUsername(event.target.value)}
-                className={`min-w-0 flex-1 bg-transparent text-[15px] font-semibold text-[var(--dc-text-strong)] outline-none disabled:opacity-70 ${editingField === 'username' ? 'cursor-text' : 'cursor-default'}`}
-                placeholder="username"
-              />
-            </div>
-            <button
-              type="button"
-              onClick={() => handleEditAction('username')}
-              aria-label={editingField === 'username' ? 'Save handle' : 'Edit handle'}
-              className="ml-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[var(--dc-text-strong)] transition-colors hover:bg-[var(--dc-fill)]"
-            >
-              {editingField === 'username' ? <Check className="h-[18px] w-[18px] text-emerald-600" strokeWidth={2.5} /> : <Edit3 className="h-[17px] w-[17px]" strokeWidth={2.2} />}
-            </button>
-          </div>
-        </div>
-      </section>
-    </div>
-  );
-}
-
 export function MobileGeneralDropdown({
   value,
   options,
@@ -208,58 +99,108 @@ export function MobileGeneralDropdown({
   menuClassName: string;
 }) {
   const [open, setOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [menuPos, setMenuPos] = useState<{
+    top?: number;
+    bottom?: number;
+    right: number;
+    maxHeight: number;
+  } | null>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const label = getOptionLabel(options, value);
 
+  const updatePosition = useCallback(() => {
+    if (!triggerRef.current || typeof window === 'undefined') return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
+    const desiredHeight = Math.min(240, options.length * 42 + 16);
+    const openUpward = spaceBelow < desiredHeight && spaceAbove > spaceBelow;
+    const availableSpace = openUpward ? spaceAbove : spaceBelow;
+    const maxHeight = Math.max(120, Math.min(240, availableSpace - 16));
+
+    setMenuPos({
+      top: openUpward ? undefined : rect.bottom + 6,
+      bottom: openUpward ? window.innerHeight - rect.top + 6 : undefined,
+      right: Math.max(12, window.innerWidth - rect.right),
+      maxHeight,
+    });
+  }, [options.length]);
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    updatePosition();
+  }, [open, updatePosition]);
+
   useEffect(() => {
+    if (!open) return;
     const closeOnOutsideClick = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) setOpen(false);
+      const target = event.target as Node;
+      if (triggerRef.current?.contains(target) || menuRef.current?.contains(target)) return;
+      setOpen(false);
     };
-    if (open) document.addEventListener('mousedown', closeOnOutsideClick);
-    return () => document.removeEventListener('mousedown', closeOnOutsideClick);
-  }, [open]);
+    const handleReposition = () => updatePosition();
+    document.addEventListener('mousedown', closeOnOutsideClick);
+    window.addEventListener('resize', handleReposition);
+    window.addEventListener('scroll', handleReposition, true);
+    return () => {
+      document.removeEventListener('mousedown', closeOnOutsideClick);
+      window.removeEventListener('resize', handleReposition);
+      window.removeEventListener('scroll', handleReposition, true);
+    };
+  }, [open, updatePosition]);
 
   return (
-    <div ref={dropdownRef} className="relative shrink-0">
+    <div className="relative shrink-0">
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen(current => !current)}
-        className="flex min-h-[44px] max-w-[180px] items-center justify-end gap-1.5 rounded-full px-2 text-right text-[13px] font-medium leading-none text-[var(--dc-text-muted)] outline-none transition-colors hover:text-[var(--dc-text-strong)]"
+        className="flex min-h-[40px] max-w-[180px] items-center justify-end gap-1.5 rounded-full border border-[var(--dc-border)] bg-[var(--dc-surface)] px-3 text-right text-[13px] font-medium leading-none text-[var(--dc-text-strong)] outline-none transition-colors hover:bg-[var(--dc-surface-hover)]"
       >
         <span className="truncate">{label}</span>
-        <ChevronDown className={`h-3.5 w-3.5 shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-[var(--dc-text-muted)] transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
       </button>
-      <div
-        className={`absolute right-0 top-full z-[320] mt-1 origin-top-right overflow-hidden rounded-2xl border border-[var(--dc-border)] bg-[var(--dc-surface)] py-1.5 shadow-xl transition-[opacity,transform,visibility] duration-150 ease-out ${menuClassName} ${
-          open ? 'visible translate-y-0 scale-100 opacity-100' : 'invisible -translate-y-1 scale-95 opacity-0 pointer-events-none'
-        }`}
-      >
-        <div className="max-h-[232px] overflow-y-auto py-0.5 no-scrollbar">
-          {options.map(option => {
-            const optionValue = typeof option === 'string' ? option : option.value;
-            const optionLabel = typeof option === 'string' ? option : option.label;
-            const selected = value === optionValue;
-            return (
-              <button
-                key={optionValue}
-                type="button"
-                onClick={() => {
-                  onChange(optionValue);
-                  setOpen(false);
-                }}
-                className={`flex min-h-[40px] w-full items-center justify-between gap-2 px-3.5 py-2 text-left text-[13.5px] font-medium leading-tight transition-colors ${
-                  selected
-                    ? 'bg-[var(--dc-fill)] font-semibold text-[var(--dc-text-strong)]'
-                    : 'text-[var(--dc-text)] hover:bg-[var(--dc-surface-subtle)]'
-                }`}
-              >
-                <span className="truncate">{optionLabel}</span>
-                {selected && <Check className="h-3.5 w-3.5 shrink-0 text-[var(--deepchat-accent)]" />}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      {open && menuPos && typeof document !== 'undefined' && createPortal(
+        <div
+          ref={menuRef}
+          style={{
+            position: 'fixed',
+            top: menuPos.top,
+            bottom: menuPos.bottom,
+            right: menuPos.right,
+            zIndex: 500,
+          }}
+          className={`overflow-hidden rounded-2xl border border-[var(--dc-border)] bg-[var(--dc-panel)] py-1.5 shadow-2xl ${menuClassName}`}
+        >
+          <div style={{ maxHeight: menuPos.maxHeight }} className="overflow-y-auto py-0.5 custom-scrollbar">
+            {options.map(option => {
+              const optionValue = typeof option === 'string' ? option : option.value;
+              const optionLabel = typeof option === 'string' ? option : option.label;
+              const selected = value === optionValue;
+              return (
+                <button
+                  key={optionValue}
+                  type="button"
+                  onClick={() => {
+                    onChange(optionValue);
+                    setOpen(false);
+                  }}
+                  className={`flex min-h-[40px] w-full items-center justify-between gap-2 px-3.5 py-2 text-left text-[13.5px] font-medium leading-tight transition-colors ${
+                    selected
+                      ? 'bg-[var(--dc-fill)] font-semibold text-[var(--dc-text-strong)]'
+                      : 'text-[var(--dc-text)] hover:bg-[var(--dc-surface-hover)]'
+                  }`}
+                >
+                  <span className="truncate">{optionLabel}</span>
+                  {selected && <Check className="h-3.5 w-3.5 shrink-0 text-[var(--deepchat-accent)]" />}
+                </button>
+              );
+            })}
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
@@ -303,13 +244,17 @@ export function MobileSettingsHome({
   profile,
   onClose,
   onOpenTab,
+  onOpenProfilePage,
   hidden,
 }: {
   profile: UserProfile;
   onClose: () => void;
   onOpenTab: (tab: SettingsTab) => void;
+  onOpenProfilePage: () => void;
   hidden: boolean;
 }) {
+  const hasPhysicalKeyboard = useHasPhysicalKeyboard();
+
   return (
     <div className={`${hidden ? 'hidden' : 'flex'} h-full flex-col bg-[var(--dc-canvas)] sm:hidden`}>
       {/* Unified Mobile Settings Top Bar */}
@@ -329,8 +274,12 @@ export function MobileSettingsHome({
       </div>
 
       <div className="custom-scrollbar flex-1 overflow-y-auto px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-4">
-        {/* Profile Header Summary */}
-        <div className="mb-7 flex flex-col items-center">
+        {/* Profile Header Summary (taps through to /profile) */}
+        <button
+          type="button"
+          onClick={onOpenProfilePage}
+          className="mb-7 flex w-full flex-col items-center rounded-2xl py-2 transition-colors active:bg-[var(--dc-surface-hover)]"
+        >
           <div className="flex h-[76px] w-[76px] items-center justify-center overflow-hidden rounded-full border-2 border-[var(--dc-border)] bg-indigo-500/12 text-indigo-600 dark:text-indigo-300">
             {profile.avatar ? (
               <NextImage src={profile.avatar} width={76} height={76} unoptimized className="h-full w-full object-cover" alt="User avatar" />
@@ -338,42 +287,50 @@ export function MobileSettingsHome({
               <User className="h-11 w-11" strokeWidth={2.2} />
             )}
           </div>
-          <p className="mt-3 max-w-[240px] truncate text-[18px] font-semibold leading-tight text-[var(--dc-text-strong)]">
-            {profile.name || 'Guest'}
+          <p className="mt-3 flex max-w-[240px] items-center gap-1.5 truncate text-[18px] font-semibold leading-tight text-[var(--dc-text-strong)]">
+            <span className="truncate">{profile.name || 'Guest'}</span>
+            <ExternalLink className="h-3.5 w-3.5 shrink-0 text-[var(--dc-text-muted)]" />
           </p>
           <p className="mt-0.5 truncate text-[12.5px] font-medium text-[var(--dc-text-muted)]">
-            {profile.plan || 'Personal Plan'}
+            {profile.plan || 'Free'}
           </p>
-        </div>
+        </button>
 
         <div className="space-y-6">
-          {mobileSettingsSections.map(section => (
-            <section key={section.title}>
-              <p className="mb-2 px-1 text-[12px] font-semibold uppercase tracking-wider text-[var(--dc-text-muted)]">
-                {section.title}
-              </p>
-              <div className="overflow-hidden rounded-[20px] border border-[var(--dc-border-subtle)] bg-[var(--dc-surface-muted)] divide-y divide-[var(--dc-border-subtle)]">
-                {section.items.map(item => (
-                  <button
-                    key={item.tab}
-                    type="button"
-                    onClick={() => onOpenTab(item.tab)}
-                    className="flex min-h-[52px] w-full items-center justify-between gap-3 px-4 py-2 text-left text-[var(--dc-text-strong)] transition-colors active:bg-[var(--dc-fill)]"
-                  >
-                    <span className="flex min-w-0 items-center gap-3">
-                      <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${TAB_ICON_TONE[item.tab]}`}>
-                        <IconMask icon={item.icon} source={item.source} className="h-[17px] w-[17px] shrink-0" />
+          {mobileSettingsSections.map(section => {
+            const visibleItems = section.items.filter(
+              item => item.tab !== 'keyboard' || hasPhysicalKeyboard
+            );
+            if (visibleItems.length === 0) return null;
+
+            return (
+              <section key={section.title}>
+                <p className="mb-2 px-1 text-[12px] font-semibold uppercase tracking-wider text-[var(--dc-text-muted)]">
+                  {section.title}
+                </p>
+                <div className="overflow-hidden rounded-[20px] border border-[var(--dc-border-subtle)] bg-[var(--dc-surface-muted)] divide-y divide-[var(--dc-border-subtle)]">
+                  {visibleItems.map(item => (
+                    <button
+                      key={item.tab}
+                      type="button"
+                      onClick={() => onOpenTab(item.tab)}
+                      className="flex min-h-[52px] w-full items-center justify-between gap-3 px-4 py-2 text-left text-[var(--dc-text-strong)] transition-colors active:bg-[var(--dc-fill)]"
+                    >
+                      <span className="flex min-w-0 items-center gap-3">
+                        <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${TAB_ICON_TONE[item.tab]}`}>
+                          <IconMask icon={item.icon} source={item.source} className="h-[17px] w-[17px] shrink-0" />
+                        </span>
+                        <span className="truncate text-[14px] font-semibold leading-none">
+                          {item.label}
+                        </span>
                       </span>
-                      <span className="truncate text-[14px] font-semibold leading-none">
-                        {item.label}
-                      </span>
-                    </span>
-                    <ChevronRight className="h-4 w-4 shrink-0 text-[var(--dc-text-faint)]" strokeWidth={2} />
-                  </button>
-                ))}
-              </div>
-            </section>
-          ))}
+                      <ChevronRight className="h-4 w-4 shrink-0 text-[var(--dc-text-faint)]" strokeWidth={2} />
+                    </button>
+                  ))}
+                </div>
+              </section>
+            );
+          })}
         </div>
 
         <p className="mt-8 pb-2 text-center text-[12px] font-medium text-[var(--dc-text-faint)]">
