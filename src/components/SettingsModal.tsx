@@ -188,6 +188,12 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
   const loadedRef = useRef({ profile: false, persona: false });
   const timersRef = useRef<number[]>([]);
   const mobileTimerRef = useRef<number | undefined>(undefined);
+  const returnUrlRef = useRef<string | null>(null);
+  const isMobileDetailRef = useRef(false);
+
+  useEffect(() => {
+    isMobileDetailRef.current = isMobileDetailOpen;
+  }, [isMobileDetailOpen]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -323,14 +329,40 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
   useEffect(() => {
     if (!isOpen) return;
     setActiveTab(initialTab);
-    setIsMobileDetailOpen(initialTab !== 'general');
+    const openDetailOnMobile = initialTab !== 'general';
+    setIsMobileDetailOpen(openDetailOnMobile);
     void loadProfile();
+
+    if (typeof window !== 'undefined') {
+      const currentPath = window.location.pathname + window.location.search + window.location.hash;
+      if (!window.location.pathname.startsWith('/settings')) {
+        returnUrlRef.current = currentPath || '/';
+      }
+      const isMobile = window.innerWidth < 640;
+      if (isMobile) {
+        window.history.pushState({ deepchatSettings: true, mobileDetail: false }, '', '/settings');
+        if (openDetailOnMobile) {
+          window.history.pushState({ deepchatSettings: true, mobileDetail: true, tab: initialTab }, '', `/settings/${initialTab}`);
+        }
+      } else {
+        window.history.pushState({ deepchatSettings: true, tab: initialTab }, '', `/settings/${initialTab}`);
+      }
+    }
   }, [initialTab, isOpen, loadProfile]);
+
+  const restoreReturnUrl = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    if (window.location.pathname.startsWith('/settings') && returnUrlRef.current) {
+      window.history.replaceState(null, '', returnUrlRef.current);
+    }
+    returnUrlRef.current = null;
+  }, []);
 
   // close helpers with GSAP exit animation
   const close = useCallback(() => {
     if (isClosing) return;
     setIsClosing(true);
+    restoreReturnUrl();
     if (modalRef.current && backdropRef.current) {
       gsap.to(modalRef.current, { opacity: 0, scale: 0.95, y: 12, duration: 0.2, ease: 'power2.in' });
       gsap.to(backdropRef.current, {
@@ -345,11 +377,12 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
     } else {
       afterExit(onClose);
     }
-  }, [afterExit, isClosing, onClose]);
+  }, [afterExit, isClosing, onClose, restoreReturnUrl]);
 
   const closeToSidebar = () => {
     if (isClosing) return;
     setIsClosing(true);
+    restoreReturnUrl();
     if (modalRef.current && backdropRef.current) {
       gsap.to(modalRef.current, { opacity: 0, scale: 0.95, y: 12, duration: 0.2, ease: 'power2.in' });
       gsap.to(backdropRef.current, {
@@ -382,16 +415,29 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
     );
   }, [isOpen, isMobileDetailOpen]);
 
+  const selectDesktopTab = (tab: SettingsTab) => {
+    setActiveTab(tab);
+    if (typeof window !== 'undefined') {
+      window.history.replaceState({ deepchatSettings: true, tab }, '', `/settings/${tab}`);
+    }
+  };
+
   const openMobileTab = (tab: SettingsTab) => {
     clearTimeout(mobileTimerRef.current);
     mobileTimerRef.current = undefined;
     setActiveTab(tab);
     setIsMobileDetailClosing(false);
     setIsMobileDetailOpen(true);
+    if (typeof window !== 'undefined') {
+      window.history.pushState({ deepchatSettings: true, mobileDetail: true, tab }, '', `/settings/${tab}`);
+    }
   };
 
   const backToMobileMenu = useCallback(() => {
     if (isMobileDetailClosing) return;
+    if (typeof window !== 'undefined' && window.location.pathname.startsWith('/settings/')) {
+      window.history.replaceState({ deepchatSettings: true, mobileDetail: false }, '', '/settings');
+    }
     const detailEl = mobileDetailRef.current;
     if (!detailEl || prefersReducedMotion() || (typeof window !== 'undefined' && window.innerWidth >= 640)) {
       setIsMobileDetailOpen(false);
@@ -410,6 +456,24 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
       },
     });
   }, [isMobileDetailClosing]);
+
+  // Handle browser/phone hardware back button without navigating the underlying chat
+  useEffect(() => {
+    if (!isOpen || typeof window === 'undefined') return;
+    const handlePopState = () => {
+      const path = window.location.pathname;
+      if (path === '/settings' && isMobileDetailRef.current) {
+        backToMobileMenu();
+        return;
+      }
+      if (!path.startsWith('/settings')) {
+        returnUrlRef.current = null;
+        close();
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [isOpen, backToMobileMenu, close]);
 
   const handleMobileTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
     if (typeof window === 'undefined' || window.innerWidth >= 640 || e.touches.length !== 1) return;
@@ -902,7 +966,7 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
                         <button
                           key={item.tab}
                           type="button"
-                          onClick={() => setActiveTab(item.tab)}
+                          onClick={() => selectDesktopTab(item.tab)}
                           aria-current={isActive ? 'page' : undefined}
                           className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm transition-colors ${
                             isActive
@@ -976,7 +1040,7 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
                 isArchivingAll={isArchivingAll}
                 isDeletingChats={isDeletingChats}
                 onOpenSharedLinks={openSharedLinks}
-                onOpenArchivedChats={() => setActiveTab('archived')}
+                onOpenArchivedChats={() => selectDesktopTab('archived')}
                 onArchiveAll={archiveAll}
                 onExport={downloadExport}
                 onDeleteAllChats={askDeleteChats}
