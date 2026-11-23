@@ -166,31 +166,65 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
     const avatarSrc = safeAvatarSource(profile.avatar);
     return (
     <div className="relative" ref={(node) => { profileMenuRefs.current[refIndex] = node; }}>
-      <button
-        type="button"
-        className={isExpanded
-          ? "flex w-full items-center gap-2.5 rounded-xl p-1.5 text-left text-[var(--dc-text)] transition-colors hover:bg-black/[0.05] active:scale-[0.99] dark:hover:bg-white/[0.07]"
-          : "flex w-full items-center gap-3 rounded-2xl bg-slate-800/50 p-2 text-left transition-colors hover:bg-slate-800 active:scale-[0.99]"}
-        onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-        aria-expanded={profileMenuOpen}
-        aria-label="Open profile menu"
-      >
-        <Image
-          src={avatarSrc}
-          alt="User"
-          width={isExpanded ? 34 : 40}
-          height={isExpanded ? 34 : 40}
-          unoptimized
-          className={isExpanded
-            ? "h-[34px] w-[34px] rounded-full border border-[var(--dc-border)] bg-[var(--dc-surface)] object-cover"
-            : "h-10 w-10 rounded-full border-2 border-slate-700 object-cover"}
-        />
-        <div className="flex-1 min-w-0">
-          <p className={isExpanded ? "truncate text-[15px] font-medium leading-tight text-[var(--dc-text-strong)]" : "truncate text-sm font-medium text-white"}>{profile.name || 'Guest'}</p>
-          <p className={isExpanded ? "truncate text-xs font-medium leading-tight text-[var(--dc-text-muted)]" : "truncate text-xs text-slate-400"}>{profile.plan || 'No Plan'}</p>
+      {isExpanded ? (
+        <div className="flex items-center justify-between gap-2">
+          <button
+            type="button"
+            className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl px-2 py-1.5 text-left text-[var(--dc-text)] transition-colors hover:bg-black/[0.06] active:scale-[0.99] dark:hover:bg-white/[0.08]"
+            onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+            aria-expanded={profileMenuOpen}
+            aria-label="Open profile menu"
+          >
+            <Image
+              src={avatarSrc}
+              alt="User"
+              width={32}
+              height={32}
+              unoptimized
+              className="h-8 w-8 shrink-0 rounded-full border border-[var(--dc-border)] bg-[var(--dc-surface)] object-cover"
+            />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[14px] font-medium leading-tight text-[var(--dc-text-strong)]">
+                {profile.name || 'Guest'}
+              </p>
+              <p className="truncate text-xs font-normal leading-tight text-[var(--dc-text-muted)]">
+                {profile.plan || 'Free'}
+              </p>
+            </div>
+          </button>
+
+          <a
+            href="/pricing"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="shrink-0 rounded-full border border-[var(--dc-border)] bg-[var(--dc-surface)] px-3 py-1 text-xs font-medium text-[var(--dc-text-strong)] transition-colors hover:bg-[var(--dc-surface-hover)]"
+          >
+            Upgrade
+          </a>
         </div>
-        <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${profileMenuOpen ? 'rotate-180' : ''} ${isExpanded ? 'text-[var(--dc-text-muted)]' : 'text-slate-400'}`} strokeWidth={1.75} />
-      </button>
+      ) : (
+        <button
+          type="button"
+          className="flex w-full items-center gap-3 rounded-2xl bg-slate-800/50 p-2 text-left transition-colors hover:bg-slate-800 active:scale-[0.99]"
+          onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+          aria-expanded={profileMenuOpen}
+          aria-label="Open profile menu"
+        >
+          <Image
+            src={avatarSrc}
+            alt="User"
+            width={40}
+            height={40}
+            unoptimized
+            className="h-10 w-10 rounded-full border-2 border-slate-700 object-cover"
+          />
+          <div className="flex-1 min-w-0">
+            <p className="truncate text-sm font-medium text-white">{profile.name || 'Guest'}</p>
+            <p className="truncate text-xs text-slate-400">{profile.plan || 'Free'}</p>
+          </div>
+          <ChevronDown className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${profileMenuOpen ? 'rotate-180' : ''}`} strokeWidth={1.75} />
+        </button>
+      )}
       
       {profileMenuOpen && (
         <div className={isExpanded
@@ -415,7 +449,7 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
           </div>
         </div>
 
-        <div className="shrink-0 px-3 pb-3 pt-2">
+        <div className="shrink-0 border-t border-[var(--dc-sidebar-border)] px-2.5 py-2.5">
           {renderProfile('expanded', 0)}
         </div>
         {isOpen && (
