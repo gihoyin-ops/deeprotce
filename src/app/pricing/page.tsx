@@ -3,16 +3,34 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Check } from '@/components/ui/icons';
+import { PillDropdown, type PillDropdownOption } from '@/components/settings/PillDropdown';
 
 interface PlanItem {
   id: string;
   label: string;
 }
 
+type RegionCode = 'US' | 'CN' | 'ID' | 'JP' | 'RU';
+
+const REGION_OPTIONS: PillDropdownOption[] = [
+  { label: 'United States (USD $)', value: 'US' },
+  { label: 'China (CNY ¥)', value: 'CN' },
+  { label: 'Indonesia (IDR Rp)', value: 'ID' },
+  { label: 'Japan (JPY ¥)', value: 'JP' },
+  { label: 'Russia (RUB ₽)', value: 'RU' }
+];
+
+const REGION_PRICES: Record<RegionCode, Record<'free' | 'supporters' | 'cool', string>> = {
+  US: { free: '$0', supporters: '$12', cool: '$29' },
+  CN: { free: '¥0', supporters: '¥68', cool: '¥168' },
+  ID: { free: 'Rp 0', supporters: 'Rp 79.000', cool: 'Rp 199.000' },
+  JP: { free: '¥0', supporters: '¥1,800', cool: '¥4,200' },
+  RU: { free: '₽0', supporters: '₽890', cool: '₽2,190' }
+};
+
 const PLAN_DETAILS: Record<
   string,
   {
-    price: string;
     period: string;
     subtitle: string;
     ctaLabel: string;
@@ -21,7 +39,6 @@ const PLAN_DETAILS: Record<
   }
 > = {
   free: {
-    price: '$0',
     period: '/ month',
     subtitle: 'Explore DeepChat for everyday questions and quick tasks',
     ctaLabel: 'Free plan',
@@ -33,7 +50,6 @@ const PLAN_DETAILS: Record<
     ]
   },
   supporters: {
-    price: '$12',
     period: '/ month',
     subtitle: 'More capacity and creative tools for regular users',
     ctaLabel: 'Upgrade to Supporters',
@@ -46,7 +62,6 @@ const PLAN_DETAILS: Record<
     ]
   },
   cool: {
-    price: '$29',
     period: '/ month',
     subtitle: 'Maximum power for heavy research, coding, and creation',
     ctaLabel: 'Upgrade to Cools',
@@ -62,6 +77,7 @@ const PLAN_DETAILS: Record<
 export default function PricingPage() {
   const [plans, setPlans] = useState<PlanItem[]>([]);
   const [activePlanId, setActivePlanId] = useState<string>('free');
+  const [region, setRegion] = useState<RegionCode>('US');
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -141,12 +157,16 @@ export default function PricingPage() {
           <div className="mt-12 grid grid-cols-1 gap-6 md:grid-cols-3">
             {plans.map(plan => {
               const meta = PLAN_DETAILS[plan.id] || {
-                price: '$0',
                 period: '/ month',
                 subtitle: 'DeepChat plan',
                 ctaLabel: `Upgrade to ${plan.label}`,
                 features: ['Standard access']
               };
+              const priceMap = REGION_PRICES[region];
+              const displayPrice =
+                plan.id === 'free' || plan.id === 'supporters' || plan.id === 'cool'
+                  ? priceMap[plan.id]
+                  : priceMap.free;
               const isCurrent = plan.id === activePlanId;
 
               return (
@@ -174,7 +194,7 @@ export default function PricingPage() {
 
                     <div className="mt-4 flex items-baseline gap-1.5">
                       <span className="text-3xl font-bold tracking-tight text-[var(--dc-text-strong)]">
-                        {meta.price}
+                        {displayPrice}
                       </span>
                       <span className="text-xs text-[var(--dc-text-muted)]">{meta.period}</span>
                     </div>
@@ -208,6 +228,17 @@ export default function PricingPage() {
             })}
           </div>
         )}
+
+        {/* Bottom-left region currency selector */}
+        <div className="mt-10 flex items-center justify-start">
+          <PillDropdown
+            value={region}
+            options={REGION_OPTIONS}
+            align="left"
+            onChange={value => setRegion(value as RegionCode)}
+            ariaLabel="Select pricing region"
+          />
+        </div>
       </main>
     </div>
   );
