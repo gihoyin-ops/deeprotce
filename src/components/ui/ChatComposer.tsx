@@ -760,14 +760,14 @@ export default function ChatComposer({
           onClick={toggleAttachMenu}
           className={`flex h-[35px] w-[35px] items-center justify-center rounded-full transition-all duration-150 active:scale-90 disabled:cursor-not-allowed disabled:opacity-50 ${
             isAttachMenuOpen
-              ? 'bg-slate-200/60 text-[#202020] dark:bg-slate-800 dark:text-slate-100'
-              : 'text-[#202020] hover:bg-slate-200/35 dark:text-slate-300 dark:hover:bg-slate-800/45'
+              ? 'bg-black/[0.08] text-[var(--dc-text-strong)] dark:bg-white/[0.12]'
+              : 'text-[var(--dc-text)] hover:bg-black/[0.06] dark:hover:bg-white/[0.08]'
           }`}
           aria-label="Open tools menu"
           aria-expanded={isAttachMenuOpen}
         >
           <span ref={plusIconRef} className="flex items-center justify-center">
-            <Plus className="h-[22px] w-[22px] text-[#202020] dark:text-slate-200" strokeWidth={2.5} />
+            <Plus className="h-[22px] w-[22px] text-[var(--dc-text)]" strokeWidth={2.5} />
           </span>
         </button>
       </Tooltip>
@@ -842,7 +842,7 @@ export default function ChatComposer({
           className={`flex h-9 w-9 items-center justify-center rounded-full transition-all active:scale-90 sm:hidden ${
             isDictating
               ? 'bg-red-500/15 text-red-500 ring-2 ring-red-500/35'
-              : 'text-[#303030] hover:bg-black/5 dark:text-slate-300 dark:hover:bg-white/10'
+              : 'text-[var(--dc-text-body)] hover:bg-black/[0.06] dark:hover:bg-white/[0.08]'
           }`}
         >
           <Mic className={`h-[19px] w-[19px] ${isDictating ? 'animate-pulse' : ''}`} strokeWidth={2.2} />
@@ -918,7 +918,7 @@ export default function ChatComposer({
           event.preventDefault();
           uploadFiles(files);
         }}
-        className={`dc-composer-shell relative rounded-[26px] bg-[#efeeee] dark:bg-slate-900 dark:shadow-[0_18px_40px_-28px_rgba(0,0,0,0.9)] dark:ring-1 dark:ring-inset dark:ring-white/[0.06] ${
+        className={`dc-composer-shell relative rounded-[26px] bg-[var(--dc-surface-input)] ring-1 ring-inset ring-[var(--dc-border)] shadow-[0_6px_24px_-12px_rgba(15,23,42,0.08)] dark:shadow-[0_18px_40px_-24px_rgba(0,0,0,0.85)] dark:ring-white/[0.08] ${
           isToolComposerActive ? 'px-4 py-3 sm:px-5 sm:py-3.5' : 'px-2 py-1'
         } ${isDraggingFile ? 'ring-2 ring-indigo-400 dark:ring-indigo-500/40' : ''}`}
       >
@@ -1042,7 +1042,7 @@ export default function ChatComposer({
           <textarea
             ref={textareaRef}
             placeholder={placeholder}
-            className={`custom-scrollbar absolute left-0 top-0 z-20 w-full resize-none bg-transparent text-[16px] font-medium leading-snug text-[#202020] outline-none placeholder:text-[#888888] dark:text-slate-100 dark:placeholder:text-slate-500 ${
+            className={`custom-scrollbar absolute left-0 top-0 z-20 w-full resize-none bg-transparent text-[16px] font-medium leading-snug text-[var(--dc-text-strong)] outline-none placeholder:text-[var(--dc-text-placeholder)] ${
               isToolComposerActive ? 'px-0 py-2' : 'px-1 py-2'
             }`}
             style={{ maxHeight: maxTextareaHeight, opacity: 0 }}

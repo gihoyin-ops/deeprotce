@@ -847,7 +847,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   }
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-white font-sans sm:flex-row dark:bg-slate-950">
+    <div className="flex h-dvh flex-col overflow-hidden bg-[var(--dc-canvas)] font-sans sm:flex-row">
       <Sidebar
         isOpen={isSidebarOpen}
         setIsOpen={setSidebarState}
@@ -860,7 +860,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
       <div
         ref={mainContentRef}
-        className={`relative z-10 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden sm:transition-all sm:duration-500 sm:ease-[cubic-bezier(0.22,1,0.36,1)] ${hasActiveChat ? 'bg-white shadow-none sm:m-0 sm:rounded-none sm:border-0 dark:bg-slate-950' : 'bg-white shadow-none sm:m-0 sm:rounded-none sm:border-0'}`}
+        className={`relative z-10 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden sm:transition-all sm:duration-500 sm:ease-[cubic-bezier(0.22,1,0.36,1)] ${hasActiveChat ? 'bg-[var(--dc-canvas)] shadow-none sm:m-0 sm:rounded-none sm:border-0' : 'bg-[var(--dc-canvas)] shadow-none sm:m-0 sm:rounded-none sm:border-0'}`}
       >
         <MobileNavbar
           hasActiveChat={hasActiveChat}

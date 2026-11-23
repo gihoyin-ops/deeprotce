@@ -960,7 +960,7 @@ export default function ChatView({ chatId }: { chatId: string }) {
   const activeClarificationMessage = [...messages].reverse().find(m => m.role === 'assistant' && m.clarification && !m.clarificationAnswer && !m.isStreaming);
 
   return (
-    <div className="deepchat-chat-view relative flex min-h-0 flex-1 flex-col bg-white text-black dark:bg-slate-950 dark:text-slate-100">
+    <div className="deepchat-chat-view relative flex min-h-0 flex-1 flex-col bg-[var(--dc-canvas)] text-[var(--dc-text)]">
       <div
         ref={scrollContainerRef}
         style={{ scrollPaddingBottom: composerReserve }}

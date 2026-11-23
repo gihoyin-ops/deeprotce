@@ -6,7 +6,7 @@
 
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #0f172a;
   --deepchat-accent: #4f46e5;
   --deepchat-accent-hover: #4338ca;
   --deepchat-accent-soft: #eef2ff;
@@ -15,20 +15,20 @@
 }
 
 html.dark {
-  --background: #000000;
-  --foreground: #ededed;
+  --background: #0b0d11;
+  --foreground: #eceef2;
 }
 
 html[data-appearance="light"] {
   color-scheme: light;
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #0f172a;
 }
 
 html[data-appearance="dark"] {
   color-scheme: dark;
-  --background: #000000;
-  --foreground: #ededed;
+  --background: #0b0d11;
+  --foreground: #eceef2;
 }
 
 html[data-contrast="increased"] {
@@ -108,101 +108,101 @@ html[data-accent-color="black"] {
   color-scheme: light;
   --dc-canvas: #ffffff;
   --dc-panel: #ffffff;
-  --dc-panel-muted: #efeeee;
-  --dc-sidebar: #efeeee;
-  --dc-sidebar-border: rgba(0, 0, 0, 0.05);
+  --dc-panel-muted: #f8fafc;
+  --dc-sidebar: #f7f8fa;
+  --dc-sidebar-border: #e6e8ec;
   --dc-surface: #ffffff;
-  --dc-surface-hover: #ffffff;
-  --dc-surface-muted: #f5f2f2;
-  --dc-surface-subtle: #faf8f8;
-  --dc-surface-input: #efeeee;
-  --dc-fill: #f4f1f1;
-  --dc-fill-hover: #ece8e8;
-  --dc-chip: #efeeee;
-  --dc-border: #e8e6e6;
-  --dc-border-subtle: #f1efef;
-  --dc-border-strong: #d4d0d0;
-  --dc-scrim: rgb(255 255 255 / 0.9);
-  --dc-text: #202020;
-  --dc-text-strong: #000000;
+  --dc-surface-hover: #f3f4f6;
+  --dc-surface-muted: #f4f5f7;
+  --dc-surface-subtle: #f9fafb;
+  --dc-surface-input: #f4f5f7;
+  --dc-fill: #f1f3f5;
+  --dc-fill-hover: #e7eaee;
+  --dc-chip: #f1f3f5;
+  --dc-border: #e2e5ea;
+  --dc-border-subtle: #eef0f3;
+  --dc-border-strong: #cbd0d8;
+  --dc-scrim: rgb(255 255 255 / 0.88);
+  --dc-text: #18181b;
+  --dc-text-strong: #09090b;
   --dc-text-body: #3f3f46;
-  --dc-text-muted: #8f8989;
-  --dc-text-faint: #aaa4a4;
-  --dc-text-placeholder: #888888;
+  --dc-text-muted: #6b7280;
+  --dc-text-faint: #9ca3af;
+  --dc-text-placeholder: #8e95a2;
   --dc-text-on-invert: #ffffff;
-  --dc-invert: #202020;
-  --dc-invert-hover: #2a2a2a;
-  --dc-user-bubble: #d7d7d7;
-  --dc-user-bubble-sm: #aeeefa;
-  --dc-tooltip-bg: #000000;
-  --dc-tooltip-text: #ffffff;
-  --dc-shadow-color: rgb(15 23 42 / 0.06);
-  --dc-scrollbar: #cbd5e1;
-  --dc-scrollbar-hover: #94a3b8;
-  --dc-composer-dock: linear-gradient(to top, #ffffff 0%, #ffffff 58%, rgb(255 255 255 / 0.82) 76%, rgb(255 255 255 / 0) 100%);
+  --dc-invert: #111827;
+  --dc-invert-hover: #1f2937;
+  --dc-user-bubble: #eef0f4;
+  --dc-user-bubble-sm: #e0f2fe;
+  --dc-tooltip-bg: #111827;
+  --dc-tooltip-text: #f9fafb;
+  --dc-shadow-color: rgb(15 23 42 / 0.07);
+  --dc-scrollbar: #d1d5db;
+  --dc-scrollbar-hover: #9ca3af;
+  --dc-composer-dock: linear-gradient(to top, #ffffff 0%, #ffffff 60%, rgb(255 255 255 / 0.85) 78%, rgb(255 255 255 / 0) 100%);
 }
 
 html.dark {
   color-scheme: dark;
-  --dc-canvas: #000000;
-  --dc-panel: #121212;
-  --dc-panel-muted: #1a1a1a;
-  --dc-sidebar: #161616;
-  --dc-sidebar-border: rgba(255, 255, 255, 0.08);
-  --dc-surface: #1a1a1a;
-  --dc-surface-hover: #242424;
-  --dc-surface-muted: #1a1a1a;
-  --dc-surface-subtle: #141414;
-  --dc-surface-input: #1a1a1a;
-  --dc-fill: #262626;
-  --dc-fill-hover: #303030;
-  --dc-chip: #262626;
-  --dc-border: #2e2e2e;
-  --dc-border-subtle: #262626;
-  --dc-border-strong: #3d3d3d;
-  --dc-scrim: rgb(0 0 0 / 0.8);
-  --dc-text: #e5e5e5;
-  --dc-text-strong: #f8f8f8;
-  --dc-text-body: #c4c4c4;
-  --dc-text-muted: #9a9a9a;
-  --dc-text-faint: #6f6f6f;
-  --dc-text-placeholder: #6f6f6f;
-  --dc-text-on-invert: #121212;
-  --dc-invert: #e2e2e2;
-  --dc-invert-hover: #f8f8f8;
-  --dc-user-bubble: #262626;
-  --dc-user-bubble-sm: #2f4f43;
-  --dc-tooltip-bg: #262626;
-  --dc-tooltip-text: #f8f8f8;
-  --dc-shadow-color: rgb(0 0 0 / 0.6);
-  --dc-scrollbar: #3d3d3d;
-  --dc-scrollbar-hover: #4d4d4d;
-  --dc-composer-dock: linear-gradient(to top, #000000 0%, #000000 58%, rgb(0 0 0 / 0.84) 76%, rgb(0 0 0 / 0) 100%);
+  --dc-canvas: #0b0d11;
+  --dc-panel: #12151b;
+  --dc-panel-muted: #171b22;
+  --dc-sidebar: #101318;
+  --dc-sidebar-border: rgba(255, 255, 255, 0.07);
+  --dc-surface: #161920;
+  --dc-surface-hover: #1e222b;
+  --dc-surface-muted: #15181f;
+  --dc-surface-subtle: #11141a;
+  --dc-surface-input: #181b22;
+  --dc-fill: #1f242e;
+  --dc-fill-hover: #282e3b;
+  --dc-chip: #1f242e;
+  --dc-border: #262b36;
+  --dc-border-subtle: #1d212b;
+  --dc-border-strong: #363d4d;
+  --dc-scrim: rgb(8 10 14 / 0.82);
+  --dc-text: #e6e8ed;
+  --dc-text-strong: #f8fafc;
+  --dc-text-body: #c4c9d4;
+  --dc-text-muted: #8d95a5;
+  --dc-text-faint: #636b7a;
+  --dc-text-placeholder: #6b7382;
+  --dc-text-on-invert: #0b0d11;
+  --dc-invert: #f1f5f9;
+  --dc-invert-hover: #ffffff;
+  --dc-user-bubble: #1f242e;
+  --dc-user-bubble-sm: #1e3a4c;
+  --dc-tooltip-bg: #1e222b;
+  --dc-tooltip-text: #f8fafc;
+  --dc-shadow-color: rgb(0 0 0 / 0.65);
+  --dc-scrollbar: #2e3442;
+  --dc-scrollbar-hover: #434b5e;
+  --dc-composer-dock: linear-gradient(to top, #0b0d11 0%, #0b0d11 60%, rgb(11 13 17 / 0.86) 78%, rgb(11 13 17 / 0) 100%);
 }
 
 /* dark mode slate and zinc overrides */
 html.dark,
 html[data-appearance="dark"] {
-  --color-slate-50: #f4f4f4;
-  --color-slate-100: #e5e5e5;
-  --color-slate-200: #d4d4d4;
-  --color-slate-300: #a3a3a3;
-  --color-slate-400: #8f8f8f;
-  --color-slate-500: #737373;
-  --color-slate-600: #525252;
-  --color-slate-700: #333333;
-  --color-slate-800: #262626;
-  --color-slate-900: #1a1a1a;
-  --color-slate-950: #0a0a0a;
-  --color-zinc-900: #181818;
-  --color-zinc-950: #0a0a0a;
+  --color-slate-50: #f1f5f9;
+  --color-slate-100: #e2e8f0;
+  --color-slate-200: #cbd5e1;
+  --color-slate-300: #94a3b8;
+  --color-slate-400: #8d95a5;
+  --color-slate-500: #6b7382;
+  --color-slate-600: #4b5563;
+  --color-slate-700: #2e3442;
+  --color-slate-800: #1f242e;
+  --color-slate-900: #161920;
+  --color-slate-950: #0b0d11;
+  --color-zinc-900: #161920;
+  --color-zinc-950: #0b0d11;
 }
 
 /* system theme fallback */
 @media (prefers-color-scheme: dark) {
   :root:not([data-appearance]) {
-    --background: #000000;
-    --foreground: #ededed;
+    --background: #0b0d11;
+    --foreground: #eceef2;
   }
 }
 
@@ -261,17 +261,17 @@ html[data-appearance="dark"] .bg-white {
 
 html.dark .bg-slate-50,
 html[data-appearance="dark"] .bg-slate-50 {
-  background-color: #1a1a1a !important;
+  background-color: var(--dc-surface-muted) !important;
 }
 
 html.dark .bg-slate-100,
 html[data-appearance="dark"] .bg-slate-100 {
-  background-color: #262626 !important;
+  background-color: var(--dc-fill) !important;
 }
 
 html.dark .bg-slate-200,
 html[data-appearance="dark"] .bg-slate-200 {
-  background-color: #3d3d3d !important;
+  background-color: var(--dc-border-strong) !important;
 }
 
 html.dark .text-slate-950,
@@ -282,7 +282,7 @@ html[data-appearance="dark"] .text-slate-950,
 html[data-appearance="dark"] .text-slate-900,
 html[data-appearance="dark"] .text-slate-800,
 html[data-appearance="dark"] .text-slate-700 {
-  color: #f8fafc !important;
+  color: var(--dc-text-strong) !important;
 }
 
 html.dark .text-slate-600,
@@ -291,12 +291,12 @@ html.dark .text-slate-400,
 html[data-appearance="dark"] .text-slate-600,
 html[data-appearance="dark"] .text-slate-500,
 html[data-appearance="dark"] .text-slate-400 {
-  color: #a3a3a3 !important;
+  color: var(--dc-text-muted) !important;
 }
 
 html.dark .text-slate-300,
 html[data-appearance="dark"] .text-slate-300 {
-  color: #d4d4d4 !important;
+  color: var(--dc-text-body) !important;
 }
 
 html.dark .text-white,
@@ -310,7 +310,7 @@ html.dark .border-slate-200,
 html[data-appearance="dark"] .border-slate-50,
 html[data-appearance="dark"] .border-slate-100,
 html[data-appearance="dark"] .border-slate-200 {
-  border-color: #3a3a3a !important;
+  border-color: var(--dc-border) !important;
 }
 
 /* text and chrome theme overrides */
@@ -839,18 +839,20 @@ select {
 }
 
 /* base-layer affordance: enabled controls say they are clickable */
-a,
-button:not(:disabled),
-summary,
-select,
-label[for],
-[role='button']:not([aria-disabled='true']) {
-  cursor: pointer;
-}
+@layer base {
+  a,
+  button:not(:disabled),
+  summary,
+  select,
+  label[for],
+  [role='button']:not([aria-disabled='true']) {
+    cursor: pointer;
+  }
 
-button:disabled,
-[role='button'][aria-disabled='true'] {
-  cursor: not-allowed;
+  button:disabled,
+  [role='button'][aria-disabled='true'] {
+    cursor: not-allowed;
+  }
 }
 
 img,
@@ -2105,15 +2107,15 @@ html[data-appearance="dark"] .dc-mob-drawer {
 
   .dc-composer-shell:focus-within {
     box-shadow:
-      0 0 0 1px rgb(15 23 42 / 0.08),
-      0 12px 30px -18px rgb(15 23 42 / 0.14);
+      0 0 0 1px rgb(99 102 241 / 0.28),
+      0 12px 30px -16px rgb(15 23 42 / 0.14);
   }
 
   html.dark .dc-composer-shell:focus-within,
   html[data-appearance="dark"] .dc-composer-shell:focus-within {
     box-shadow:
       inset 0 1px 0 rgb(255 255 255 / 0.08),
-      0 0 0 1px rgb(255 255 255 / 0.12),
+      0 0 0 1px rgb(129 140 248 / 0.35),
       0 18px 42px -22px rgb(0 0 0 / 0.9);
   }
 
