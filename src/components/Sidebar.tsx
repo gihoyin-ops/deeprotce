@@ -14,10 +14,11 @@ import {
 import { useShortcutLabels } from './shortcuts';
 import Tooltip from './ui/Tooltip';
 import type { SettingsTab } from './SettingsModal';
+import { IconMask } from './settings/mobile';
 import { deepchatQueryKeys } from '@/lib/query-keys';
 import { safeAvatarSource } from '@/lib/utils';
 
-type SidebarSettingsTab = Extract<SettingsTab, 'general' | 'account' | 'personality'>;
+type SidebarSettingsTab = Extract<SettingsTab, 'general' | 'account' | 'personality' | 'keyboard'>;
 
 interface SidebarProps {
   isOpen: boolean;
@@ -51,6 +52,7 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
   const shortcuts = useShortcutLabels();
   const [showAllRecent, setShowAllRecent] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [helpMenuOpen, setHelpMenuOpen] = useState(false);
   const [isPinnedOpen, setIsPinnedOpen] = useState(() => loadStoredBoolean('isPinnedOpen', true));
   const [isProjectsOpen, setIsProjectsOpen] = useState(() => loadStoredBoolean('isProjectsOpen', true));
   const [isRecentOpen, setIsRecentOpen] = useState(() => loadStoredBoolean('isRecentOpen', true));
@@ -227,21 +229,145 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
       )}
       
       {profileMenuOpen && (
-        <div className={isExpanded
-          ? "absolute bottom-full left-0 right-0 z-50 mb-2 overflow-hidden rounded-xl border border-[var(--dc-border)] bg-[var(--dc-panel)] py-1 shadow-xl shadow-black/10 dark:shadow-black/50"
-          : "absolute bottom-16 left-0 right-0 z-50 overflow-hidden rounded-xl border border-slate-700 bg-slate-800 py-1 shadow-xl"}
+        <div
+          className={
+            isExpanded
+              ? 'absolute bottom-full left-0 right-0 z-50 mb-2 rounded-2xl border border-[var(--dc-border)] bg-[var(--dc-panel)] p-1.5 shadow-xl shadow-black/10 dark:shadow-black/50'
+              : 'absolute bottom-16 left-0 right-0 z-50 rounded-2xl border border-slate-700 bg-slate-800 p-1.5 shadow-xl'
+          }
         >
-          <button type="button" onClick={() => handleOpenSettings('general')} className={isExpanded ? "flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm font-medium text-[var(--dc-text)] transition-colors hover:bg-black/[0.05] dark:hover:bg-white/[0.07]" : "flex w-full items-center gap-2 px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-700 hover:text-white"}>
-            <Settings className="h-4 w-4 shrink-0" strokeWidth={1.9} /> Settings
+          {/* Header user card */}
+          <button
+            type="button"
+            onClick={() => {
+              setProfileMenuOpen(false);
+              setHelpMenuOpen(false);
+              router.push('/profile');
+            }}
+            className="flex w-full items-center justify-between gap-2.5 rounded-xl px-2.5 py-2 text-left transition-colors hover:bg-[var(--dc-surface-hover)]"
+          >
+            <div className="flex min-w-0 items-center gap-2.5">
+              <Image
+                src={avatarSrc}
+                alt="User"
+                width={32}
+                height={32}
+                unoptimized
+                className="h-8 w-8 shrink-0 rounded-full border border-[var(--dc-border)] object-cover"
+              />
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium leading-tight text-[var(--dc-text-strong)]">
+                  {profile.name || 'Guest'}
+                </p>
+                <p className="truncate text-xs leading-tight text-[var(--dc-text-muted)]">
+                  {profile.plan || 'Free'}
+                </p>
+              </div>
+            </div>
+            <ChevronRight className="h-4 w-4 shrink-0 text-[var(--dc-text-muted)]" />
           </button>
-          <button type="button" onClick={() => handleOpenSettings('account')} className={isExpanded ? "flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm font-medium text-[var(--dc-text)] transition-colors hover:bg-black/[0.05] dark:hover:bg-white/[0.07]" : "flex w-full items-center gap-2 px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-700 hover:text-white"}>
-            <User className="h-4 w-4 shrink-0" strokeWidth={1.9} /> Profile
+
+          <div className="my-1 border-t border-[var(--dc-border-subtle)]" />
+
+          <a
+            href="/pricing"
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => setProfileMenuOpen(false)}
+            className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm font-medium text-[var(--dc-text)] transition-colors hover:bg-[var(--dc-surface-hover)]"
+          >
+            <IconMask icon="/icons/upgrade-plan.svg" className="h-4 w-4 shrink-0" />
+            <span>Upgrade plan</span>
+          </a>
+
+          <button
+            type="button"
+            onClick={() => handleOpenSettings('personality')}
+            className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm font-medium text-[var(--dc-text)] transition-colors hover:bg-[var(--dc-surface-hover)]"
+          >
+            <IconMask icon="/icons/personalization.svg" className="h-4 w-4 shrink-0" />
+            <span>Personalization</span>
           </button>
-          <button type="button" onClick={() => handleOpenSettings('personality')} className={isExpanded ? "flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm font-medium text-[var(--dc-text)] transition-colors hover:bg-black/[0.05] dark:hover:bg-white/[0.07]" : "flex w-full items-center gap-2 px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-700 hover:text-white"}>
-            <Brain className="h-4 w-4 shrink-0" strokeWidth={1.9} /> Personalization
+
+          <button
+            type="button"
+            onClick={() => {
+              setProfileMenuOpen(false);
+              router.push('/profile');
+            }}
+            className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm font-medium text-[var(--dc-text)] transition-colors hover:bg-[var(--dc-surface-hover)]"
+          >
+            <IconMask icon="/icons/user.svg" className="h-4 w-4 shrink-0" />
+            <span>Profile</span>
           </button>
-          <button type="button" onClick={handleOpenDocs} className={isExpanded ? "flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm font-medium text-[var(--dc-text)] transition-colors hover:bg-black/[0.05] dark:hover:bg-white/[0.07]" : "flex w-full items-center gap-2 px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-700 hover:text-white"}>
-            <FileText className="h-4 w-4 shrink-0" strokeWidth={1.9} /> Docs
+
+          <button
+            type="button"
+            onClick={() => handleOpenSettings('general')}
+            className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm font-medium text-[var(--dc-text)] transition-colors hover:bg-[var(--dc-surface-hover)]"
+          >
+            <IconMask icon="/icons/settings.svg" className="h-4 w-4 shrink-0" />
+            <span>Settings</span>
+          </button>
+
+          <div className="my-1 border-t border-[var(--dc-border-subtle)]" />
+
+          {/* Help with submenu */}
+          <div
+            className="relative"
+            onMouseEnter={() => setHelpMenuOpen(true)}
+            onMouseLeave={() => setHelpMenuOpen(false)}
+          >
+            <button
+              type="button"
+              onClick={() => setHelpMenuOpen(prev => !prev)}
+              aria-expanded={helpMenuOpen}
+              className="flex w-full items-center justify-between gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm font-medium text-[var(--dc-text)] transition-colors hover:bg-[var(--dc-surface-hover)]"
+            >
+              <span className="flex items-center gap-2.5">
+                <IconMask icon="/icons/help-buoy.svg" className="h-4 w-4 shrink-0" />
+                <span>Help</span>
+              </span>
+              <ChevronRight className="h-4 w-4 shrink-0 text-[var(--dc-text-muted)]" />
+            </button>
+
+            {helpMenuOpen && (
+              <div className="absolute bottom-0 left-full z-50 ml-1.5 w-48 rounded-2xl border border-[var(--dc-border)] bg-[var(--dc-panel)] p-1.5 shadow-xl shadow-black/15 dark:shadow-black/50">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setHelpMenuOpen(false);
+                    handleOpenDocs();
+                  }}
+                  className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-medium text-[var(--dc-text)] transition-colors hover:bg-[var(--dc-surface-hover)]"
+                >
+                  <FileText className="h-4 w-4 shrink-0" />
+                  <span>Docs &amp; Guide</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setHelpMenuOpen(false);
+                    handleOpenSettings('keyboard');
+                  }}
+                  className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-medium text-[var(--dc-text)] transition-colors hover:bg-[var(--dc-surface-hover)]"
+                >
+                  <IconMask icon="/icons/keyboard.svg" className="h-4 w-4 shrink-0" />
+                  <span>Keyboard shortcuts</span>
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Log out (blocked / disabled) */}
+          <button
+            type="button"
+            disabled
+            aria-disabled="true"
+            className="flex w-full cursor-not-allowed items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm font-medium text-[var(--dc-text-muted)] opacity-50"
+          >
+            <IconMask icon="/icons/log-out.svg" className="h-4 w-4 shrink-0" />
+            <span>Log out</span>
           </button>
         </div>
       )}
