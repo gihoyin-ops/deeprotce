@@ -9,6 +9,16 @@ import { getClientIp } from '@/lib/security/rate-limit';
 export const runtime = 'nodejs';
 export const maxDuration = 15;
 
+const ID_GREETING_PATTERN = /^(halo+|hai+|permisi|assalamualaikum|selamat\s+(pagi|siang|sore|malam)|pagi|siang|sore|malam|tes+|oke+|ok)$/i;
+const EN_GREETING_PATTERN = /^(hi+|hello+|hey+|yo+|test+|testing|ping|sup|good\s+(morning|afternoon|evening))$/i;
+
+const normalizeForCompare = (text: string) =>
+  text
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+
 const buildFallbackTitle = (prompt: string) => {
   const clean = prompt
     .replace(/```[\s\S]*?```/g, ' ')
@@ -16,20 +26,40 @@ const buildFallbackTitle = (prompt: string) => {
     .replace(/[^\p{L}\p{N}\s-]/gu, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+
+  if (ID_GREETING_PATTERN.test(clean)) return 'Sapaan dan Percakapan Awal';
+  if (EN_GREETING_PATTERN.test(clean)) return 'Greeting and Initial Chat';
+
   const words = clean.split(' ').filter(word => word.length > 1).slice(0, 6);
+  if (words.length <= 1 && clean.length <= 12) {
+    return 'Percakapan Baru';
+  }
   const title = words.join(' ');
-  return title || 'Untitled Conversation';
+  return title || 'Percakapan Baru';
 };
 
-const isGenericTitle = (title: string) => {
+const isGenericTitle = (title: string, sourcePrompt = '') => {
   const normalized = title.replace(/["'*.]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
-  return !normalized ||
+  if (
+    !normalized ||
     normalized === 'new chat' ||
     normalized === 'untitled chat' ||
     normalized === 'untitled conversation' ||
     normalized === 'chat title' ||
     normalized === 'conversation title' ||
-    normalized.length < 4;
+    normalized.length < 4
+  ) {
+    return true;
+  }
+
+  // Reject verbatim echo of short prompts (e.g. "Halo" -> "Halo")
+  const normTitle = normalizeForCompare(title);
+  const normPrompt = normalizeForCompare(sourcePrompt);
+  if (normPrompt && normTitle === normPrompt && normPrompt.split(' ').length <= 2) {
+    return true;
+  }
+
+  return false;
 };
 
 const cleanTitle = (raw: string) => raw
@@ -84,7 +114,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ title: buildFallbackTitle(promptForFallback) });
     }
 
-    const sysMsg = "Create a specific chat title from the user's message. Output only a concise 3-6 word title. Never output New Chat, Untitled Chat, Chat Title, quotes, markdown, or explanations.";
+    const sysMsg = [
+      'Generate a concise, descriptive 3-6 word title summarizing the topic or intent of the user message, in the same language as the message.',
+      'Never repeat or copy the user message verbatim, especially for short greetings or single-word inputs like "Halo", "Hi", "Test", or "Ok".',
+      'For a greeting or short opener, describe the interaction instead (e.g. "Sapaan dan Percakapan Awal" or "Greeting and Initial Chat").',
+      'Output only the title. Never output New Chat, Untitled Chat, Chat Title, quotes, markdown, or explanations.'
+    ].join(' ');
 
     if (!conn.model) {
       return NextResponse.json({ title: buildFallbackTitle(promptForFallback) });
@@ -102,11 +137,11 @@ export async function POST(req: Request) {
         model: conn.model,
         messages: [
           { role: 'system', content: sysMsg },
-          { role: 'user', content: prompt }
+          { role: 'user', content: `Message:\n"""\n${prompt}\n"""` }
         ],
         stream: false,
         max_tokens: 30,
-        temperature: 0.2
+        temperature: 0.3
       }),
       signal: AbortSignal.timeout(3500)
     });
@@ -128,7 +163,7 @@ export async function POST(req: Request) {
     const title = cleanTitle(rawTitle);
     // LITE model, same budget, output capped at 30 tokens
     recordTokens(getClientIp(req).slice(0, 128), estimateTokens(sysMsg) + estimateTokens(prompt) + estimateTokens(rawTitle));
-    if (title && !isGenericTitle(title)) {
+    if (title && !isGenericTitle(title, prompt)) {
       return NextResponse.json({ title });
     }
 
