@@ -204,7 +204,7 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
               width={28}
               height={28}
               unoptimized
-              className="h-7 w-7 rounded-lg ring-1 ring-black/10 transition-opacity group-hover/collapse-logo:opacity-0 dark:ring-white/20"
+              className="h-7 w-7 transition-opacity group-hover/collapse-logo:opacity-0 dark:invert"
             />
             <PanelLeft className="absolute h-5 w-5 opacity-0 transition-opacity group-hover/collapse-logo:opacity-100" strokeWidth={1.9} />
           </button>
