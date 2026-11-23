@@ -115,7 +115,7 @@ export function KeyboardTab({
           className="h-10 w-full rounded-full border border-[var(--dc-border)] bg-[var(--dc-surface)] pl-10 pr-11 text-sm text-[var(--dc-text-strong)] outline-none placeholder:text-[var(--dc-text-placeholder)] focus:border-[var(--dc-border-strong)]"
         />
         <div className="absolute right-2">
-          <Tooltip label="Reset all shortcuts" side="left">
+          <Tooltip label="Reset all shortcuts" side="top" align="end">
             <button
               type="button"
               onClick={onResetAll}
