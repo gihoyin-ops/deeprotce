@@ -1,10 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ACCENT_COLOR_OPTIONS,
-  BACKGROUND_PRESETS,
-  FOREGROUND_PRESETS,
   THEME_OPTIONS,
   type AppearanceMode,
   type AppearanceSettings
@@ -116,7 +114,74 @@ function ColorModePreviewCard({
   );
 }
 
+function ColorPickerPill({
+  value,
+  fallbackHex,
+  onChange,
+  onReset,
+  ariaLabel
+}: {
+  value: string;
+  fallbackHex: string;
+  onChange: (hex: string) => void;
+  onReset: () => void;
+  ariaLabel: string;
+}) {
+  const isCustom = value !== 'default' && /^#[0-9a-fA-F]{6}$/.test(value);
+  const displayHex = (isCustom ? value : fallbackHex).toUpperCase();
+
+  return (
+    <div className="flex shrink-0 items-center gap-2">
+      {isCustom && (
+        <button
+          type="button"
+          onClick={onReset}
+          className="text-xs font-medium text-[var(--dc-text-muted)] transition-colors hover:text-[var(--dc-text-strong)]"
+        >
+          Reset
+        </button>
+      )}
+      <label className="relative inline-flex h-9 cursor-pointer items-center gap-2.5 rounded-full border border-[var(--dc-border)] bg-[var(--dc-surface)] px-3.5 text-sm font-medium text-[var(--dc-text-strong)] transition-colors hover:bg-[var(--dc-surface-hover)]">
+        <span
+          className="inline-block h-4 w-4 shrink-0 rounded-full border border-black/15 dark:border-white/20"
+          style={{ backgroundColor: displayHex }}
+          aria-hidden="true"
+        />
+        <span className="font-mono text-xs tracking-wide">{displayHex}</span>
+        <input
+          type="color"
+          aria-label={ariaLabel}
+          value={displayHex.toLowerCase()}
+          onChange={event => onChange(event.target.value)}
+          className="sr-only"
+        />
+      </label>
+    </div>
+  );
+}
+
 export function AppearanceTab({ settings, onChange }: AppearanceTabProps) {
+  const [isDarkResolved, setIsDarkResolved] = useState(false);
+
+  useEffect(() => {
+    const sync = () => {
+      if (settings.appearance === 'dark') {
+        setIsDarkResolved(true);
+      } else if (settings.appearance === 'light') {
+        setIsDarkResolved(false);
+      } else {
+        setIsDarkResolved(window.matchMedia('(prefers-color-scheme: dark)').matches);
+      }
+    };
+    sync();
+    const query = window.matchMedia('(prefers-color-scheme: dark)');
+    query.addEventListener('change', sync);
+    return () => query.removeEventListener('change', sync);
+  }, [settings.appearance]);
+
+  const defaultBgHex = isDarkResolved ? '#0B0D11' : '#FCFCFC';
+  const defaultFgHex = isDarkResolved ? '#ECEEF2' : '#0D0D0D';
+
   return (
     <div className="space-y-8">
       <header>
@@ -179,34 +244,32 @@ export function AppearanceTab({ settings, onChange }: AppearanceTabProps) {
             />
           </div>
 
-          {/* Background */}
+          {/* Background (color pill picker) */}
           <div className="flex items-center justify-between gap-6 py-4">
             <div className="min-w-0">
               <p className="text-sm font-medium text-[var(--dc-text-strong)]">Background</p>
-              <p className="mt-0.5 text-xs text-[var(--dc-text-muted)]">Override the primary canvas background color</p>
+              <p className="mt-0.5 text-xs text-[var(--dc-text-muted)]">Set the color behind app content</p>
             </div>
-            <PillDropdown
+            <ColorPickerPill
               value={settings.backgroundColor}
-              options={BACKGROUND_PRESETS}
-              showSwatch
-              allowCustomColor
-              onChange={value => onChange({ backgroundColor: value })}
+              fallbackHex={defaultBgHex}
+              onChange={hex => onChange({ backgroundColor: hex })}
+              onReset={() => onChange({ backgroundColor: 'default' })}
               ariaLabel="Background color"
             />
           </div>
 
-          {/* Foreground */}
+          {/* Foreground (color pill picker) */}
           <div className="flex items-center justify-between gap-6 py-4">
             <div className="min-w-0">
               <p className="text-sm font-medium text-[var(--dc-text-strong)]">Foreground</p>
-              <p className="mt-0.5 text-xs text-[var(--dc-text-muted)]">Override the primary text foreground color</p>
+              <p className="mt-0.5 text-xs text-[var(--dc-text-muted)]">Choose the main text color</p>
             </div>
-            <PillDropdown
+            <ColorPickerPill
               value={settings.foregroundColor}
-              options={FOREGROUND_PRESETS}
-              showSwatch
-              allowCustomColor
-              onChange={value => onChange({ foregroundColor: value })}
+              fallbackHex={defaultFgHex}
+              onChange={hex => onChange({ foregroundColor: hex })}
+              onReset={() => onChange({ foregroundColor: 'default' })}
               ariaLabel="Foreground color"
             />
           </div>

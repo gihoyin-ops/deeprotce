@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Check, ChevronDown } from '@/components/ui/icons';
 
 export interface PillDropdownOption {
@@ -15,9 +16,17 @@ interface PillDropdownProps {
   onChange: (value: string) => void;
   options: PillDropdownOption[];
   showSwatch?: boolean;
-  allowCustomColor?: boolean;
   align?: 'left' | 'right';
   ariaLabel?: string;
+}
+
+interface MenuPosition {
+  top?: number;
+  bottom?: number;
+  left?: number;
+  right?: number;
+  maxHeight: number;
+  openUpward: boolean;
 }
 
 function ColorDot({ swatch }: { swatch?: string }) {
@@ -41,30 +50,62 @@ export function PillDropdown({
   onChange,
   options,
   showSwatch = false,
-  allowCustomColor = false,
   align = 'right',
   ariaLabel
 }: PillDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [menuPos, setMenuPos] = useState<MenuPosition | null>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const updatePosition = useCallback(() => {
+    if (!triggerRef.current || typeof window === 'undefined') return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
+    const desiredHeight = Math.min(264, options.length * 42 + 16);
+    const openUpward = spaceBelow < desiredHeight && spaceAbove > spaceBelow;
+    const availableSpace = openUpward ? spaceAbove : spaceBelow;
+    const maxHeight = Math.max(140, Math.min(264, availableSpace - 16));
+
+    setMenuPos({
+      top: openUpward ? undefined : rect.bottom + 8,
+      bottom: openUpward ? window.innerHeight - rect.top + 8 : undefined,
+      left: align === 'left' ? Math.max(8, rect.left) : undefined,
+      right: align === 'right' ? Math.max(8, window.innerWidth - rect.right) : undefined,
+      maxHeight,
+      openUpward
+    });
+  }, [align, options.length]);
+
+  useLayoutEffect(() => {
+    if (!isOpen) return;
+    updatePosition();
+  }, [isOpen, updatePosition]);
 
   useEffect(() => {
     if (!isOpen) return;
     const handleOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
+      const target = event.target as Node;
+      if (triggerRef.current?.contains(target) || menuRef.current?.contains(target)) return;
+      setIsOpen(false);
     };
     const handleEsc = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setIsOpen(false);
     };
+    const handleReposition = () => updatePosition();
+
     document.addEventListener('mousedown', handleOutside);
     document.addEventListener('keydown', handleEsc);
+    window.addEventListener('resize', handleReposition);
+    window.addEventListener('scroll', handleReposition, true);
     return () => {
       document.removeEventListener('mousedown', handleOutside);
       document.removeEventListener('keydown', handleEsc);
+      window.removeEventListener('resize', handleReposition);
+      window.removeEventListener('scroll', handleReposition, true);
     };
-  }, [isOpen]);
+  }, [isOpen, updatePosition]);
 
   const selected = useMemo(() => {
     const match = options.find(opt => opt.value === value);
@@ -76,8 +117,9 @@ export function PillDropdown({
   }, [options, value]);
 
   return (
-    <div ref={containerRef} className="relative inline-block">
+    <div className="relative inline-block">
       <button
+        ref={triggerRef}
         type="button"
         aria-haspopup="listbox"
         aria-expanded={isOpen}
@@ -94,14 +136,26 @@ export function PillDropdown({
         <ChevronDown className={`h-4 w-4 shrink-0 text-[var(--dc-text-muted)] transition-transform duration-150 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
-      {isOpen && (
+      {isOpen && menuPos && typeof document !== 'undefined' && createPortal(
         <div
+          ref={menuRef}
           role="listbox"
-          className={`absolute z-[320] mt-2 min-w-[220px] overflow-hidden rounded-2xl border border-[var(--dc-border)] bg-[var(--dc-panel)] p-1.5 shadow-xl shadow-black/10 dark:shadow-black/50 ${
-            align === 'right' ? 'right-0' : 'left-0'
+          style={{
+            position: 'fixed',
+            top: menuPos.top,
+            bottom: menuPos.bottom,
+            left: menuPos.left,
+            right: menuPos.right,
+            zIndex: 500
+          }}
+          className={`min-w-[220px] overflow-hidden rounded-2xl border border-[var(--dc-border)] bg-[var(--dc-panel)] p-1.5 shadow-xl shadow-black/15 dark:shadow-black/60 ${
+            menuPos.openUpward ? 'origin-bottom' : 'origin-top'
           }`}
         >
-          <div className="max-h-64 space-y-0.5 overflow-y-auto custom-scrollbar">
+          <div
+            style={{ maxHeight: menuPos.maxHeight }}
+            className="space-y-0.5 overflow-y-auto custom-scrollbar"
+          >
             {options.map(option => {
               const active = option.value === value;
               return (
@@ -134,21 +188,8 @@ export function PillDropdown({
               );
             })}
           </div>
-
-          {allowCustomColor && (
-            <div className="mt-1 border-t border-[var(--dc-border-subtle)] pt-1.5">
-              <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm text-[var(--dc-text)] transition-colors hover:bg-[var(--dc-surface-hover)]">
-                <span>Custom color…</span>
-                <input
-                  type="color"
-                  value={/^#[0-9a-fA-F]{6}$/.test(value) ? value : '#ffffff'}
-                  onChange={event => onChange(event.target.value)}
-                  className="h-6 w-8 cursor-pointer rounded border border-[var(--dc-border)] bg-transparent p-0"
-                />
-              </label>
-            </div>
-          )}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
