@@ -487,74 +487,22 @@ function ExpandedSidebarMenuItem({ icon, label, onClick }: { icon: React.ReactNo
 }
 
 
-function ThreeDotsIcon({ className = 'h-4 w-4' }: { className?: string }) {
+function SidebarSvgIcon({ name, className = 'h-4 w-4' }: { name: string; className?: string }) {
   return (
-    <svg viewBox="0 0 16 16" fill="currentColor" className={className} aria-hidden="true">
-      <circle cx="3.25" cy="8" r="1.25" />
-      <circle cx="8" cy="8" r="1.25" />
-      <circle cx="12.75" cy="8" r="1.25" />
-    </svg>
-  );
-}
-
-function TiltedPinIcon({ className = 'h-4 w-4' }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
-      <g transform="rotate(45 12 12)">
-        <path d="M9 4h6" />
-        <path d="M10 4v4.5L8 12v1.5h8V12l-2-3.5V4" />
-        <path d="M12 13.5V21" />
-      </g>
-    </svg>
-  );
-}
-
-function RenamePencilIcon({ className = 'h-4 w-4' }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
-      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
-      <path d="m14.5 5.5 3 3" />
-    </svg>
-  );
-}
-
-function ModernShareIcon({ className = 'h-4 w-4' }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
-      <path d="M12 3v11" />
-      <path d="m8 7 4-4 4 4" />
-      <path d="M4 14v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" />
-    </svg>
-  );
-}
-
-function FolderMenuIcon({ className = 'h-4 w-4' }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
-      <path d="M3 6.5A2.5 2.5 0 0 1 5.5 4h3.9a2 2 0 0 1 1.6.8l1 1.2H18.5A2.5 2.5 0 0 1 21 8.5v9A2.5 2.5 0 0 1 18.5 20h-13A2.5 2.5 0 0 1 3 17.5Z" />
-    </svg>
-  );
-}
-
-function ArchiveBoxIcon({ className = 'h-4 w-4' }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
-      <rect x="3" y="4" width="18" height="4.5" rx="1.2" />
-      <path d="M5 8.5v9.5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8.5" />
-      <path d="M9.5 13h5" />
-    </svg>
-  );
-}
-
-function TrashBinIcon({ className = 'h-4 w-4' }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
-      <path d="M4 7h16" />
-      <path d="M9 7V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V7" />
-      <path d="M6.5 7l.85 11.5A2 2 0 0 0 9.35 20.5h5.3a2 2 0 0 0 2-2L17.5 7" />
-      <path d="M10 11v5.5" />
-      <path d="M14 11v5.5" />
-    </svg>
+    <span
+      aria-hidden="true"
+      className={`inline-block shrink-0 bg-current ${className}`}
+      style={{
+        maskImage: `url(/icons/${name}.svg)`,
+        WebkitMaskImage: `url(/icons/${name}.svg)`,
+        maskSize: 'contain',
+        WebkitMaskSize: 'contain',
+        maskRepeat: 'no-repeat',
+        WebkitMaskRepeat: 'no-repeat',
+        maskPosition: 'center',
+        WebkitMaskPosition: 'center',
+      }}
+    />
   );
 }
 
@@ -679,7 +627,7 @@ function ExpandedChatItem({ chat, active, onAction, onClick }: { chat: ChatItem;
               className={`flex h-6 w-6 items-center justify-center rounded-lg transition-colors hover:bg-black/[0.07] hover:text-[var(--dc-text-strong)] dark:hover:bg-white/[0.1] ${chat.pinned ? 'text-[var(--dc-text-strong)]' : 'text-[var(--dc-text-muted)]'}`}
               aria-label={chat.pinned ? `Unpin ${chat.title}` : `Pin ${chat.title}`}
             >
-              <TiltedPinIcon className="h-3.5 w-3.5" />
+              <SidebarSvgIcon name="pin-tilted" className="h-3.5 w-3.5" />
             </button>
             <button
               ref={triggerRef}
@@ -688,7 +636,7 @@ function ExpandedChatItem({ chat, active, onAction, onClick }: { chat: ChatItem;
               className="flex h-6 w-6 items-center justify-center rounded-lg text-[var(--dc-text-muted)] transition-colors hover:bg-black/[0.07] hover:text-[var(--dc-text-strong)] dark:hover:bg-white/[0.1]"
               aria-label={`Open ${chat.title} menu`}
             >
-              <ThreeDotsIcon className="h-4 w-4" />
+              <SidebarSvgIcon name="more-horizontal" className="h-4 w-4" />
             </button>
           </div>
         )}
@@ -705,7 +653,7 @@ function ExpandedChatItem({ chat, active, onAction, onClick }: { chat: ChatItem;
             onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onAction('pin', chat.id); }}
             className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-medium text-[var(--dc-text)] transition-colors hover:bg-black/[0.05] dark:hover:bg-white/[0.07]"
           >
-            <TiltedPinIcon className="h-4 w-4 shrink-0 text-[var(--dc-text-body)]" />
+            <SidebarSvgIcon name="pin-tilted" className="h-4 w-4 text-[var(--dc-text-body)]" />
             <span>{chat.pinned ? 'Unpin' : 'Pin'}</span>
           </button>
 
@@ -719,7 +667,7 @@ function ExpandedChatItem({ chat, active, onAction, onClick }: { chat: ChatItem;
             }}
             className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-medium text-[var(--dc-text)] transition-colors hover:bg-black/[0.05] dark:hover:bg-white/[0.07]"
           >
-            <RenamePencilIcon className="h-4 w-4 shrink-0 text-[var(--dc-text-body)]" />
+            <SidebarSvgIcon name="rename-pencil" className="h-4 w-4 text-[var(--dc-text-body)]" />
             <span>Rename</span>
           </button>
 
@@ -728,7 +676,7 @@ function ExpandedChatItem({ chat, active, onAction, onClick }: { chat: ChatItem;
             onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onAction('share', chat.id); }}
             className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-medium text-[var(--dc-text)] transition-colors hover:bg-black/[0.05] dark:hover:bg-white/[0.07]"
           >
-            <ModernShareIcon className="h-4 w-4 shrink-0 text-[var(--dc-text-body)]" />
+            <SidebarSvgIcon name="share-modern" className="h-4 w-4 text-[var(--dc-text-body)]" />
             <span>Share</span>
           </button>
 
@@ -746,7 +694,7 @@ function ExpandedChatItem({ chat, active, onAction, onClick }: { chat: ChatItem;
               className="flex w-full items-center justify-between rounded-xl px-2.5 py-2 text-left text-[13px] font-medium text-[var(--dc-text)] transition-colors hover:bg-black/[0.05] dark:hover:bg-white/[0.07]"
             >
               <span className="flex items-center gap-2.5">
-                <FolderMenuIcon className="h-4 w-4 shrink-0 text-[var(--dc-text-body)]" />
+                <SidebarSvgIcon name="folder" className="h-4 w-4 text-[var(--dc-text-body)]" />
                 <span>Move to project</span>
               </span>
               <ChevronRight className="h-3.5 w-3.5 text-[var(--dc-text-muted)]" strokeWidth={1.9} />
@@ -779,7 +727,7 @@ function ExpandedChatItem({ chat, active, onAction, onClick }: { chat: ChatItem;
             className="flex w-full items-center justify-between rounded-xl px-2.5 py-2 text-left text-[13px] font-medium text-[var(--dc-text)] transition-colors hover:bg-black/[0.05] dark:hover:bg-white/[0.07]"
           >
             <span className="flex items-center gap-2.5">
-              <ArchiveBoxIcon className="h-4 w-4 shrink-0 text-[var(--dc-text-body)]" />
+              <SidebarSvgIcon name="archive" className="h-4 w-4 text-[var(--dc-text-body)]" />
               <span>Archive</span>
             </span>
             <span className="rounded-md bg-black/[0.05] px-1.5 py-0.5 text-[10.5px] font-semibold leading-none text-[var(--dc-text-muted)] dark:bg-white/[0.08]">
@@ -792,7 +740,7 @@ function ExpandedChatItem({ chat, active, onAction, onClick }: { chat: ChatItem;
             onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onAction('delete', chat.id); }}
             className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-medium text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/10"
           >
-            <TrashBinIcon className="h-4 w-4 shrink-0" />
+            <SidebarSvgIcon name="trash-2" className="h-4 w-4" />
             <span>Delete</span>
           </button>
         </div>,
