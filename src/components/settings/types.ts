@@ -7,6 +7,7 @@ export type SettingsTab =
   | 'appearance'
   | 'voice'
   | 'keyboard'
+  | 'archived'
   | 'profile'
   | 'personality'
   | 'notifications'

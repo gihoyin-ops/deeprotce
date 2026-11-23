@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import { usePathname, useRouter } from 'next/navigation';
 import { gsap } from 'gsap';
 import GsapMorphSvg from '@/components/ui/GsapMorphSvg';
-import { Archive, ArrowLeft, Bell, Brain, Database, ExternalLink, Gauge, Mic, Palette, Search, Settings as SettingsIcon, User, X } from '@/components/ui/icons';
+import { Archive, ArrowLeft, Bell, Brain, Database, ExternalLink, Gauge, Mic, Palette, Search, Settings as SettingsIcon, ShieldAlert, User, X } from '@/components/ui/icons';
 import {
   archiveAllChats,
   deleteAllChats,
@@ -53,6 +53,7 @@ import { ToolsTab } from './settings/tabs/ToolsTab';
 import { AgentTab } from './settings/tabs/AgentTab';
 import { DataTab } from './settings/tabs/DataTab';
 import { StorageTab } from './settings/tabs/StorageTab';
+import { ArchivedChatsTab } from './settings/tabs/ArchivedChatsTab';
 import { CropDialog } from './settings/panels/CropDialog';
 import { SharedLinksDialog } from './settings/panels/ConnectionDialogs';
 import { ArchivedChatsDialog, ConfirmDialog, MemoriesDialog } from './settings/panels/ListDialogs';
@@ -107,6 +108,14 @@ const desktopSections: Array<{
       { tab: 'voice', label: 'Voice', icon: <Mic className="h-4 w-4" /> },
       { tab: 'personality', label: 'Personalization', icon: <IconMask icon="/icons/personalization.svg" source="local" className="h-4 w-4" /> },
       { tab: 'keyboard', label: 'Keyboard', icon: <IconMask icon="/icons/keyboard.svg" source="local" className="h-4 w-4" /> }
+    ]
+  },
+  {
+    title: 'Data & Privacy',
+    items: [
+      { tab: 'archived', label: 'Archived chats', icon: <Archive className="h-4 w-4" /> },
+      { tab: 'storage', label: 'Storage', icon: <Database className="h-4 w-4" /> },
+      { tab: 'data', label: 'Data controls', icon: <ShieldAlert className="h-4 w-4" /> }
     ]
   }
 ];
@@ -961,13 +970,14 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
             {activeTab === 'notifications' && <NotificationsTab {...children.NotificationsTab} />}
             {activeTab === 'tools' && <ToolsTab {...children.ToolsTab} />}
             {activeTab === 'agent' && <AgentTab />}
+            {activeTab === 'archived' && <ArchivedChatsTab onOpenChat={openArchivedChat} />}
             {activeTab === 'data' && (
               <DataTab
                 isExporting={isExporting}
                 isArchivingAll={isArchivingAll}
                 isDeletingChats={isDeletingChats}
                 onOpenSharedLinks={openSharedLinks}
-                onOpenArchivedChats={openArchived}
+                onOpenArchivedChats={() => setActiveTab('archived')}
                 onArchiveAll={archiveAll}
                 onExport={downloadExport}
                 onDeleteAllChats={askDeleteChats}

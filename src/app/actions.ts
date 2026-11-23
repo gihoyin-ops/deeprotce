@@ -235,6 +235,16 @@ export async function archiveChat(id: string) {
   return chat;
 }
 
+export async function unarchiveChat(id: string) {
+  if (typeof window !== 'undefined') {
+    return updateChatRecord(id, { archived: false });
+  }
+  const chat = serverMemoryChats.get(id);
+  if (!chat) return null;
+  chat.archived = false;
+  return chat;
+}
+
 export async function archiveAllChats() {
   if (typeof window !== 'undefined') {
     const chats = await listChatRecords(false);
