@@ -4,6 +4,7 @@ import {
   resolveMaxEffortIndex,
   splitModelEnv,
 } from './live-model-env';
+import { getModelConfigValue } from './models';
 
 // server-side live endpoints configured via env
 
@@ -44,7 +45,7 @@ export const getLiveChatConnection = (): LiveConnection | null => {
     name: 'Live',
     apiKey,
     baseUrl,
-    model: splitModelEnv(env('LIVE_MODEL'))[0]?.id || env('LIVE_MODEL')
+    model: splitModelEnv(getModelConfigValue('LIVE_MODEL'))[0]?.id || getModelConfigValue('LIVE_MODEL')
   };
   return cachedChatConnection;
 };
@@ -63,7 +64,7 @@ export const getLiveLiteConnection = (): LiveConnection | null => {
     name: 'Live Lite',
     apiKey,
     baseUrl,
-    model: splitModelEnv(env('LITE_MODEL'))[0]?.id || env('LITE_MODEL')
+    model: splitModelEnv(getModelConfigValue('LITE_MODEL'))[0]?.id || getModelConfigValue('LITE_MODEL')
   };
   return cachedLiteConnection;
 };
@@ -87,8 +88,8 @@ export const getLiveImageConfig = (): LiveImageConfig | null => {
   cachedImageConfig = {
     baseUrl,
     apiKey,
-    model: env('IMAGE_MODEL') || 'gpt-image-2.5-sunburst',
-    fastModel: env('IMAGE_MODEL_FAST') || 'gpt-image-2.5-flare'
+    model: getModelConfigValue('IMAGE_MODEL') || 'gpt-image-2.5-sunburst',
+    fastModel: getModelConfigValue('IMAGE_MODEL_FAST') || 'gpt-image-2.5-flare'
   };
   return cachedImageConfig;
 };
@@ -126,7 +127,7 @@ export const getLiveModels = (): LiveModelItem[] => {
 
   const models: LiveModelItem[] = [];
   const seen = new Set<string>();
-  const effortConfig = parseModelMaxEffortEnv(env('MODEL_MAX_EFFORT'));
+  const effortConfig = parseModelMaxEffortEnv(getModelConfigValue('MODEL_MAX_EFFORT'));
 
   const add = (items: LiveModelItem[]) => {
     for (const item of items) {
@@ -150,32 +151,15 @@ export const getLiveModels = (): LiveModelItem[] => {
     });
   };
 
-  add(parseModels(env('LIVE_MODEL'), 'Default'));
-  add(parseModels(env('LITE_MODEL'), 'Lite'));
-
-  if (models.length === 0) {
-    add([
-      {
-        id: 'gemma4:31b',
-        name: 'Gemma 4',
-        badge: 'Default',
-        maxTierIndex: resolveMaxEffortIndex('gemma4:31b', undefined, effortConfig),
-      },
-      {
-        id: 'llama4:70b',
-        name: 'Llama 4',
-        badge: 'Lite',
-        maxTierIndex: resolveMaxEffortIndex('llama4:70b', undefined, effortConfig),
-      }
-    ]);
-  }
+  add(parseModels(getModelConfigValue('LIVE_MODEL'), 'Default'));
+  add(parseModels(getModelConfigValue('LITE_MODEL'), 'Lite'));
 
   cachedLiveModels = models;
   return cachedLiveModels;
 };
 
 export const getEnvModelIds = (): string[] => [
-  ...splitModelEnv(env('LIVE_MODEL')),
-  ...splitModelEnv(env('LITE_MODEL'))
+  ...splitModelEnv(getModelConfigValue('LIVE_MODEL')),
+  ...splitModelEnv(getModelConfigValue('LITE_MODEL'))
 ].map(e => e.id);
 

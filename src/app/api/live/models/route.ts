@@ -4,6 +4,7 @@ import {
   resolveMaxEffortIndex,
   splitModelEnv,
 } from '@/lib/ai/live-model-env';
+import { getModelConfigValue } from '@/lib/ai/models';
 
 export const runtime = 'nodejs';
 
@@ -14,8 +15,6 @@ interface EnvModelItem {
   description?: string;
   maxTierIndex?: number;
 }
-
-const env = (key: string) => (process.env[key] || '').trim();
 
 const formatFrontendModelName = (id: string): string => {
   const clean = id.replace(/:[\w.-]+/g, '').replace(/[-_]/g, ' ').trim();
@@ -46,7 +45,7 @@ const parseModelsFromEnv = (
 export async function GET() {
   const models: EnvModelItem[] = [];
   const seen = new Set<string>();
-  const effortConfig = parseModelMaxEffortEnv(env('MODEL_MAX_EFFORT'));
+  const effortConfig = parseModelMaxEffortEnv(getModelConfigValue('MODEL_MAX_EFFORT'));
 
   const add = (items: EnvModelItem[]) => {
     for (const item of items) {
@@ -57,30 +56,16 @@ export async function GET() {
     }
   };
 
+  const liveModelRaw = getModelConfigValue('LIVE_MODEL');
+  const liteModelRaw = getModelConfigValue('LITE_MODEL');
+
   // main chat models from LIVE_MODEL
-  add(parseModelsFromEnv(env('LIVE_MODEL'), 'Default', effortConfig));
+  add(parseModelsFromEnv(liveModelRaw, 'Default', effortConfig));
 
   // lite models from LITE_MODEL
-  add(parseModelsFromEnv(env('LITE_MODEL'), 'Lite', effortConfig));
+  add(parseModelsFromEnv(liteModelRaw, 'Lite', effortConfig));
 
-  // provide defaults if no env models configured
-  if (models.length === 0) {
-    add([
-      {
-        id: 'gemma4:31b',
-        name: 'Gemma 4',
-        badge: 'Default',
-        maxTierIndex: resolveMaxEffortIndex('gemma4:31b', undefined, effortConfig),
-      },
-      {
-        id: 'llama4:70b',
-        name: 'Llama 4',
-        badge: 'Lite',
-        maxTierIndex: resolveMaxEffortIndex('llama4:70b', undefined, effortConfig),
-      }
-    ]);
-  }
-  const defaultModel = splitModelEnv(env('LIVE_MODEL'))[0]?.id || env('LIVE_MODEL').split(',')[0]?.trim() || models[0]?.id || '';
+  const defaultModel = splitModelEnv(liveModelRaw)[0]?.id || models[0]?.id || '';
 
   return NextResponse.json({
     default: defaultModel,

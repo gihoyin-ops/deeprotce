@@ -62,25 +62,16 @@ export const getModelDescription = (_modelId: string, _modelName?: string, rawDe
   return '';
 };
 
-export const DEFAULT_FALLBACK_MODELS: ModelOption[] = [
-  {
-    id: 'gemma4:31b',
-    name: 'Gemma 4',
-  },
-  {
-    id: 'llama4:70b',
-    name: 'Llama 4',
-  },
-];
+export const DEFAULT_FALLBACK_MODELS: ModelOption[] = [];
 
 export const DEFAULT_SELECTED_MODEL: SelectedModel = {
-  id: 'gemma4:31b',
-  name: 'Gemma 4',
+  id: '',
+  name: '',
   connectionId: LIVE_CHAT_CONNECTION_ID,
 };
 
-export const getConnectionIdForModel = (modelId: string): string => {
-  if (modelId.toLowerCase().includes('llama') || modelId.toLowerCase().includes('lite')) {
+export const getConnectionIdForModel = (modelId: string, badge?: string): string => {
+  if (badge === 'Lite' || modelId.toLowerCase().includes('lite')) {
     return LIVE_LITE_CONNECTION_ID;
   }
   return LIVE_CHAT_CONNECTION_ID;
@@ -89,7 +80,7 @@ export const getConnectionIdForModel = (modelId: string): string => {
 export const toSelectedModel = (option: ModelOption): SelectedModel => ({
   id: option.id,
   name: formatFrontendModelName(option.id, option.name),
-  connectionId: getConnectionIdForModel(option.id),
+  connectionId: getConnectionIdForModel(option.id, option.badge),
 });
 
 export const persistModel = (model: SelectedModel) => {
@@ -218,6 +209,11 @@ export function useSelectedModelState() {
       setLoading(false);
 
       const stored = loadStoredModel();
+      if (list.length === 0) {
+        setSelectedModel(DEFAULT_SELECTED_MODEL);
+        return;
+      }
+
       const found = stored && !isImageGenerationModel(stored.id) && list.find((m) => m.id === stored.id);
       let activeModelId = list[0].id;
       if (found) {

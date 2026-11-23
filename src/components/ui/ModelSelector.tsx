@@ -157,6 +157,11 @@ export default function ModelSelector({
       setLoading(false);
 
       const stored = loadStoredModel();
+      if (list.length === 0) {
+        setSelectedModel(DEFAULT_SELECTED_MODEL);
+        return;
+      }
+
       const found = stored && !isImageGenerationModel(stored.id) && list.find((m) => m.id === stored.id);
       let activeId = list[0].id;
       if (found) {
@@ -728,7 +733,7 @@ export default function ModelSelector({
             </div>
             <div className="flex shrink-0 items-center gap-1.5 pl-2">
               <span className="max-w-[120px] truncate text-[13px] font-medium text-[var(--dc-text-muted)]">
-                {selectedModel.name}
+                {selectedModel.name || 'No model'}
               </span>
               <ChevronRight className="dc-ms-row-chevron h-3.5 w-3.5 text-[var(--dc-text-faint)]" />
             </div>
@@ -1051,7 +1056,7 @@ export default function ModelSelector({
 
           <div className="relative z-10 flex min-w-0 items-center gap-1.5">
             <span className="truncate text-[13px] font-semibold tracking-tight">
-              {selectedModel.name}
+              {selectedModel.name || 'No model'}
             </span>
             <span
               className="h-1 w-1 shrink-0 rounded-full bg-current opacity-25"

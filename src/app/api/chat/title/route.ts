@@ -86,6 +86,10 @@ export async function POST(req: Request) {
 
     const sysMsg = "Create a specific chat title from the user's message. Output only a concise 3-6 word title. Never output New Chat, Untitled Chat, Chat Title, quotes, markdown, or explanations.";
 
+    if (!conn.model) {
+      return NextResponse.json({ title: buildFallbackTitle(promptForFallback) });
+    }
+
     const url = `${conn.baseUrl}/v1/chat/completions`;
     // server env model only; a client-supplied modelId could target arbitrary provider models
     const res = await fetch(url, {
@@ -95,7 +99,7 @@ export async function POST(req: Request) {
         Authorization: `Bearer ${conn.apiKey}`
       },
       body: JSON.stringify({
-        model: conn.model || 'gpt-4o-mini',
+        model: conn.model,
         messages: [
           { role: 'system', content: sysMsg },
           { role: 'user', content: prompt }

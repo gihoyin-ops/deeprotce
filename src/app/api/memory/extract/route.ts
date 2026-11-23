@@ -182,7 +182,10 @@ export async function POST(req: Request) {
     }
 
     // server env model only; client modelId must not select the extraction model
-    const model = conn.model || 'gpt-4o-mini';
+    const model = conn.model;
+    if (!model) {
+      return NextResponse.json({ savedCount: 0, memories: [] });
+    }
 
     // server stores nothing; client persists saved memories in IndexedDB from this response
     let saved: NormalizedExtractedMemory[] = [];
