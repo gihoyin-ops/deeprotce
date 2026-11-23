@@ -31,7 +31,7 @@ import { getMobileTabTitle, modalAnimationMs } from './settings/constants';
 import { prefersReducedMotion, triggerSubtleHaptic } from '@/components/mobile/gesture-utils';
 import { type GeneralSettings, loadGeneralSettings, saveGeneralSettings } from '@/lib/settings/general-settings';
 import { type AppearanceSettings, loadAppearanceSettings, saveAppearanceSettings } from '@/lib/settings/appearance-settings';
-import { MobileSettingsHome } from './settings/mobile';
+import { IconMask, MobileSettingsHome } from './settings/mobile';
 import { AccountTab } from './settings/tabs/AccountTab';
 import { UsageTab } from './settings/tabs/UsageTab';
 import { AppearanceTab } from './settings/tabs/AppearanceTab';
@@ -66,11 +66,16 @@ const defaultPersona: PersonaState = {
   charEnthusiastic: 'default',
   charHeaders: 'default',
   charEmoji: 'default',
+  charVisualAnswers: 'default',
   aboutName: '',
   aboutOccupation: '',
   aboutMore: '',
   memoryReferenceSaved: true,
-  memoryReferenceHistory: true
+  memoryReferenceHistory: true,
+  suggestedPrompts: true,
+  librarySearch: true,
+  referencePhoto: '',
+  fullBodyReferencePhoto: ''
 };
 
 const desktopSections: Array<{
@@ -90,7 +95,8 @@ const desktopSections: Array<{
       { tab: 'general', label: 'General', icon: <SettingsIcon className="h-4 w-4" /> },
       { tab: 'appearance', label: 'Appearance', icon: <Palette className="h-4 w-4" /> },
       { tab: 'notifications', label: 'Notifications', icon: <Bell className="h-4 w-4" /> },
-      { tab: 'voice', label: 'Voice', icon: <Mic className="h-4 w-4" /> }
+      { tab: 'voice', label: 'Voice', icon: <Mic className="h-4 w-4" /> },
+      { tab: 'personality', label: 'Personalization', icon: <IconMask icon="/icons/personalization.svg" source="local" className="h-4 w-4" /> }
     ]
   }
 ];
@@ -245,11 +251,16 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
         charEnthusiastic: data.charEnthusiastic || 'default',
         charHeaders: data.charHeaders || 'default',
         charEmoji: data.charEmoji || 'default',
+        charVisualAnswers: data.charVisualAnswers || 'default',
         aboutName: data.aboutName || '',
         aboutOccupation: data.aboutOccupation || '',
         aboutMore: data.aboutMore || '',
         memoryReferenceSaved: data.memoryReferenceSaved ?? true,
-        memoryReferenceHistory: data.memoryReferenceHistory ?? true
+        memoryReferenceHistory: data.memoryReferenceHistory ?? true,
+        suggestedPrompts: data.suggestedPrompts ?? true,
+        librarySearch: data.librarySearch ?? true,
+        referencePhoto: data.referencePhoto || '',
+        fullBodyReferencePhoto: data.fullBodyReferencePhoto || ''
       });
       loadedRef.current.persona = true;
     } catch {
@@ -513,11 +524,10 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
     }
   };
 
-  const savePersonaDraft = async () => {
+  const savePersonaDraft = async (nextPersona?: PersonaState) => {
     setIsSavingPersona(true);
     try {
-      await savePersona(persona);
-      toast.success('Personalization saved successfully!');
+      await savePersona(nextPersona ?? persona);
     } catch {
       toast.error('Failed to save personalization');
     }
@@ -750,7 +760,17 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
       isDeletingAccount
     },
     ProfileTab: { profile, isLoading: isProfileLoading, setProfile, onSave: saveProfile, onAvatarPicked: pickAvatar, fileInputRef },
-    PersonalizationTab: { persona, onChange: updatePersona, isLoading: isPersonaLoading, isSaving: isSavingPersona, onSave: savePersonaDraft, onOpenMemories: openMemories, onOpenMemoryDocs: () => router.push('/docs/memory') },
+    PersonalizationTab: {
+      persona,
+      onChange: updatePersona,
+      isLoading: isPersonaLoading,
+      isSaving: isSavingPersona,
+      onSave: savePersonaDraft,
+      onOpenMemories: openMemories,
+      onOpenMemoryDocs: () => router.push('/docs/memory'),
+      webSearchEnabled: toolSettings.searchEnabled,
+      onToggleWebSearch: (enabled: boolean) => updateToolFeatures({ searchEnabled: enabled })
+    },
     NotificationsTab: {
       settings: notificationSettings,
       pushPermission,

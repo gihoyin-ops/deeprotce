@@ -40,6 +40,12 @@ export const EMOJI_OPTIONS: DropdownOption[] = [
   { label: 'More', value: 'more', description: 'Expressive with emojis.' }
 ];
 
+export const VISUAL_ANSWERS_OPTIONS: DropdownOption[] = [
+  { label: 'Default', value: 'default', description: 'Standard visual formatting.' },
+  { label: 'Less', value: 'less', description: 'Prefer plain text.' },
+  { label: 'More', value: 'more', description: 'Prefer tables, diagrams, and rich visuals.' }
+];
+
 export const PROVIDER_OPTIONS = ['OpenAI Compatible', 'OpenAI', 'Anthropic', 'Deepseek', 'Mistral', 'NVIDIA NIM', 'Gemini', 'VertexAI'];
 export const VERTEX_LOCATION_OPTIONS = ['us-central1', 'us-east4', 'us-west1', 'europe-west4', 'europe-west1', 'asia-southeast1', 'asia-northeast1'];
 

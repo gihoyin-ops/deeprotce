@@ -84,9 +84,14 @@ export interface PersonaState {
   charEnthusiastic: string;
   charHeaders: string;
   charEmoji: string;
+  charVisualAnswers: string;
   aboutName: string;
   aboutOccupation: string;
   aboutMore: string;
   memoryReferenceSaved: boolean;
   memoryReferenceHistory: boolean;
+  suggestedPrompts: boolean;
+  librarySearch: boolean;
+  referencePhoto: string;
+  fullBodyReferencePhoto: string;
 }

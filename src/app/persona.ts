@@ -8,25 +8,35 @@ export interface PersonaData {
   charEnthusiastic?: string;
   charHeaders?: string;
   charEmoji?: string;
+  charVisualAnswers?: string;
   aboutName?: string;
   aboutOccupation?: string;
   aboutMore?: string;
   memoryReferenceSaved?: boolean;
   memoryReferenceHistory?: boolean;
+  suggestedPrompts?: boolean;
+  librarySearch?: boolean;
+  referencePhoto?: string;
+  fullBodyReferencePhoto?: string;
 }
 
 const defaultPersona: PersonaData = {
   instructions: '',
-  styleTone: 'Normal',
-  charWarm: 'Normal',
-  charEnthusiastic: 'Normal',
-  charHeaders: 'Normal',
-  charEmoji: 'Normal',
+  styleTone: 'default',
+  charWarm: 'default',
+  charEnthusiastic: 'default',
+  charHeaders: 'default',
+  charEmoji: 'default',
+  charVisualAnswers: 'default',
   aboutName: '',
   aboutOccupation: '',
   aboutMore: '',
   memoryReferenceSaved: true,
-  memoryReferenceHistory: true
+  memoryReferenceHistory: true,
+  suggestedPrompts: true,
+  librarySearch: true,
+  referencePhoto: '',
+  fullBodyReferencePhoto: ''
 };
 
 let serverCachedPersona: PersonaData = { ...defaultPersona };
@@ -63,6 +73,7 @@ export async function getInjectedSystemPrompt(baseSystemPrompt: string = '', cur
   if (persona.charEnthusiastic && persona.charEnthusiastic !== 'default') characteristics.push(`Enthusiasm: ${persona.charEnthusiastic === 'more' ? 'High' : 'Low'}`);
   if (persona.charHeaders && persona.charHeaders !== 'default') characteristics.push(`Use of Headers/Lists: ${persona.charHeaders === 'more' ? 'Frequent' : 'Minimal'}`);
   if (persona.charEmoji && persona.charEmoji !== 'default') characteristics.push(`Use of Emojis: ${persona.charEmoji === 'more' ? 'Frequent' : 'Minimal'}`);
+  if (persona.charVisualAnswers && persona.charVisualAnswers !== 'default') characteristics.push(`Visual Answers (diagrams/tables/charts): ${persona.charVisualAnswers === 'more' ? 'Frequent' : 'Minimal'}`);
 
   if (characteristics.length > 0) {
     parts.push(`- Characteristics:\n  - ${characteristics.join('\n  - ')}`);

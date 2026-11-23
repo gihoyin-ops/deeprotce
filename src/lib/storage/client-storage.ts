@@ -393,16 +393,21 @@ export const saveUserProfileClient = async (profile: UserProfileData): Promise<U
 export const getPersonaClient = async (): Promise<PersonaData> => {
   const defaultPersona: PersonaData = {
     instructions: '',
-    styleTone: 'Normal',
-    charWarm: 'Normal',
-    charEnthusiastic: 'Normal',
-    charHeaders: 'Normal',
-    charEmoji: 'Normal',
+    styleTone: 'default',
+    charWarm: 'default',
+    charEnthusiastic: 'default',
+    charHeaders: 'default',
+    charEmoji: 'default',
+    charVisualAnswers: 'default',
     aboutName: '',
     aboutOccupation: '',
     aboutMore: '',
     memoryReferenceSaved: true,
-    memoryReferenceHistory: true
+    memoryReferenceHistory: true,
+    suggestedPrompts: true,
+    librarySearch: true,
+    referencePhoto: '',
+    fullBodyReferencePhoto: ''
   };
   if (typeof window !== 'undefined') {
     try {
