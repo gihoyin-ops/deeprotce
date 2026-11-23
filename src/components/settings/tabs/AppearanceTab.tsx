@@ -1,11 +1,15 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { ChevronDown, ChevronRight } from '@/components/ui/icons';
+import ToggleSwitch from '@/components/ui/ToggleSwitch';
 import {
   ACCENT_COLOR_OPTIONS,
+  defaultAppearanceSettings,
   THEME_OPTIONS,
   type AppearanceMode,
-  type AppearanceSettings
+  type AppearanceSettings,
+  type ReduceMotionMode
 } from '@/lib/settings/appearance-settings';
 import { PillDropdown } from '../PillDropdown';
 import { ColorPickerPill } from '../ColorPickerPill';
@@ -117,6 +121,7 @@ function ColorModePreviewCard({
 
 export function AppearanceTab({ settings, onChange }: AppearanceTabProps) {
   const [isDarkResolved, setIsDarkResolved] = useState(false);
+  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
 
   useEffect(() => {
     const sync = () => {
@@ -229,6 +234,163 @@ export function AppearanceTab({ settings, onChange }: AppearanceTabProps) {
             />
           </div>
         </div>
+      </section>
+
+      {/* Collapsible Advanced section (matches screenshots) */}
+      <section>
+        <div className="flex items-center justify-between border-b border-[var(--dc-border-subtle)] pb-3">
+          <button
+            type="button"
+            onClick={() => setIsAdvancedOpen(prev => !prev)}
+            aria-expanded={isAdvancedOpen}
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-[var(--dc-text)] transition-colors hover:text-[var(--dc-text-strong)]"
+          >
+            <span>Advanced</span>
+            {isAdvancedOpen ? (
+              <ChevronDown className="h-4 w-4 text-[var(--dc-text-muted)]" />
+            ) : (
+              <ChevronRight className="h-4 w-4 text-[var(--dc-text-muted)]" />
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onChange({ ...defaultAppearanceSettings })}
+            className="text-xs font-medium text-[var(--dc-text-muted)] transition-colors hover:text-[var(--dc-text-strong)]"
+          >
+            Reset to default
+          </button>
+        </div>
+
+        {isAdvancedOpen && (
+          <div className="divide-y divide-[var(--dc-border-subtle)]">
+            {/* UI font size */}
+            <div className="flex items-center justify-between gap-6 py-4">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-[var(--dc-text-strong)]">UI font size</p>
+                <p className="mt-0.5 text-xs text-[var(--dc-text-muted)]">
+                  Adjust the base size used for DeepChat
+                </p>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <input
+                  type="number"
+                  min={10}
+                  max={24}
+                  value={settings.uiFontSize}
+                  onChange={event => {
+                    const parsed = parseInt(event.target.value, 10);
+                    if (!Number.isNaN(parsed)) {
+                      onChange({ uiFontSize: Math.min(24, Math.max(10, parsed)) });
+                    }
+                  }}
+                  aria-label="UI font size in pixels"
+                  className="h-8 w-16 rounded-lg border border-[var(--dc-border)] bg-[var(--dc-surface)] px-2.5 text-sm text-[var(--dc-text-strong)] outline-none focus:border-[var(--deepchat-accent)]"
+                />
+                <span className="text-xs text-[var(--dc-text-muted)]">px</span>
+              </div>
+            </div>
+
+            {/* Code font size */}
+            <div className="flex items-center justify-between gap-6 py-4">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-[var(--dc-text-strong)]">Code font size</p>
+                <p className="mt-0.5 text-xs text-[var(--dc-text-muted)]">
+                  Adjust the base size used for code across chats and diffs
+                </p>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <input
+                  type="number"
+                  min={10}
+                  max={24}
+                  value={settings.codeFontSize}
+                  onChange={event => {
+                    const parsed = parseInt(event.target.value, 10);
+                    if (!Number.isNaN(parsed)) {
+                      onChange({ codeFontSize: Math.min(24, Math.max(10, parsed)) });
+                    }
+                  }}
+                  aria-label="Code font size in pixels"
+                  className="h-8 w-16 rounded-lg border border-[var(--dc-border)] bg-[var(--dc-surface)] px-2.5 text-sm text-[var(--dc-text-strong)] outline-none focus:border-[var(--deepchat-accent)]"
+                />
+                <span className="text-xs text-[var(--dc-text-muted)]">px</span>
+              </div>
+            </div>
+
+            {/* Reduce motion */}
+            <div className="flex items-center justify-between gap-6 py-4">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-[var(--dc-text-strong)]">Reduce motion</p>
+                <p className="mt-0.5 text-xs text-[var(--dc-text-muted)]">
+                  Reduce animations or match your system
+                </p>
+              </div>
+              <div className="flex shrink-0 items-center gap-1" role="radiogroup" aria-label="Reduce motion">
+                {(['system', 'on', 'off'] as ReduceMotionMode[]).map(mode => {
+                  const active = settings.reduceMotion === mode;
+                  const label = mode === 'system' ? 'System' : mode === 'on' ? 'On' : 'Off';
+                  return (
+                    <button
+                      key={mode}
+                      type="button"
+                      role="radio"
+                      aria-checked={active}
+                      onClick={() => onChange({ reduceMotion: mode })}
+                      className={`rounded-full px-3.5 py-1.5 text-xs transition-colors ${
+                        active
+                          ? 'bg-[var(--dc-fill)] font-medium text-[var(--dc-text-strong)]'
+                          : 'text-[var(--dc-text-muted)] hover:bg-[var(--dc-surface-hover)] hover:text-[var(--dc-text-strong)]'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Separate light and dark modes */}
+            <div className="flex items-center justify-between gap-6 py-4">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-[var(--dc-text-strong)]">Separate light and dark modes</p>
+                <p className="mt-0.5 text-xs text-[var(--dc-text-muted)]">
+                  Choose a theme, colors, and font for each
+                </p>
+              </div>
+              <ToggleSwitch
+                size="mobile"
+                ariaLabel="Separate light and dark modes"
+                checked={settings.separateLightDark}
+                onChange={checked => onChange({ separateLightDark: checked })}
+              />
+            </div>
+
+            {/* Contrast */}
+            <div className="flex items-center justify-between gap-6 py-4">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-[var(--dc-text-strong)]">Contrast</p>
+                <p className="mt-0.5 text-xs text-[var(--dc-text-muted)]">
+                  Adjust how strongly text and controls stand out from the background
+                </p>
+              </div>
+              <div className="flex shrink-0 items-center gap-3">
+                <input
+                  type="range"
+                  min={50}
+                  max={100}
+                  value={settings.contrastLevel}
+                  onChange={event => onChange({ contrastLevel: Number(event.target.value) })}
+                  aria-label="Contrast level"
+                  className="h-1.5 w-32 cursor-pointer accent-blue-600"
+                />
+                <span className="w-8 text-right text-xs font-medium tabular-nums text-[var(--dc-text-strong)]">
+                  {settings.contrastLevel}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
       </section>
     </div>
   );

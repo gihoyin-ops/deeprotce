@@ -149,6 +149,21 @@ html.dark[data-theme="midnight"] {
   --dc-surface-muted: #131830;
 }
 
+/* reduce motion */
+html[data-reduce-motion="on"] *,
+html[data-reduce-motion="on"] *::before,
+html[data-reduce-motion="on"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* code font size */
+pre code {
+  font-size: var(--dc-code-font-size, 12px);
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

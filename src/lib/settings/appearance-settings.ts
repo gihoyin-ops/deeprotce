@@ -4,6 +4,7 @@ export type AppearanceMode = 'system' | 'dark' | 'light';
 export type ContrastMode = 'system' | 'medium' | 'increased';
 export type AccentColor = 'default' | 'blue' | 'green' | 'yellow' | 'pink' | 'orange' | 'purple' | 'black';
 export type ThemePreset = 'default' | 'slate' | 'zinc' | 'warm' | 'midnight';
+export type ReduceMotionMode = 'system' | 'on' | 'off';
 
 export interface AppearanceSettings {
   appearance: AppearanceMode;
@@ -12,6 +13,11 @@ export interface AppearanceSettings {
   theme: ThemePreset;
   backgroundColor: string;
   foregroundColor: string;
+  uiFontSize: number;
+  codeFontSize: number;
+  reduceMotion: ReduceMotionMode;
+  separateLightDark: boolean;
+  contrastLevel: number;
 }
 
 export const APPEARANCE_OPTIONS = [
@@ -70,7 +76,12 @@ export const defaultAppearanceSettings: AppearanceSettings = {
   accentColor: 'default',
   theme: 'default',
   backgroundColor: 'default',
-  foregroundColor: 'default'
+  foregroundColor: 'default',
+  uiFontSize: 14,
+  codeFontSize: 12,
+  reduceMotion: 'system',
+  separateLightDark: false,
+  contrastLevel: 100
 };
 
 const APPEARANCE_KEY = 'deepchat-appearance-settings';
@@ -81,9 +92,12 @@ const validAppearances = new Set<string>(APPEARANCE_OPTIONS.map(option => option
 const validContrasts = new Set<string>(CONTRAST_OPTIONS.map(option => option.value));
 const validAccentColors = new Set<string>(ACCENT_COLOR_OPTIONS.map(option => option.value));
 const validThemes = new Set<string>(THEME_OPTIONS.map(option => option.value));
+const validReduceMotion = new Set<string>(['system', 'on', 'off']);
 const isRecord = (value: unknown): value is Record<string, unknown> => Boolean(value && typeof value === 'object');
 const isValidColorValue = (value: unknown): value is string =>
   typeof value === 'string' && (value === 'default' || /^#[0-9a-fA-F]{6}$/.test(value));
+const clampNum = (value: unknown, min: number, max: number, fallback: number): number =>
+  typeof value === 'number' && Number.isFinite(value) ? Math.min(max, Math.max(min, Math.round(value))) : fallback;
 
 const normalizeAppearanceSettings = (settings: unknown): AppearanceSettings => {
   if (!isRecord(settings)) return defaultAppearanceSettings;
@@ -93,7 +107,12 @@ const normalizeAppearanceSettings = (settings: unknown): AppearanceSettings => {
     accentColor: typeof settings.accentColor === 'string' && validAccentColors.has(settings.accentColor) ? settings.accentColor as AccentColor : defaultAppearanceSettings.accentColor,
     theme: typeof settings.theme === 'string' && validThemes.has(settings.theme) ? settings.theme as ThemePreset : defaultAppearanceSettings.theme,
     backgroundColor: isValidColorValue(settings.backgroundColor) ? settings.backgroundColor : defaultAppearanceSettings.backgroundColor,
-    foregroundColor: isValidColorValue(settings.foregroundColor) ? settings.foregroundColor : defaultAppearanceSettings.foregroundColor
+    foregroundColor: isValidColorValue(settings.foregroundColor) ? settings.foregroundColor : defaultAppearanceSettings.foregroundColor,
+    uiFontSize: clampNum(settings.uiFontSize, 10, 24, defaultAppearanceSettings.uiFontSize),
+    codeFontSize: clampNum(settings.codeFontSize, 10, 24, defaultAppearanceSettings.codeFontSize),
+    reduceMotion: typeof settings.reduceMotion === 'string' && validReduceMotion.has(settings.reduceMotion) ? settings.reduceMotion as ReduceMotionMode : defaultAppearanceSettings.reduceMotion,
+    separateLightDark: typeof settings.separateLightDark === 'boolean' ? settings.separateLightDark : defaultAppearanceSettings.separateLightDark,
+    contrastLevel: clampNum(settings.contrastLevel, 50, 100, defaultAppearanceSettings.contrastLevel)
   };
 };
 
@@ -112,6 +131,21 @@ export const applyAppearanceSettings = (settings: AppearanceSettings) => {
   root.dataset.contrast = contrast;
   root.dataset.accentColor = normalized.accentColor;
   root.dataset.theme = normalized.theme;
+  root.dataset.reduceMotion = normalized.reduceMotion;
+
+  if (normalized.uiFontSize !== defaultAppearanceSettings.uiFontSize) {
+    root.style.fontSize = `${(16 * normalized.uiFontSize) / 14}px`;
+  } else {
+    root.style.removeProperty('font-size');
+  }
+
+  root.style.setProperty('--dc-code-font-size', `${normalized.codeFontSize}px`);
+
+  if (normalized.contrastLevel < 100) {
+    root.style.filter = `contrast(${(0.75 + (normalized.contrastLevel / 100) * 0.25).toFixed(3)})`;
+  } else {
+    root.style.removeProperty('filter');
+  }
 
   if (normalized.backgroundColor !== 'default') {
     root.style.setProperty('--background', normalized.backgroundColor);
