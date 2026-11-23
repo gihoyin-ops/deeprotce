@@ -9,7 +9,7 @@ import { getChats, getUserProfile, togglePinChat, archiveChat, deleteChat, updat
 import toast from 'react-hot-toast';
 import {
   ChevronDown, ChevronRight, Pin, FileText, User, Brain,
-  Settings, PanelLeft, SquarePen, Search, Ellipsis, Library, Image as ImageIcon, Folder, Plus
+  Settings, PanelLeft, SquarePen, Search, Ellipsis, Library, Image as ImageIcon, Folder, Plus, X, Check
 } from '@/components/ui/icons';
 import { useShortcutLabels } from './shortcuts';
 import Tooltip from './ui/Tooltip';
@@ -54,6 +54,8 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
   const [isPinnedOpen, setIsPinnedOpen] = useState(() => loadStoredBoolean('isPinnedOpen', true));
   const [isProjectsOpen, setIsProjectsOpen] = useState(() => loadStoredBoolean('isProjectsOpen', true));
   const [isRecentOpen, setIsRecentOpen] = useState(() => loadStoredBoolean('isRecentOpen', true));
+  const [deleteTarget, setDeleteTarget] = useState<ChatItem | null>(null);
+  const [deleteFilesToo, setDeleteFilesToo] = useState(true);
   const queryClient = useQueryClient();
   const { data: chats = [] } = useQuery({
     queryKey: deepchatQueryKeys.chats,
@@ -116,9 +118,12 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
         toast.success('Chat archived');
         if (pathname === `/chat/${id}`) router.push('/');
       } else if (action === 'delete') {
-        await deleteChat(id);
-        toast.success('Chat deleted');
-        if (pathname === `/chat/${id}`) router.push('/');
+        const target = chats.find((c) => c.id === id);
+        if (target) {
+          setDeleteFilesToo(true);
+          setDeleteTarget(target);
+        }
+        return;
       }
       window.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chatId: id } }));
       void queryClient.invalidateQueries({ queryKey: deepchatQueryKeys.chats });
@@ -421,6 +426,29 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
           />
         )}
       </div>
+
+      {deleteTarget && typeof document !== 'undefined' && createPortal(
+        <DeleteChatConfirmModal
+          title={deleteTarget.title || 'New Chat'}
+          deleteFiles={deleteFilesToo}
+          onToggleDeleteFiles={() => setDeleteFilesToo((prev) => !prev)}
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={async () => {
+            const targetId = deleteTarget.id;
+            setDeleteTarget(null);
+            try {
+              await deleteChat(targetId);
+              toast.success('Chat deleted');
+              if (pathname === `/chat/${targetId}`) router.push('/');
+              window.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chatId: targetId } }));
+              void queryClient.invalidateQueries({ queryKey: deepchatQueryKeys.chats });
+            } catch {
+              toast.error('Failed to delete chat');
+            }
+          }}
+        />,
+        document.body
+      )}
     </>
   );
 }
@@ -750,6 +778,100 @@ function ExpandedChatItem({ chat, active, onAction, onClick }: { chat: ChatItem;
         </div>,
         document.body
       )}
+    </div>
+  );
+}
+
+function DeleteChatConfirmModal({
+  title,
+  deleteFiles,
+  onToggleDeleteFiles,
+  onCancel,
+  onConfirm,
+}: {
+  title: string;
+  deleteFiles: boolean;
+  onToggleDeleteFiles: () => void;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onCancel();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onCancel]);
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="delete-chat-modal-title"
+      onClick={onCancel}
+      className="fixed inset-0 z-[140] flex items-center justify-center bg-black/35 p-4 backdrop-blur-[2px] animate-in fade-in duration-150"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-[420px] rounded-[24px] border border-[var(--dc-border)] bg-[var(--dc-panel)] p-6 shadow-2xl shadow-black/15 dark:shadow-black/60"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <h2 id="delete-chat-modal-title" className="text-[18px] font-semibold leading-snug tracking-[-0.015em] text-[var(--dc-text-strong)]">
+            Delete chat?
+          </h2>
+          <button
+            type="button"
+            onClick={onCancel}
+            aria-label="Close delete dialog"
+            className="-mr-1.5 -mt-1.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[var(--dc-text-muted)] transition-colors hover:bg-black/[0.05] hover:text-[var(--dc-text-strong)] dark:hover:bg-white/[0.08]"
+          >
+            <X className="h-4 w-4" strokeWidth={2} />
+          </button>
+        </div>
+
+        <p className="mt-2 text-[14px] leading-relaxed text-[var(--dc-text-muted)]">
+          This will permanently delete <span className="font-medium text-[var(--dc-text)]">{title}</span>. This can&apos;t be undone.
+        </p>
+
+        <label className="mt-4 flex cursor-pointer items-center gap-2.5 select-none">
+          <button
+            type="button"
+            role="checkbox"
+            aria-checked={deleteFiles}
+            onClick={onToggleDeleteFiles}
+            className={`flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[5px] border transition-colors ${
+              deleteFiles
+                ? 'border-[var(--dc-invert)] bg-[var(--dc-invert)] text-[var(--dc-text-on-invert)]'
+                : 'border-[var(--dc-border-strong)] bg-transparent text-transparent'
+            }`}
+          >
+            <Check className="h-3 w-3" strokeWidth={3} />
+          </button>
+          <span className="text-[13.5px] font-normal text-[var(--dc-text)]">
+            Also delete files uploaded or created in this chat
+          </span>
+        </label>
+
+        <div className="mt-6 flex items-center justify-end gap-2.5">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-full bg-[var(--dc-fill)] px-4 py-2 text-[13.5px] font-medium text-[var(--dc-text-strong)] transition-colors hover:bg-[var(--dc-fill-hover)]"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            className="rounded-full bg-red-500/12 px-4 py-2 text-[13.5px] font-medium text-red-600 transition-colors hover:bg-red-500/20 dark:bg-red-500/15 dark:text-red-400 dark:hover:bg-red-500/25"
+          >
+            Delete chat
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
