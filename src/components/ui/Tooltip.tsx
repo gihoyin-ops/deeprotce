@@ -31,9 +31,9 @@ const sideClass = {
 };
 
 const shortcutClass = {
-  key: 'border border-white/15 bg-white/12 px-1.5 py-0.5 text-white',
-  muted: 'text-slate-400',
-  icon: 'text-slate-300'
+  key: 'rounded-full bg-white/[0.18] px-2 py-0.5 text-white/95',
+  muted: 'rounded-full bg-white/[0.18] px-2 py-0.5 text-white/90',
+  icon: 'text-white/85'
 };
 
 export default function Tooltip({ label, shortcuts = [], children, side = 'bottom', align = 'center', disabled = false }: TooltipProps) {
@@ -44,15 +44,14 @@ export default function Tooltip({ label, shortcuts = [], children, side = 'botto
       {children}
       {!disabled && (
         <span
-          className={`deepchat-tooltip-content pointer-events-none absolute z-[80] hidden max-w-[18rem] whitespace-nowrap rounded-lg bg-slate-950 px-3 py-2 text-[13px] font-medium leading-none text-white opacity-0 shadow-xl shadow-slate-950/25 transition-opacity duration-150 group-hover/tooltip:opacity-100 [@media(hover:hover)_and_(pointer:fine)]:inline-flex ${positionClass}`}
-          style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif' }}
+          className={`deepchat-tooltip-content pointer-events-none absolute z-[80] hidden max-w-[18rem] scale-95 whitespace-nowrap rounded-full bg-[#111214] px-3 py-1.5 text-[12px] font-semibold leading-none tracking-[-0.01em] text-white opacity-0 shadow-[0_6px_18px_-4px_rgba(0,0,0,0.32)] transition-all duration-150 ease-out group-hover/tooltip:scale-100 group-hover/tooltip:opacity-100 [@media(hover:hover)_and_(pointer:fine)]:inline-flex ${positionClass}`}
         >
           <span className="inline-flex items-center gap-1.5">
             <span>{label}</span>
             {shortcuts.length > 0 && (
-              <span className="inline-flex items-center gap-0.5">
+              <span className="inline-flex items-center gap-1">
                 {shortcuts.map((shortcut, index) => (
-                  <span key={index} className={`inline-flex items-center rounded-md text-[11px] font-medium leading-none ${shortcutClass[shortcut.tone || 'key']}`}>
+                  <span key={index} className={`inline-flex items-center text-[11px] font-medium leading-none ${shortcutClass[shortcut.tone || 'key']}`}>
                     {shortcut.label}
                   </span>
                 ))}
