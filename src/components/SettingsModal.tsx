@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import { usePathname, useRouter } from 'next/navigation';
 import { gsap } from 'gsap';
 import GsapMorphSvg from '@/components/ui/GsapMorphSvg';
-import { Archive, ArrowLeft, Bell, Brain, Database, Search, Settings as SettingsIcon, User, X } from '@/components/ui/icons';
+import { Archive, ArrowLeft, Bell, Brain, Database, ExternalLink, Gauge, Palette, Search, Settings as SettingsIcon, User, X } from '@/components/ui/icons';
 import {
   archiveAllChats,
   deleteAllChats,
@@ -30,7 +30,11 @@ import {
 import { getMobileTabTitle, modalAnimationMs } from './settings/constants';
 import { prefersReducedMotion, triggerSubtleHaptic } from '@/components/mobile/gesture-utils';
 import { type GeneralSettings, loadGeneralSettings, saveGeneralSettings } from '@/lib/settings/general-settings';
+import { type AppearanceSettings, loadAppearanceSettings, saveAppearanceSettings } from '@/lib/settings/appearance-settings';
 import { MobileSettingsHome } from './settings/mobile';
+import { AccountTab } from './settings/tabs/AccountTab';
+import { UsageTab } from './settings/tabs/UsageTab';
+import { AppearanceTab } from './settings/tabs/AppearanceTab';
 import { GeneralTab } from './settings/tabs/GeneralTab';
 import { ProfileTab } from './settings/tabs/ProfileTab';
 import { PersonalizationTab } from './settings/tabs/PersonalizationTab';
@@ -68,15 +72,24 @@ const defaultPersona: PersonaState = {
   memoryReferenceHistory: true
 };
 
-const tabMeta: Array<{ tab: SettingsTab; label: string; icon: React.ReactNode }> = [
-  { tab: 'general', label: 'General', icon: <SettingsIcon className="h-4 w-4" /> },
-  { tab: 'profile', label: 'Profile Settings', icon: <User className="h-4 w-4" /> },
-  { tab: 'personality', label: 'Personalization', icon: <Brain className="h-4 w-4" /> },
-  { tab: 'notifications', label: 'Notifications', icon: <Bell className="h-4 w-4" /> },
-  { tab: 'tools', label: 'Tools Settings', icon: <Search className="h-4 w-4" /> },
-  { tab: 'agent', label: 'Agent Settings', icon: <SettingsIcon className="h-4 w-4" /> },
-  { tab: 'data', label: 'Data Control', icon: <Database className="h-4 w-4" /> },
-  { tab: 'storage', label: 'Storage', icon: <Archive className="h-4 w-4" /> }
+const desktopSections: Array<{
+  title: string;
+  items: Array<{ tab: SettingsTab; label: string; icon: React.ReactNode }>;
+}> = [
+  {
+    title: 'Account',
+    items: [
+      { tab: 'account', label: 'Account', icon: <User className="h-4 w-4" /> },
+      { tab: 'usage', label: 'Usage', icon: <Gauge className="h-4 w-4" /> }
+    ]
+  },
+  {
+    title: 'App',
+    items: [
+      { tab: 'general', label: 'General', icon: <SettingsIcon className="h-4 w-4" /> },
+      { tab: 'appearance', label: 'Appearance', icon: <Palette className="h-4 w-4" /> }
+    ]
+  }
 ];
 
 // settings shell: shared state and loaders with GSAP micro-interactions
@@ -106,7 +119,10 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
 
   // tab data
   const [generalSettings, setGeneralSettings] = useState<GeneralSettings>(() => loadGeneralSettings());
-  const [profile, setProfile] = useState<UserProfile>({ name: '', avatar: '', plan: '' });
+  const [appearanceSettings, setAppearanceSettings] = useState<AppearanceSettings>(() => loadAppearanceSettings());
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [profile, setProfile] = useState<UserProfile>({ name: '', username: '', avatar: '', plan: '', age: '18 or older' });
   const [isProfileLoading, setIsProfileLoading] = useState(false);
   const [persona, setPersona] = useState<PersonaState>(defaultPersona);
   const [isPersonaLoading, setIsPersonaLoading] = useState(false);
@@ -442,9 +458,48 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
     }
   };
 
-  // general, profile, persona
+  // general, appearance, profile, persona
   const updateGeneral = (patch: Partial<GeneralSettings>) => setGeneralSettings(prev => saveGeneralSettings({ ...prev, ...patch }));
+  const updateAppearance = (patch: Partial<AppearanceSettings>) => setAppearanceSettings(prev => saveAppearanceSettings({ ...prev, ...patch }));
   const updatePersona = (patch: Partial<PersonaState>) => setPersona(prev => ({ ...prev, ...patch }));
+
+  const updateProfilePatch = async (patch: Partial<UserProfile>) => {
+    const nextProfile = { ...profile, ...patch };
+    setProfile(nextProfile);
+    try {
+      await saveUserProfile(nextProfile);
+      window.dispatchEvent(new Event('profileUpdated'));
+      toast.success('Account updated');
+    } catch {
+      toast.error('Failed to update account');
+    }
+  };
+
+  const deleteAccount = async () => {
+    setIsDeletingAccount(true);
+    try {
+      await Promise.all([
+        deleteAllChats().catch(() => {}),
+        clearSavedMemories().catch(() => {})
+      ]);
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('deepchat-user-profile');
+        localStorage.removeItem('deepchat-general-settings');
+        localStorage.removeItem('deepchat-appearance-settings');
+      }
+      const resetProfile: UserProfile = { name: 'Guest', username: '', avatar: '', plan: '', age: '18 or older' };
+      await saveUserProfile(resetProfile);
+      setProfile(resetProfile);
+      window.dispatchEvent(new Event('chatUpdated'));
+      window.dispatchEvent(new Event('profileUpdated'));
+      toast.success('Account and local data deleted');
+      onClose();
+      router.push('/');
+    } catch {
+      toast.error('Failed to delete account');
+    }
+    setIsDeletingAccount(false);
+  };
 
   const saveProfile = async () => {
     try {
@@ -675,7 +730,23 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
   if (!isOpen) return null;
 
   const children = {
-    GeneralTab: { settings: generalSettings, onChange: updateGeneral },
+    GeneralTab: {
+      settings: generalSettings,
+      appearanceSettings,
+      onChange: updateGeneral,
+      onChangeAppearance: updateAppearance
+    },
+    AppearanceTab: {
+      settings: appearanceSettings,
+      onChange: updateAppearance
+    },
+    AccountTab: {
+      profile,
+      isLoading: isProfileLoading,
+      onUpdateProfile: updateProfilePatch,
+      onDeleteAccount: deleteAccount,
+      isDeletingAccount
+    },
     ProfileTab: { profile, isLoading: isProfileLoading, setProfile, onSave: saveProfile, onAvatarPicked: pickAvatar, fileInputRef },
     PersonalizationTab: { persona, onChange: updatePersona, isLoading: isPersonaLoading, isSaving: isSavingPersona, onSave: savePersonaDraft, onOpenMemories: openMemories, onOpenMemoryDocs: () => router.push('/docs/memory') },
     NotificationsTab: {
@@ -706,35 +777,101 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
         onTouchMove={handleMobileTouchMove}
         onTouchEnd={handleMobileTouchEnd}
         onTouchCancel={handleMobileTouchEnd}
-        className="settings-root-panel deepchat-mobile-settings-light relative flex h-dvh w-full flex-col overflow-hidden bg-white shadow-xl will-change-transform sm:h-[min(92dvh,800px)] sm:max-w-5xl sm:flex-row sm:rounded-3xl sm:border sm:border-white/70 sm:bg-white dark:border-slate-700/80 dark:shadow-2xl dark:shadow-black/50"
+        className="settings-root-panel deepchat-mobile-settings-light relative flex h-dvh w-full flex-col overflow-hidden bg-[var(--dc-panel)] text-[var(--dc-text)] shadow-xl will-change-transform sm:h-[min(90dvh,740px)] sm:max-w-[920px] sm:flex-row sm:rounded-3xl sm:border sm:border-[var(--dc-border)] dark:shadow-2xl dark:shadow-black/50"
         onClick={event => event.stopPropagation()}
       >
         <MobileSettingsHome profile={profile} onClose={closeToSidebar} onOpenTab={openMobileTab} hidden={isMobileDetailOpen && !isMobileDetailClosing} />
 
-        {/* Desktop Sidebar Navigation */}
-        <nav className="hidden shrink-0 flex-col border-b border-slate-100 bg-slate-50 p-4 dark:border-slate-700/60 dark:bg-slate-900/40 sm:flex sm:w-64 sm:border-b-0 sm:border-r sm:p-5">
-          <h2 className="mb-3 flex items-center gap-2 px-1 text-lg font-extrabold text-slate-800 dark:text-slate-100 sm:mb-6 sm:px-2 sm:text-xl">
-            <GsapMorphSvg rotate={20} scale={1.2}>
-              <SettingsIcon className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
-            </GsapMorphSvg>
+        {/* Desktop Sidebar Navigation (matches screenshot 1 & 2) */}
+        <nav className="hidden shrink-0 flex-col border-b border-[var(--dc-border-subtle)] bg-[var(--dc-sidebar)] p-4 sm:flex sm:w-64 sm:border-b-0 sm:border-r sm:p-4">
+          <h2 className="mb-3 px-2 text-[17px] font-semibold text-[var(--dc-text-strong)]">
             Settings
           </h2>
-          <div className="flex gap-2 overflow-x-auto custom-scrollbar sm:block sm:space-y-1.5 sm:overflow-visible">
-            {tabMeta.map(item => (
-              <button
-                key={item.tab}
-                onClick={() => setActiveTab(item.tab)}
-                aria-current={activeTab === item.tab ? 'page' : undefined}
-                className={`group flex shrink-0 items-center gap-3 whitespace-nowrap rounded-xl border px-4 py-3 font-bold transition-all sm:w-full ${activeTab === item.tab
-                  ? 'border-slate-200 bg-white text-indigo-600 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-indigo-300 dark:shadow-black/20'
-                  : 'border-transparent text-slate-500 hover:bg-slate-200/50 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-900/80 dark:hover:text-slate-100'}`}
-              >
-                <GsapMorphSvg rotate={14} scale={1.22}>
-                  {item.icon as React.ReactElement}
-                </GsapMorphSvg>
-                <span>{item.label}</span>
-              </button>
-            ))}
+
+          {/* Search box */}
+          <div className="relative mb-4">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--dc-text-muted)]" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={event => setSearchQuery(event.target.value)}
+              placeholder="Search"
+              aria-label="Search settings"
+              className="h-9 w-full rounded-full border border-[var(--dc-border)] bg-[var(--dc-surface)] pl-9 pr-3 text-sm text-[var(--dc-text-strong)] outline-none placeholder:text-[var(--dc-text-placeholder)] focus:border-[var(--dc-border-strong)]"
+            />
+          </div>
+
+          <div className="flex-1 space-y-5 overflow-y-auto custom-scrollbar pr-0.5">
+            {/* Profile link -> /profile */}
+            {(!searchQuery.trim() || 'profile'.includes(searchQuery.trim().toLowerCase()) || (profile.name || 'guest').toLowerCase().includes(searchQuery.trim().toLowerCase())) && (
+              <div>
+                <p className="mb-1.5 px-2 text-xs font-medium text-[var(--dc-text-muted)]">Profile</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    router.push('/profile');
+                  }}
+                  className="group flex w-full items-center justify-between gap-2.5 rounded-xl px-2 py-2 text-left transition-colors hover:bg-[var(--dc-surface-hover)]"
+                >
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    {profile.avatar ? (
+                      <img
+                        src={profile.avatar}
+                        alt={profile.name || 'Profile'}
+                        className="h-6 w-6 shrink-0 rounded-full object-cover"
+                      />
+                    ) : (
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-purple-600 text-[11px] font-semibold text-white">
+                        {(profile.name || 'G').slice(0, 2).toUpperCase()}
+                      </span>
+                    )}
+                    <span className="truncate text-sm font-medium text-[var(--dc-text-strong)]">
+                      {profile.name || 'Guest'}
+                    </span>
+                  </div>
+                  <ExternalLink className="h-3.5 w-3.5 shrink-0 text-[var(--dc-text-muted)] transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-[var(--dc-text-strong)]" />
+                </button>
+              </div>
+            )}
+
+            {/* Account & App Sections */}
+            {desktopSections.map(section => {
+              const q = searchQuery.trim().toLowerCase();
+              const filteredItems = q
+                ? section.items.filter(item => item.label.toLowerCase().includes(q) || section.title.toLowerCase().includes(q))
+                : section.items;
+              if (filteredItems.length === 0) return null;
+
+              return (
+                <div key={section.title}>
+                  <p className="mb-1.5 px-2 text-xs font-medium text-[var(--dc-text-muted)]">
+                    {section.title}
+                  </p>
+                  <div className="space-y-0.5">
+                    {filteredItems.map(item => {
+                      const isActive = activeTab === item.tab;
+                      return (
+                        <button
+                          key={item.tab}
+                          type="button"
+                          onClick={() => setActiveTab(item.tab)}
+                          aria-current={isActive ? 'page' : undefined}
+                          className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm transition-colors ${
+                            isActive
+                              ? 'bg-[var(--dc-fill)] font-medium text-[var(--dc-text-strong)]'
+                              : 'text-[var(--dc-text)] hover:bg-[var(--dc-surface-hover)] hover:text-[var(--dc-text-strong)]'
+                          }`}
+                        >
+                          <span className="shrink-0 text-[var(--dc-text-muted)]">{item.icon}</span>
+                          <span className="truncate">{item.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </nav>
 
@@ -742,11 +879,11 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
         <section
           ref={mobileDetailRef}
           key={isMobileDetailOpen ? activeTab : 'settings-content'}
-          className={`${isMobileDetailOpen ? `settings-mobile-detail-panel ${isMobileDetailClosing ? 'settings-mobile-detail-panel-closing' : ''} flex` : 'hidden'} absolute inset-0 z-10 min-h-0 flex-1 flex-col bg-white sm:relative sm:inset-auto sm:z-auto sm:flex dark:bg-slate-900`}
+          className={`${isMobileDetailOpen ? `settings-mobile-detail-panel ${isMobileDetailClosing ? 'settings-mobile-detail-panel-closing' : ''} flex` : 'hidden'} absolute inset-0 z-10 min-h-0 flex-1 flex-col bg-[var(--dc-panel)] sm:relative sm:inset-auto sm:z-auto sm:flex`}
         >
           <button
             onClick={close}
-            className="absolute right-4 top-4 z-10 hidden rounded-full p-2 text-slate-400 transition-colors hover:bg-slate-100 dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-slate-200 sm:right-5 sm:top-5 sm:block"
+            className="absolute right-4 top-4 z-10 hidden rounded-full p-2 text-[var(--dc-text-muted)] transition-colors hover:bg-[var(--dc-surface-hover)] hover:text-[var(--dc-text-strong)] sm:right-5 sm:top-5 sm:block"
             aria-label="Close settings"
           >
             <GsapMorphSvg rotate={90} scale={1.25}>
@@ -770,8 +907,11 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
             <div className="h-11 w-11 shrink-0" aria-hidden="true" />
           </div>
 
-          <div ref={contentRef} className="flex-1 overflow-y-auto p-4 custom-scrollbar sm:p-6 will-change-transform">
+          <div ref={contentRef} className="flex-1 overflow-y-auto p-4 custom-scrollbar sm:px-10 sm:py-8 will-change-transform">
+            {activeTab === 'account' && <AccountTab {...children.AccountTab} />}
+            {activeTab === 'usage' && <UsageTab />}
             {activeTab === 'general' && <GeneralTab {...children.GeneralTab} />}
+            {activeTab === 'appearance' && <AppearanceTab {...children.AppearanceTab} />}
             {activeTab === 'profile' && <ProfileTab {...children.ProfileTab} />}
             {activeTab === 'personality' && <PersonalizationTab {...children.PersonalizationTab} />}
             {activeTab === 'notifications' && <NotificationsTab {...children.NotificationsTab} />}

@@ -40,6 +40,11 @@ import {
   loadGeneralSettings,
   subscribeGeneralSettings
 } from '@/lib/settings/general-settings';
+import {
+  applyAppearanceSettings,
+  loadAppearanceSettings,
+  subscribeAppearanceSettings
+} from '@/lib/settings/appearance-settings';
 import { safeAvatarSource } from '@/lib/utils';
 
 const SettingsModal = dynamic(() => import('./SettingsModal'), {
@@ -126,7 +131,7 @@ const loadStoredBoolean = (key: string, fallback: boolean) => {
 };
 
 const detailFromEvent = (event: CustomEvent<DeepChatNotificationDetail>) => event.detail;
-const settingsTabs: SettingsTab[] = ['general', 'profile', 'personality', 'notifications', 'tools', 'agent', 'data', 'storage'];
+const settingsTabs: SettingsTab[] = ['account', 'usage', 'general', 'appearance', 'profile', 'personality', 'notifications', 'tools', 'agent', 'data', 'storage'];
 const isSettingsTab = (value: unknown): value is SettingsTab => typeof value === 'string' && settingsTabs.includes(value as SettingsTab);
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
@@ -267,14 +272,17 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
   useEffect(() => {
     applyGeneralSettings(loadGeneralSettings());
-    const unsubscribe = subscribeGeneralSettings(applyGeneralSettings);
-    const handleSystemAppearanceChange = () => applyGeneralSettings(loadGeneralSettings());
+    applyAppearanceSettings(loadAppearanceSettings());
+    const unsubGeneral = subscribeGeneralSettings(applyGeneralSettings);
+    const unsubAppearance = subscribeAppearanceSettings(applyAppearanceSettings);
+    const handleSystemAppearanceChange = () => applyAppearanceSettings(loadAppearanceSettings());
     const darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
     const contrastQuery = window.matchMedia('(prefers-contrast: more)');
     darkQuery.addEventListener('change', handleSystemAppearanceChange);
     contrastQuery.addEventListener('change', handleSystemAppearanceChange);
     return () => {
-      unsubscribe();
+      unsubGeneral();
+      unsubAppearance();
       darkQuery.removeEventListener('change', handleSystemAppearanceChange);
       contrastQuery.removeEventListener('change', handleSystemAppearanceChange);
     };

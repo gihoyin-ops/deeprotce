@@ -347,8 +347,10 @@ export const getUserProfileClient = async (): Promise<UserProfileData> => {
         return {
           id: fromDb.value.id || 'default',
           name: fromDb.value.name || 'Guest',
+          username: fromDb.value.username || '',
           avatar: fromDb.value.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix',
-          plan: fromDb.value.plan || ''
+          plan: fromDb.value.plan || '',
+          age: fromDb.value.age || '18 or older'
         };
       }
       const fromLs = localStorage.getItem('deepchat-user-profile');
@@ -357,8 +359,10 @@ export const getUserProfileClient = async (): Promise<UserProfileData> => {
         const normalized = {
           id: parsed.id || 'default',
           name: parsed.name || 'Guest',
+          username: parsed.username || '',
           avatar: parsed.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix',
-          plan: parsed.plan || ''
+          plan: parsed.plan || '',
+          age: parsed.age || '18 or older'
         };
         await idbSet('settings', { key: 'user_profile', value: normalized });
         return normalized;
@@ -368,8 +372,10 @@ export const getUserProfileClient = async (): Promise<UserProfileData> => {
   return {
     id: 'default',
     name: 'Guest',
+    username: '',
     avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix',
-    plan: ''
+    plan: '',
+    age: '18 or older'
   };
 };
 

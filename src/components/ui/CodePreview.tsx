@@ -259,9 +259,11 @@ export default function CodePreview({ language, value, highlighter, isStreaming 
     const syncTheme = () => setIsDarkTheme(isDocumentDark());
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     syncTheme();
+    window.addEventListener('deepchat:appearance-settings-updated', syncTheme);
     window.addEventListener('deepchat:general-settings-updated', syncTheme);
     mediaQuery.addEventListener('change', syncTheme);
     return () => {
+      window.removeEventListener('deepchat:appearance-settings-updated', syncTheme);
       window.removeEventListener('deepchat:general-settings-updated', syncTheme);
       mediaQuery.removeEventListener('change', syncTheme);
     };

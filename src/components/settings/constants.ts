@@ -94,7 +94,10 @@ export const mobileSettingsSections: MobileSettingsMenuSection[] = [
 
 export const getMobileTabTitle = (tab: SettingsTab) => {
   const titles: Record<SettingsTab, string> = {
+    account: 'Account',
+    usage: 'Usage',
     general: 'General',
+    appearance: 'Appearance',
     profile: 'Profile',
     personality: 'Personalization',
     notifications: 'Notification',

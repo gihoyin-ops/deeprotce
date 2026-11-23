@@ -52,8 +52,10 @@ export type StoredMessage = {
 export type UserProfileData = {
   id?: string;
   name: string;
+  username?: string;
   avatar: string;
   plan: string;
+  age?: string;
 };
 
 export type StoredChat = {

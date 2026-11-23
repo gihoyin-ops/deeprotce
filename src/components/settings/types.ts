@@ -1,14 +1,27 @@
 // shared settings modal types
 
-export type SettingsTab = 'general' | 'profile' | 'personality' | 'notifications' | 'tools' | 'agent' | 'data' | 'storage';
+export type SettingsTab =
+  | 'account'
+  | 'usage'
+  | 'general'
+  | 'appearance'
+  | 'profile'
+  | 'personality'
+  | 'notifications'
+  | 'tools'
+  | 'agent'
+  | 'data'
+  | 'storage';
 
 export type CropArea = { x: number; y: number; width: number; height: number };
 
 export interface UserProfile {
   id?: string;
   name: string;
+  username?: string;
   avatar: string;
   plan: string;
+  age?: string;
 }
 
 export interface SharedLinkItem {

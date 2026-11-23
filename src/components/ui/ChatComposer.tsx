@@ -228,6 +228,9 @@ export default function ChatComposer({
   const [isDictationEnabled, setIsDictationEnabled] = useState(
     () => loadGeneralSettings().dictationEnabled
   );
+  const [sendMessageKey, setSendMessageKey] = useState(
+    () => loadGeneralSettings().sendMessageKey
+  );
   const { data: recentFiles = [] } = useQuery<ComposerRecentFile[]>({
     queryKey: deepchatQueryKeys.recentFiles,
     queryFn: getComposerRecentFiles,
@@ -571,6 +574,7 @@ export default function ChatComposer({
   useEffect(() => {
     const unsubscribe = subscribeGeneralSettings((settings) => {
       setIsDictationEnabled(settings.dictationEnabled);
+      setSendMessageKey(settings.sendMessageKey);
       if (!settings.dictationEnabled) {
         recognitionRef.current?.abort();
         recognitionRef.current = null;
@@ -1050,7 +1054,10 @@ export default function ChatComposer({
             value={value}
             onChange={(event) => onChange(event.target.value)}
             onKeyDown={(event) => {
-              if (event.key === 'Enter' && !event.shiftKey) {
+              const shouldSend = sendMessageKey === 'mod-enter'
+                ? event.key === 'Enter' && (event.ctrlKey || event.metaKey)
+                : event.key === 'Enter' && !event.shiftKey;
+              if (shouldSend) {
                 event.preventDefault();
                 submit();
               }
