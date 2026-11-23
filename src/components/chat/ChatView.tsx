@@ -978,10 +978,9 @@ export default function ChatView({ chatId }: { chatId: string }) {
       )}
       <div
         ref={scrollContainerRef}
-        style={{ scrollPaddingBottom: composerReserve }}
         className={`flex-1 overflow-y-auto px-4 pb-4 pt-4 sm:px-8 sm:pb-6 sm:pt-6 ${showCustomScrollbar ? '[&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]' : 'custom-scrollbar'}`}
       >
-        <div className="mx-auto flex w-full max-w-3xl flex-col gap-5 sm:gap-7" style={{ paddingBottom: composerReserve }}>
+        <div className="mx-auto flex w-full max-w-3xl flex-col gap-5 sm:gap-7">
           {isChatHydrated && messages.length === 0 && !isLoading && (
             <div className="mt-24 flex flex-col items-center justify-center text-center">
               <DotRevealHeadline text="Start a new thought with DeepChat" ready size="compact" />
@@ -1019,6 +1018,13 @@ export default function ChatView({ chatId }: { chatId: string }) {
             );
           })}
 
+          {displayMessages.length > 0 && (
+            <div className="pt-4 pb-2 text-center">
+              <p className="inline-flex px-3 text-[11.5px] font-normal text-[var(--dc-text-muted)] sm:text-[12px]">
+                DeepChat can make mistakes. Verify important information before using it.
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -1071,13 +1077,8 @@ export default function ChatView({ chatId }: { chatId: string }) {
         </div>
       )}
 
-      <div className="deepchat-composer-dock pointer-events-none absolute bottom-0 left-0 z-20 flex w-full flex-col items-center px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-6 sm:px-8 sm:pb-5 sm:pt-10">
-        <div ref={composerContentRef} className="pointer-events-auto flex w-full max-w-[40rem] flex-col gap-2 sm:max-w-[48rem]">
-          <div className="text-center">
-            <p className="inline-flex px-3 text-[11.5px] font-normal text-[var(--dc-text-muted)] sm:text-[12px]">
-              DeepChat can make mistakes. Verify important information before using it.
-            </p>
-          </div>
+      <div className="relative z-20 flex w-full shrink-0 flex-col items-center bg-[var(--dc-canvas)] px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 sm:px-8 sm:pb-5 sm:pt-2">
+        <div ref={composerContentRef} className="flex w-full max-w-[40rem] flex-col gap-2 sm:max-w-[48rem]">
           {activeClarificationMessage?.clarification ? (
             <ClarificationDock
               clarification={activeClarificationMessage.clarification}

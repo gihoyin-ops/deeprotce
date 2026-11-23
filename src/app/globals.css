@@ -139,7 +139,7 @@ html[data-accent-color="black"] {
   --dc-shadow-color: rgb(15 23 42 / 0.07);
   --dc-scrollbar: #d1d5db;
   --dc-scrollbar-hover: #9ca3af;
-  --dc-composer-dock: linear-gradient(to top, #ffffff 0%, #ffffff 60%, rgb(255 255 255 / 0.85) 78%, rgb(255 255 255 / 0) 100%);
+  --dc-composer-dock: var(--dc-canvas);
 }
 
 html.dark {
@@ -177,7 +177,7 @@ html.dark {
   --dc-shadow-color: rgb(0 0 0 / 0.65);
   --dc-scrollbar: #2e3442;
   --dc-scrollbar-hover: #434b5e;
-  --dc-composer-dock: linear-gradient(to top, #0b0d11 0%, #0b0d11 60%, rgb(11 13 17 / 0.86) 78%, rgb(11 13 17 / 0) 100%);
+  --dc-composer-dock: var(--dc-canvas);
 }
 
 /* dark mode slate and zinc overrides */
