@@ -192,7 +192,7 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
     <>
       <div
         onClick={() => setIsOpen(true)}
-        className={`deepchat-rail-light relative hidden min-h-0 shrink-0 cursor-e-resize flex-col items-center border-r border-[var(--dc-sidebar-border)] bg-[var(--dc-sidebar)] py-3 text-[var(--dc-text)] transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] sm:flex ${isOpen ? 'w-0 overflow-hidden opacity-0 pointer-events-none border-r-0' : 'w-[52px] opacity-100'}`}
+        className={`deepchat-rail-light group/rail relative hidden min-h-0 shrink-0 cursor-e-resize flex-col items-center border-r border-[var(--dc-sidebar-border)] bg-[var(--dc-sidebar)] py-3 text-[var(--dc-text)] transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] sm:flex ${isOpen ? 'w-0 overflow-hidden opacity-0 pointer-events-none border-r-0' : 'w-[52px] opacity-100'}`}
       >
         <div className="mb-3 flex items-center justify-center">
           <Tooltip label="Open sidebar" side="right" align="center">
@@ -202,7 +202,7 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
                 e.stopPropagation();
                 setIsOpen(true);
               }}
-              className="group/collapse-logo relative flex h-9 w-9 cursor-e-resize items-center justify-center rounded-xl text-[var(--dc-text-strong)] transition-all hover:bg-black/[0.05] active:scale-95 dark:hover:bg-white/[0.08]"
+              className="group/collapse-logo relative flex h-9 w-9 cursor-e-resize items-center justify-center rounded-xl text-[var(--dc-text-strong)] transition-all hover:bg-black/[0.05] group-hover/rail:bg-black/[0.05] group-has-[.rail-action:hover]/rail:bg-transparent active:scale-95 dark:hover:bg-white/[0.08] dark:group-hover/rail:bg-white/[0.08] dark:group-has-[.rail-action:hover]/rail:bg-transparent"
               aria-label="Open sidebar"
             >
               <Image
@@ -211,9 +211,9 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
                 width={28}
                 height={28}
                 unoptimized
-                className="h-7 w-7 transition-opacity group-hover/collapse-logo:opacity-0 dark:invert"
+                className="h-7 w-7 transition-opacity group-hover/collapse-logo:opacity-0 group-hover/rail:opacity-0 group-has-[.rail-action:hover]/rail:opacity-100 dark:invert"
               />
-              <PanelLeft className="absolute h-[19px] w-[19px] opacity-0 transition-opacity group-hover/collapse-logo:opacity-100" strokeWidth={1.9} />
+              <PanelLeft className="absolute h-[19px] w-[19px] opacity-0 transition-opacity group-hover/collapse-logo:opacity-100 group-hover/rail:opacity-100 group-has-[.rail-action:hover]/rail:opacity-0" strokeWidth={1.9} />
             </button>
           </Tooltip>
         </div>
@@ -241,7 +241,7 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
                 e.stopPropagation();
                 handleOpenSettings('profile');
               }}
-              className="flex h-9 w-9 items-center justify-center rounded-full transition-transform hover:scale-105 active:scale-95"
+              className="rail-action flex h-9 w-9 items-center justify-center rounded-full transition-transform hover:scale-105 active:scale-95"
               aria-label="Profile"
             >
               <Image src={safeAvatarSource(profile.avatar)} alt="User" width={28} height={28} unoptimized className="h-7 w-7 rounded-full object-cover" />
@@ -391,7 +391,7 @@ function CollapsedSidebarButton({ children, label, shortcuts = [], onClick }: { 
           e.stopPropagation();
           onClick();
         }}
-        className="flex h-9 w-9 items-center justify-center rounded-xl text-[var(--dc-text-body)] transition-all hover:bg-black/[0.05] hover:text-[var(--dc-text-strong)] active:scale-95 dark:hover:bg-white/[0.08]"
+        className="rail-action flex h-9 w-9 items-center justify-center rounded-xl text-[var(--dc-text-body)] transition-all hover:bg-black/[0.05] hover:text-[var(--dc-text-strong)] active:scale-95 dark:hover:bg-white/[0.08]"
         aria-label={label}
       >
         {children}
