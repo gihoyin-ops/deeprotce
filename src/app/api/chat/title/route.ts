@@ -9,11 +9,6 @@ import { getClientIp } from '@/lib/security/rate-limit';
 export const runtime = 'nodejs';
 export const maxDuration = 15;
 
-const ID_GREETING_PATTERN = /^(halo+|hai+|permisi|assalamualaikum|selamat\s+(pagi|siang|sore|malam)|pagi|siang|sore|malam|tes+|oke+|ok)$/i;
-const EN_GREETING_PATTERN = /^(hi+|hello+|hey+|yo+|test+|testing|ping|sup|good\s+(morning|afternoon|evening))$/i;
-const ID_IDENTITY_PATTERN = /^(siapa\s+(sih\s+)?(anda|kamu|lo|lu|ini)|kamu\s+siapa|anda\s+siapa)$/i;
-const EN_IDENTITY_PATTERN = /^(who\s+are\s+you|what\s+are\s+you)$/i;
-
 const normalizeForCompare = (text: string) =>
   text
     .replace(/[^\p{L}\p{N}\s]/gu, ' ')
@@ -28,22 +23,9 @@ const buildFallbackTitle = (prompt: string) => {
     .replace(/[^\p{L}\p{N}\s-]/gu, ' ')
     .replace(/\s+/g, ' ')
     .trim();
-
-  if (ID_GREETING_PATTERN.test(clean)) return 'Sapaan dan Percakapan Awal';
-  if (EN_GREETING_PATTERN.test(clean)) return 'Greeting and Initial Chat';
-  if (ID_IDENTITY_PATTERN.test(clean)) return 'Perkenalan Asisten AI';
-  if (EN_IDENTITY_PATTERN.test(clean)) return 'AI Assistant Introduction';
-
   const words = clean.split(' ').filter(word => word.length > 1).slice(0, 6);
-  const candidate = words.join(' ');
-  const normCandidate = normalizeForCompare(candidate);
-  const normPrompt = normalizeForCompare(prompt);
-
-  // Never echo short prompts verbatim as the fallback title
-  if (!candidate || words.length <= 2 || (normPrompt && normCandidate === normPrompt && words.length <= 6)) {
-    return 'Percakapan Baru';
-  }
-  return candidate;
+  const title = words.join(' ');
+  return title || 'Untitled Conversation';
 };
 
 const isGenericTitle = (title: string, sourcePrompt = '') => {
@@ -60,7 +42,7 @@ const isGenericTitle = (title: string, sourcePrompt = '') => {
     return true;
   }
 
-  // Reject verbatim or prefix echoes of the user's message
+  // Reject verbatim or prefix echoes of short user messages so AI retries/summarizes instead
   const normTitle = normalizeForCompare(title);
   const normPrompt = normalizeForCompare(sourcePrompt);
   if (normPrompt && normTitle) {
@@ -100,6 +82,64 @@ type TitleModelResponse = {
   choices?: { message?: { content?: string } }[];
 };
 
+const TITLE_SYSTEM_PROMPT = [
+  'You are a chat title generator. Summarize the topic or intent of the user message into a natural 3-6 word noun-phrase title in the same language as the message.',
+  'Never copy, repeat, or echo the user message verbatim, even for very short greetings or brief questions.',
+  'Output only the title. Never output New Chat, Untitled Chat, Chat Title, quotes, markdown, or explanations.'
+].join(' ');
+
+async function requestAiTitle(
+  conn: { baseUrl: string; apiKey: string; model: string },
+  prompt: string,
+  temperature: number,
+  clientIp: string
+): Promise<{ title?: string; status?: number }> {
+  try {
+    const url = `${conn.baseUrl}/v1/chat/completions`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        Authorization: `Bearer ${conn.apiKey}`
+      },
+      body: JSON.stringify({
+        model: conn.model,
+        messages: [
+          { role: 'system', content: TITLE_SYSTEM_PROMPT },
+          { role: 'user', content: `Summarize into a 3-6 word topic title (do not copy verbatim):\n"""\n${prompt}\n"""` }
+        ],
+        stream: false,
+        max_tokens: 60,
+        temperature
+      }),
+      signal: AbortSignal.timeout(7000)
+    });
+
+    if (!res.ok) {
+      let upstreamBody = '';
+      try {
+        upstreamBody = await res.text();
+      } catch {
+      }
+      if (isAiLogEnabled()) {
+        console.error(`[chat-title] upstream ${res.status}: ${upstreamBody.slice(0, 2000)}`);
+      }
+      return { status: res.status };
+    }
+
+    const data = await res.json() as TitleModelResponse;
+    const rawTitle = data.choices?.[0]?.message?.content || '';
+    const title = cleanTitle(rawTitle);
+    recordTokens(
+      clientIp,
+      estimateTokens(TITLE_SYSTEM_PROMPT) + estimateTokens(prompt) + estimateTokens(rawTitle)
+    );
+    return { title };
+  } catch {
+    return {};
+  }
+}
+
 export async function POST(req: Request) {
   let promptForFallback = '';
   try {
@@ -115,68 +155,38 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
     }
 
-    const conn = getLiveLiteConnection() || getLiveChatConnection();
-    if (!conn) {
+    const liteConn = getLiveLiteConnection();
+    const chatConn = getLiveChatConnection();
+    const primaryConn = (liteConn?.model ? liteConn : null) || (chatConn?.model ? chatConn : null);
+
+    if (!primaryConn) {
       return NextResponse.json({ title: buildFallbackTitle(promptForFallback) });
     }
 
+    const clientIp = getClientIp(req).slice(0, 128);
     // budget gate, a blocked identity degrades to the local
     // fallback title instead of a provider call
-    if (!checkUsageBudget(getClientIp(req).slice(0, 128)).allowed) {
+    if (!checkUsageBudget(clientIp).allowed) {
       return NextResponse.json({ title: buildFallbackTitle(promptForFallback) });
     }
 
-    const sysMsg = [
-      'Generate a concise, descriptive 3-6 word topic title for a chat based on the user message, in the same language as the message.',
-      'NEVER copy, repeat, or slightly trim the user message verbatim (e.g. if user says "Siapa sih anda ini", output "Perkenalan Asisten AI", NOT "Siapa sih anda ini"; if user says "Halo", output "Sapaan dan Percakapan Awal", NOT "Halo").',
-      'Summarize the intent or subject as a clean noun phrase.',
-      'Output only the title. Never output New Chat, Untitled Chat, Chat Title, quotes, markdown, or explanations.'
-    ].join(' ');
-
-    if (!conn.model) {
-      return NextResponse.json({ title: buildFallbackTitle(promptForFallback) });
+    const first = await requestAiTitle(primaryConn, prompt, 0.4, clientIp);
+    if (first.title && !isGenericTitle(first.title, prompt)) {
+      return NextResponse.json({ title: first.title });
     }
 
-    const url = `${conn.baseUrl}/v1/chat/completions`;
-    // server env model only; a client-supplied modelId could target arbitrary provider models
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        Authorization: `Bearer ${conn.apiKey}`
-      },
-      body: JSON.stringify({
-        model: conn.model,
-        messages: [
-          { role: 'system', content: sysMsg },
-          { role: 'user', content: `Message:\n"""\n${prompt}\n"""` }
-        ],
-        stream: false,
-        max_tokens: 30,
-        temperature: 0.3
-      }),
-      signal: AbortSignal.timeout(3500)
-    });
-
-    if (!res.ok) {
-      let upstreamBody = '';
-      try {
-        upstreamBody = await res.text();
-      } catch {
-      }
-      if (isAiLogEnabled()) {
-        console.error(`[chat-title] upstream ${res.status}: ${upstreamBody.slice(0, 2000)}`);
-      }
-      return upstreamTitleError(res.status);
+    // If primary (e.g. LITE) failed or echoed verbatim, try chat connection or retry with higher temperature
+    const secondaryConn =
+      chatConn?.model && (chatConn.baseUrl !== primaryConn.baseUrl || chatConn.model !== primaryConn.model)
+        ? chatConn
+        : primaryConn;
+    const second = await requestAiTitle(secondaryConn, prompt, 0.7, clientIp);
+    if (second.title && !isGenericTitle(second.title, prompt)) {
+      return NextResponse.json({ title: second.title });
     }
 
-    const data = await res.json() as TitleModelResponse;
-    const rawTitle = data.choices?.[0]?.message?.content || '';
-    const title = cleanTitle(rawTitle);
-    // LITE model, same budget, output capped at 30 tokens
-    recordTokens(getClientIp(req).slice(0, 128), estimateTokens(sysMsg) + estimateTokens(prompt) + estimateTokens(rawTitle));
-    if (title && !isGenericTitle(title, prompt)) {
-      return NextResponse.json({ title });
+    if (first.status && (!second.status || second.status >= 400)) {
+      return upstreamTitleError(second.status || first.status);
     }
 
     return NextResponse.json({ title: buildFallbackTitle(promptForFallback) });
