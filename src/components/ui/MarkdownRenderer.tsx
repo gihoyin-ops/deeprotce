@@ -1,14 +1,14 @@
 'use client';
 
-import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
-import ReactMarkdown from 'react-markdown';
+import React, { useContext, useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import ReactMarkdown, { type Components } from 'react-markdown';
 import Image from 'next/image';
 import { gsap } from 'gsap';
 import { prefersReducedMotion } from '@/components/mobile/gesture-utils';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
-import { createHighlighter, Highlighter } from 'shiki';
+import { createHighlighter, createJavaScriptRegexEngine, type Highlighter } from 'shiki';
 import 'katex/dist/katex.min.css';
 import { ClientOnly } from '@/lib/utils';
 import CodePreview from '@/components/ui/CodePreview';
@@ -21,6 +21,29 @@ import {
 } from '@/lib/search/source-display';
 
 let highlighterPromise: Promise<Highlighter> | null = null;
+
+const PRELOADED_LANGS = [
+  'javascript', 'typescript', 'jsx', 'tsx',
+  'html', 'css', 'scss', 'xml',
+  'json', 'yaml', 'toml', 'markdown',
+  'python', 'bash', 'shell', 'powershell',
+  'sql', 'go', 'rust', 'java', 'c', 'cpp', 'csharp',
+  'php', 'ruby', 'swift', 'kotlin', 'diff', 'dockerfile', 'vue', 'svelte'
+] as const;
+
+function getSharedHighlighter(): Promise<Highlighter> {
+  if (!highlighterPromise) {
+    highlighterPromise = createHighlighter({
+      themes: ['github-light', 'github-dark', 'light-plus'],
+      langs: [...PRELOADED_LANGS],
+      engine: createJavaScriptRegexEngine({ forgiving: true })
+    }).catch((err) => {
+      highlighterPromise = null;
+      throw err;
+    });
+  }
+  return highlighterPromise;
+}
 
 interface MarkdownRendererProps {
   content: string;
@@ -98,17 +121,117 @@ type StreamingCodeFence = {
   canMatchByValue: boolean;
 };
 
+type MarkdownRenderContextValue = {
+  highlighter: Highlighter | null;
+  streamingCodeFence: StreamingCodeFence | null;
+  searchSources: SearchSource[];
+};
+
+const MarkdownRenderContext = React.createContext<MarkdownRenderContextValue>({
+  highlighter: null,
+  streamingCodeFence: null,
+  searchSources: []
+});
+
+function MarkdownCode({ className, children, node, ...props }: MarkdownCodeProps) {
+  const { highlighter, streamingCodeFence } = useContext(MarkdownRenderContext);
+  const match = /language-([\w-]+)/.exec(className || '');
+  const language = match ? match[1] : '';
+  const isInline = !match;
+
+  if (!isInline) {
+    const value = String(children).replace(/\n$/, '');
+    return <CodeBlock language={language} value={value} highlighter={highlighter} isStreaming={isCodeBlockStreaming(streamingCodeFence, node, language, value)} />;
+  }
+
+  return (
+    <code className="bg-slate-100 dark:bg-slate-800 text-pink-600 dark:text-pink-400 px-1.5 py-0.5 rounded-md font-mono text-[13px] border border-slate-200 dark:border-slate-700" {...props}>
+      {children}
+    </code>
+  );
+}
+
+function MarkdownLink({ href, children }: React.ComponentProps<'a'>) {
+  const { searchSources } = useContext(MarkdownRenderContext);
+  if (typeof href === 'string') {
+    const citeMatch = /^#dc-cite-(\d+(?:-\d+)*)$/.exec(href);
+    if (citeMatch) {
+      const group = citeMatch[1]
+        .split('-')
+        .map(token => searchSources[Number(token)])
+        .filter((source): source is SearchSource => Boolean(source));
+      if (group.length > 0) {
+        return <CitationPill sources={group} />;
+      }
+    }
+    const linkedSource = getSourceByUrl(href, searchSources);
+    if (linkedSource) {
+      return <CitationPill sources={[linkedSource]} />;
+    }
+  }
+  return <a href={href} target="_blank" rel="noopener noreferrer" className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 hover:underline font-medium">{children}</a>;
+}
+
+const markdownComponents: Components = {
+  code: MarkdownCode as Components['code'],
+  p({ children }) {
+    return <p className="mb-3 last:mb-0 leading-relaxed text-[15px] dark:text-slate-300">{children}</p>;
+  },
+  ul({ children }) {
+    return <ul className="mb-3 list-disc space-y-1 pl-6 last:mb-0 dark:text-slate-300">{children}</ul>;
+  },
+  ol({ children }) {
+    return <ol className="mb-3 list-decimal space-y-1 pl-6 last:mb-0 dark:text-slate-300">{children}</ol>;
+  },
+  li({ children }) {
+    return <li className="leading-relaxed text-[15px]">{children}</li>;
+  },
+  h1({ children }) {
+    return <h1 className="text-2xl font-bold mt-6 mb-4 text-slate-800 dark:text-slate-100">{children}</h1>;
+  },
+  h2({ children }) {
+    return <h2 className="text-xl font-bold mt-5 mb-3 text-slate-800 dark:text-slate-100">{children}</h2>;
+  },
+  h3({ children }) {
+    return <h3 className="text-lg font-bold mt-4 mb-2 text-slate-800 dark:text-slate-100">{children}</h3>;
+  },
+  blockquote({ children }) {
+    return <blockquote className="my-3 rounded-r-lg border-l-4 border-indigo-200 bg-slate-50/50 py-1 pl-4 italic text-slate-600 last:mb-0 dark:border-indigo-500/30 dark:bg-slate-800/50 dark:text-slate-400">{children}</blockquote>;
+  },
+  table({ children }) {
+    return (
+      <div className="overflow-x-auto mb-4 border border-slate-200 dark:border-slate-700 rounded-xl">
+        <table className="w-full text-left text-sm whitespace-nowrap">{children}</table>
+      </div>
+    );
+  },
+  th({ children }) {
+    return <th className="bg-slate-50 dark:bg-slate-800/80 p-3 font-bold text-slate-700 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700">{children}</th>;
+  },
+  td({ children }) {
+    return <td className="p-3 border-b border-slate-100 dark:border-slate-700/50 text-slate-600 dark:text-slate-400">{children}</td>;
+  },
+  a: MarkdownLink,
+  img({ src, alt }) {
+    const imageSrc = typeof src === 'string' ? src : '';
+    if (!imageSrc) return null;
+    return <GeneratedMarkdownImage key={imageSrc} src={imageSrc} alt={alt || 'Generated image'} />;
+  }
+};
+
 const MarkdownRenderer = React.memo(function MarkdownRenderer({ content, isStreaming = false, searchSources = [] }: MarkdownRendererProps) {
   const [highlighter, setHighlighter] = useState<Highlighter | null>(null);
 
   useEffect(() => {
-    if (!highlighterPromise) {
-      highlighterPromise = createHighlighter({
-        themes: ['github-light', 'github-dark', 'light-plus'],
-        langs: ['javascript', 'typescript', 'html', 'css', 'json', 'markdown', 'python', 'bash', 'shell', 'yaml']
-      });
-    }
-    highlighterPromise.then(setHighlighter).catch(console.error);
+    let active = true;
+    getSharedHighlighter()
+      .then((instance) => {
+        if (active) setHighlighter(instance);
+      })
+      .catch(console.error);
+    return () => {
+      active = false;
+    };
   }, []);
 
   const processedContent = injectGroupedCitations(
@@ -119,96 +242,25 @@ const MarkdownRenderer = React.memo(function MarkdownRenderer({ content, isStrea
   );
   const streamingCodeFence = isStreaming ? getStreamingCodeFence(processedContent) : null;
 
+  const contextValue = useMemo(
+    () => ({ highlighter, streamingCodeFence, searchSources }),
+    [highlighter, streamingCodeFence, searchSources]
+  );
+
   return (
     <ClientOnly>
-      <div className="prose prose-slate max-w-none break-words dark:prose-invert prose-pre:bg-transparent prose-pre:p-0 prose-p:leading-relaxed prose-a:text-indigo-600 hover:prose-a:text-indigo-700 prose-strong:text-slate-800 dark:prose-strong:text-slate-200 [&>*:last-child]:mb-0">
-        <ReactMarkdown
-          remarkPlugins={[remarkGfm, remarkMath]}
-          rehypePlugins={[rehypeKatex]}
-          urlTransform={transformMarkdownUrl}
-          components={{
-            code({ className, children, node, ...props }: MarkdownCodeProps) {
-              const match = /language-([\w-]+)/.exec(className || '');
-              const language = match ? match[1] : '';
-              const isInline = !match;
-
-              if (!isInline) {
-                const value = String(children).replace(/\n$/, '');
-                return <CodeBlock language={language} value={value} highlighter={highlighter} isStreaming={isCodeBlockStreaming(streamingCodeFence, node, language, value)} />;
-              }
-
-              return (
-                <code className="bg-slate-100 dark:bg-slate-800 text-pink-600 dark:text-pink-400 px-1.5 py-0.5 rounded-md font-mono text-[13px] border border-slate-200 dark:border-slate-700" {...props}>
-                  {children}
-                </code>
-              );
-            },
-            p({ children }) {
-              return <p className="mb-3 last:mb-0 leading-relaxed text-[15px] dark:text-slate-300">{children}</p>;
-            },
-            ul({ children }) {
-              return <ul className="mb-3 list-disc space-y-1 pl-6 last:mb-0 dark:text-slate-300">{children}</ul>;
-            },
-            ol({ children }) {
-              return <ol className="mb-3 list-decimal space-y-1 pl-6 last:mb-0 dark:text-slate-300">{children}</ol>;
-            },
-            li({ children }) {
-              return <li className="leading-relaxed text-[15px]">{children}</li>;
-            },
-            h1({ children }) {
-              return <h1 className="text-2xl font-bold mt-6 mb-4 text-slate-800 dark:text-slate-100">{children}</h1>;
-            },
-            h2({ children }) {
-              return <h2 className="text-xl font-bold mt-5 mb-3 text-slate-800 dark:text-slate-100">{children}</h2>;
-            },
-            h3({ children }) {
-              return <h3 className="text-lg font-bold mt-4 mb-2 text-slate-800 dark:text-slate-100">{children}</h3>;
-            },
-            blockquote({ children }) {
-              return <blockquote className="my-3 rounded-r-lg border-l-4 border-indigo-200 bg-slate-50/50 py-1 pl-4 italic text-slate-600 last:mb-0 dark:border-indigo-500/30 dark:bg-slate-800/50 dark:text-slate-400">{children}</blockquote>;
-            },
-            table({ children }) {
-              return (
-                <div className="overflow-x-auto mb-4 border border-slate-200 dark:border-slate-700 rounded-xl">
-                  <table className="w-full text-left text-sm whitespace-nowrap">{children}</table>
-                </div>
-              );
-            },
-            th({ children }) {
-              return <th className="bg-slate-50 dark:bg-slate-800/80 p-3 font-bold text-slate-700 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700">{children}</th>;
-            },
-            td({ children }) {
-              return <td className="p-3 border-b border-slate-100 dark:border-slate-700/50 text-slate-600 dark:text-slate-400">{children}</td>;
-            },
-            a({ href, children }) {
-              if (typeof href === 'string') {
-                const citeMatch = /^#dc-cite-(\d+(?:-\d+)*)$/.exec(href);
-                if (citeMatch) {
-                  const group = citeMatch[1]
-                    .split('-')
-                    .map(token => searchSources[Number(token)])
-                    .filter((source): source is SearchSource => Boolean(source));
-                  if (group.length > 0) {
-                    return <CitationPill sources={group} />;
-                  }
-                }
-                const linkedSource = getSourceByUrl(href, searchSources);
-                if (linkedSource) {
-                  return <CitationPill sources={[linkedSource]} />;
-                }
-              }
-              return <a href={href} target="_blank" rel="noopener noreferrer" className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 hover:underline font-medium">{children}</a>;
-            },
-            img({ src, alt }) {
-              const imageSrc = typeof src === 'string' ? src : '';
-              if (!imageSrc) return null;
-              return <GeneratedMarkdownImage key={imageSrc} src={imageSrc} alt={alt || 'Generated image'} />;
-            }
-          }}
-        >
-          {processedContent}
-        </ReactMarkdown>
-      </div>
+      <MarkdownRenderContext.Provider value={contextValue}>
+        <div className="prose prose-slate max-w-none break-words dark:prose-invert prose-pre:bg-transparent prose-pre:p-0 prose-p:leading-relaxed prose-a:text-indigo-600 hover:prose-a:text-indigo-700 prose-strong:text-slate-800 dark:prose-strong:text-slate-200 [&>*:last-child]:mb-0">
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm, remarkMath]}
+            rehypePlugins={[rehypeKatex]}
+            urlTransform={transformMarkdownUrl}
+            components={markdownComponents}
+          >
+            {processedContent}
+          </ReactMarkdown>
+        </div>
+      </MarkdownRenderContext.Provider>
     </ClientOnly>
   );
 });

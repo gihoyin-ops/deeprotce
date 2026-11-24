@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowLeftToLine, ArrowRightToLine, Check, Code2, Copy, Download, Edit3, Maximize2, PanelBottom, Play, Trash2, X } from '@/components/ui/icons';
-import type { Highlighter } from 'shiki';
+import { bundledLanguages, type BundledLanguage, type Highlighter } from 'shiki';
 import { buildPreviewDocument } from '@/lib/code/code-preview-builder';
 import { normalizeCodeLanguage } from '@/lib/code/code-runner-detection';
 import { isWebPreviewCode } from '@/lib/code/code-web-preview';
@@ -22,8 +22,17 @@ interface CodePreviewProps {
 }
 
 const FULLSCREEN_EXIT_MS = 320;
+const STREAM_HIGHLIGHT_THROTTLE_MS = 140;
 
 const normalizeLanguage = (language: string) => normalizeCodeLanguage(language);
+
+const resolveShikiLanguage = (normalized: string): string => {
+  const lower = normalized.trim().toLowerCase();
+  if (!lower) return 'text';
+  if (lower === 'svg') return 'xml';
+  if (lower === 'c++') return 'cpp';
+  return lower;
+};
 const isDocumentDark = () => {
   if (typeof document === 'undefined') return false;
   const root = document.documentElement;
@@ -65,7 +74,7 @@ function IconButton({ title, onClick, children, active = false }: { title: strin
       onClick={onClick}
       title={title}
       aria-label={title}
-      className={`inline-flex h-9 w-9 items-center justify-center rounded-full transition-colors ${active ? 'bg-slate-100 text-slate-950' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950'}`}
+      className={`inline-flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${active ? 'bg-slate-200/80 text-slate-950 dark:bg-slate-800 dark:text-slate-100' : 'text-slate-600 hover:bg-slate-200/70 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100'}`}
     >
       {children}
     </button>
@@ -73,22 +82,21 @@ function IconButton({ title, onClick, children, active = false }: { title: strin
 }
 
 const CodeStreamingSpinner = React.memo(function CodeStreamingSpinner() {
-  const animationDelay = '-0.35s';
-  return <span className="deepchat-code-spinner" style={{ animationDelay }} aria-hidden="true" />;
+  return <span className="deepchat-code-spinner" aria-hidden="true" />;
 });
 
 function ModeSwitch({ mode, onShowCode, onRunPreview }: { mode: 'preview' | 'code', onShowCode: () => void, onRunPreview: () => void }) {
   const activeOffset = mode === 'code' ? 'translate-x-0' : 'translate-x-full';
 
   return (
-    <div className="relative grid h-9 w-[76px] grid-cols-2 overflow-hidden rounded-full bg-slate-100 p-1 text-slate-600 ring-1 ring-slate-200">
-      <span className={`absolute left-1 top-1 h-7 w-[34px] rounded-full bg-white shadow-sm transition-transform duration-300 ease-out ${activeOffset}`} />
+    <div className="relative grid h-8 w-[72px] grid-cols-2 overflow-hidden rounded-lg bg-slate-200/70 p-0.5 text-slate-600 ring-1 ring-slate-200/90 dark:bg-slate-800 dark:text-slate-400 dark:ring-slate-700/80">
+      <span className={`absolute left-0.5 top-0.5 h-7 w-[34px] rounded-md bg-white shadow-xs transition-transform duration-300 ease-out dark:bg-slate-700 ${activeOffset}`} />
       <button
         type="button"
         onClick={onShowCode}
         title="Show code"
         aria-label="Show code"
-        className={`relative z-10 inline-flex items-center justify-center rounded-full transition-colors duration-300 ${mode === 'code' ? 'text-slate-950' : 'text-slate-500 hover:text-slate-800'}`}
+        className={`relative z-10 inline-flex items-center justify-center rounded-md transition-colors duration-300 ${mode === 'code' ? 'text-slate-950 dark:text-slate-100' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'}`}
       >
         <Code2 className="h-3.5 w-3.5" />
       </button>
@@ -97,7 +105,7 @@ function ModeSwitch({ mode, onShowCode, onRunPreview }: { mode: 'preview' | 'cod
         onClick={onRunPreview}
         title="Run preview"
         aria-label="Run preview"
-        className={`relative z-10 inline-flex items-center justify-center rounded-full transition-colors duration-300 ${mode === 'preview' ? 'text-slate-950' : 'text-slate-500 hover:text-slate-800'}`}
+        className={`relative z-10 inline-flex items-center justify-center rounded-md transition-colors duration-300 ${mode === 'preview' ? 'text-slate-950 dark:text-slate-100' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'}`}
       >
         <Play className="h-3.5 w-3.5" />
       </button>
@@ -144,17 +152,17 @@ function CodeSurface({ code, html, editing, onChange, fill = false }: { code: st
           document.execCommand('insertText', false, '  ');
           syncEditableCode();
         }}
-        className={`code-preview-code modern-scrollbar overflow-auto bg-white p-4 text-sm text-slate-900 outline-none ring-0 selection:bg-indigo-200/70 [&>pre]:!m-0 [&>pre]:!bg-transparent [&>pre]:!p-0 [&_code]:!bg-transparent ${fill ? 'h-full' : 'min-h-[340px]'}`}
+        className={`code-preview-code modern-scrollbar overflow-auto bg-white p-4 text-[13.5px] leading-6 text-slate-900 outline-none ring-0 selection:bg-indigo-200/70 dark:bg-[#0d1117] dark:text-slate-100 [&>pre]:!m-0 [&>pre]:!bg-transparent [&>pre]:!p-0 [&_code]:!bg-transparent ${fill ? 'h-full' : 'min-h-[340px]'}`}
       />
     );
   }
 
   return (
-    <div className={`code-preview-code modern-scrollbar overflow-auto bg-white text-sm ${fill ? 'h-full' : 'max-h-[420px]'}`}>
+    <div className={`code-preview-code modern-scrollbar overflow-auto bg-white text-[13.5px] leading-6 dark:bg-[#0d1117] ${fill ? 'h-full' : 'max-h-[440px]'}`}>
       {html ? (
         <div dangerouslySetInnerHTML={{ __html: html }} className="[&>pre]:!m-0 [&>pre]:!bg-transparent [&>pre]:!p-4 [&_code]:!bg-transparent" />
       ) : (
-        <pre className="m-0 overflow-x-auto p-4 text-slate-900">
+        <pre className="m-0 overflow-x-auto p-4 text-slate-900 dark:text-slate-100">
           <code>{code}</code>
         </pre>
       )}
@@ -164,7 +172,7 @@ function CodeSurface({ code, html, editing, onChange, fill = false }: { code: st
 
 function PreviewFrame({ srcDoc, compact = false }: { srcDoc: string, compact?: boolean }) {
   return (
-    <div className={`relative overflow-hidden rounded-[22px] bg-white shadow-sm ring-1 ring-slate-200 ${compact ? 'h-full min-h-[360px]' : 'min-h-[420px]'}`}>
+    <div className={`relative overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-slate-200 dark:ring-slate-800 ${compact ? 'h-full min-h-[360px]' : 'min-h-[420px]'}`}>
       <iframe
         title="Code preview"
         srcDoc={srcDoc}
@@ -177,16 +185,16 @@ function PreviewFrame({ srcDoc, compact = false }: { srcDoc: string, compact?: b
 
 function ConsolePanel({ entries, onClear, onClose }: { entries: ConsoleEntry[], onClear: () => void, onClose?: () => void }) {
   return (
-    <div className="flex flex-col overflow-hidden rounded-[20px] bg-white shadow-sm ring-1 ring-slate-200">
-      <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3">
-        <h3 className="text-sm font-bold text-slate-950">Console</h3>
+    <div className="flex flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
+      <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3 dark:border-slate-800">
+        <h3 className="text-sm font-bold text-slate-950 dark:text-slate-100">Console</h3>
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={onClear}
             title="Clear console"
             aria-label="Clear console"
-            className="inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-800 transition hover:bg-slate-100"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-700 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
           >
             <Trash2 className="h-4 w-4" />
           </button>
@@ -196,16 +204,16 @@ function ConsolePanel({ entries, onClear, onClose }: { entries: ConsoleEntry[], 
               onClick={onClose}
               title="Close console"
               aria-label="Close console"
-              className="inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-800 transition hover:bg-slate-100"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-700 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
             >
               <X className="h-4 w-4" />
             </button>
           )}
         </div>
       </div>
-      <div className="modern-scrollbar max-h-56 overflow-auto px-5 py-4 font-mono text-sm leading-7 text-slate-500">
+      <div className="modern-scrollbar max-h-56 overflow-auto px-5 py-4 font-mono text-sm leading-7 text-slate-500 dark:text-slate-400">
         {entries.length > 0 ? entries.map((entry) => (
-          <div key={entry.id} className={`whitespace-pre-wrap ${entry.type === 'error' ? 'text-red-500' : entry.type === 'warn' ? 'text-amber-600' : 'text-slate-950'}`}>
+          <div key={entry.id} className={`whitespace-pre-wrap ${entry.type === 'error' ? 'text-red-500 dark:text-red-400' : entry.type === 'warn' ? 'text-amber-600 dark:text-amber-400' : 'text-slate-950 dark:text-slate-100'}`}>
             {entry.text}
           </div>
         )) : (
@@ -281,18 +289,69 @@ export default function CodePreview({ language, value, highlighter, isStreaming 
     return () => window.removeEventListener('message', handleMessage);
   }, [previewId]);
 
+  const shikiLanguage = resolveShikiLanguage(normalizedLanguage);
+  const [loadedLangTick, setLoadedLangTick] = useState(0);
+  const [throttledCode, setThrottledCode] = useState(draftCode);
+  const lastHighlightTimeRef = useRef(0);
+
+  useEffect(() => {
+    if (!highlighter || shikiLanguage === 'text') return;
+    if (highlighter.getLoadedLanguages().includes(shikiLanguage)) return;
+    if (!(shikiLanguage in bundledLanguages)) return;
+
+    let active = true;
+    highlighter
+      .loadLanguage(shikiLanguage as BundledLanguage)
+      .then(() => {
+        if (active) setLoadedLangTick((tick) => tick + 1);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [highlighter, shikiLanguage]);
+
+  useEffect(() => {
+    if (!isStreaming) {
+      setThrottledCode(draftCode);
+      lastHighlightTimeRef.current = Date.now();
+      return;
+    }
+
+    const now = Date.now();
+    const elapsed = now - lastHighlightTimeRef.current;
+    if (elapsed >= STREAM_HIGHLIGHT_THROTTLE_MS) {
+      lastHighlightTimeRef.current = now;
+      setThrottledCode(draftCode);
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      lastHighlightTimeRef.current = Date.now();
+      setThrottledCode(draftCode);
+    }, STREAM_HIGHLIGHT_THROTTLE_MS - elapsed);
+
+    return () => window.clearTimeout(timer);
+  }, [draftCode, isStreaming]);
+
+  const codeToHighlight = isStreaming ? throttledCode : draftCode;
+
   const highlightedCode = useMemo(() => {
     if (!highlighter) return '';
-    const theme = isDarkTheme ? 'github-dark' : 'light-plus';
-    const fallbackTheme = isDarkTheme ? 'github-dark' : 'github-light';
+    const theme = isDarkTheme ? 'github-dark' : 'github-light';
+    const loadedLang = highlighter.getLoadedLanguages().includes(shikiLanguage) ? shikiLanguage : 'text';
     try {
-      return highlighter.codeToHtml(draftCode, { lang: language || 'text', theme });
+      return highlighter.codeToHtml(codeToHighlight, { lang: loadedLang, theme });
     } catch {
-      return highlighter.codeToHtml(draftCode, { lang: 'text', theme: fallbackTheme });
+      return highlighter.codeToHtml(codeToHighlight, { lang: 'text', theme });
     }
-  }, [draftCode, highlighter, isDarkTheme, language]);
+  }, [codeToHighlight, highlighter, isDarkTheme, loadedLangTick, shikiLanguage]);
 
-  const srcDoc = useMemo(() => buildPreviewDocument(draftCode, language, previewId), [draftCode, language, previewId]);
+  const needsPreviewDoc = (mode === 'preview' && isPreviewable) || fullscreen || fullscreenClosing;
+  const srcDoc = useMemo(
+    () => (needsPreviewDoc ? buildPreviewDocument(draftCode, language, previewId) : ''),
+    [draftCode, language, needsPreviewDoc, previewId]
+  );
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(draftCode);
@@ -347,7 +406,7 @@ export default function CodePreview({ language, value, highlighter, isStreaming 
   const clearConsole = () => setConsoleEntries([]);
 
   const fullscreenContent = (fullscreen || fullscreenClosing) ? (
-    <div className="deepchat-fullscreen-shell fixed inset-0 z-[999999] bg-white" data-state={fullscreenClosing ? 'closing' : 'open'}>
+    <div className="deepchat-fullscreen-shell fixed inset-0 z-[999999] bg-white dark:bg-[#0b0d11]" data-state={fullscreenClosing ? 'closing' : 'open'}>
       <div className="deepchat-fullscreen-toolbar flex h-12 items-center justify-between px-4">
         <div className="flex items-center gap-3">
           <button
@@ -355,7 +414,7 @@ export default function CodePreview({ language, value, highlighter, isStreaming 
             onClick={() => closeFullscreen()}
             title="Close"
             aria-label="Close"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-900 transition hover:bg-slate-100"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-900 transition hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-800"
           >
             <X className="h-5 w-5" />
           </button>
@@ -364,7 +423,7 @@ export default function CodePreview({ language, value, highlighter, isStreaming 
             onClick={() => setShowFullscreenCode((current) => !current)}
             title={showFullscreenCode ? 'Hide code' : 'Show code'}
             aria-label={showFullscreenCode ? 'Hide code' : 'Show code'}
-            className={`inline-flex h-9 items-center gap-2 rounded-full px-3 text-sm font-bold ring-1 ring-slate-200 transition-all duration-300 ${showFullscreenCode ? 'bg-slate-200 text-slate-950' : 'bg-slate-100 text-slate-950 hover:bg-slate-200'}`}
+            className={`inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-semibold ring-1 ring-slate-200 transition-all duration-300 dark:ring-slate-700 ${showFullscreenCode ? 'bg-slate-200 text-slate-950 dark:bg-slate-800 dark:text-slate-100' : 'bg-slate-100 text-slate-950 hover:bg-slate-200 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800'}`}
           >
             {showFullscreenCode ? <ArrowLeftToLine className="h-4 w-4" /> : <ArrowRightToLine className="h-4 w-4" />}
             {showFullscreenCode ? 'Hide code' : 'Show code'}
@@ -384,15 +443,15 @@ export default function CodePreview({ language, value, highlighter, isStreaming 
       </div>
 
       <div className={`deepchat-fullscreen-stage relative h-[calc(100vh-48px)] ${showFullscreenCode ? 'p-3 pt-0' : 'p-0'}`}>
-        <div className={`deepchat-fullscreen-workspace flex h-full overflow-hidden p-0 transition-[gap] duration-300 ${showFullscreenCode ? 'gap-3 rounded-[24px] bg-white shadow-sm ring-1 ring-slate-200' : 'gap-0 rounded-none bg-transparent shadow-none ring-0'}`}>
-          <div data-open={showFullscreenCode ? 'true' : 'false'} className={`deepchat-fullscreen-editor-pane min-h-0 shrink-0 overflow-hidden rounded-[22px] border border-slate-200 bg-white transition-[width,opacity,transform] duration-300 ease-out ${showFullscreenCode ? 'w-[38%] translate-x-0 opacity-100' : 'w-0 -translate-x-6 border-transparent opacity-0'}`}>
+        <div className={`deepchat-fullscreen-workspace flex h-full overflow-hidden p-0 transition-[gap] duration-300 ${showFullscreenCode ? 'gap-3 rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 dark:bg-[#0d1117] dark:ring-slate-800' : 'gap-0 rounded-none bg-transparent shadow-none ring-0'}`}>
+          <div data-open={showFullscreenCode ? 'true' : 'false'} className={`deepchat-fullscreen-editor-pane min-h-0 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-white transition-[width,opacity,transform] duration-300 ease-out dark:border-slate-800 dark:bg-[#0d1117] ${showFullscreenCode ? 'w-[38%] translate-x-0 opacity-100' : 'w-0 -translate-x-6 border-transparent opacity-0'}`}>
             <div className="h-full min-w-[320px] overflow-auto">
               <CodeSurface code={draftCode} html={highlightedCode} editing onChange={setDraftCode} fill />
             </div>
           </div>
-          <div className="deepchat-fullscreen-viewer-pane min-h-0 min-w-0 flex-1 overflow-hidden rounded-[22px] bg-white">
+          <div className="deepchat-fullscreen-viewer-pane min-h-0 min-w-0 flex-1 overflow-hidden rounded-xl bg-white dark:bg-[#0d1117]">
             <div className="flex h-full min-h-0 flex-col gap-3">
-              <div className="min-h-0 flex-1 overflow-hidden rounded-[22px]">
+              <div className="min-h-0 flex-1 overflow-hidden rounded-xl">
                 <PreviewFrame key={`fullscreen-${runId}`} srcDoc={srcDoc} compact />
               </div>
               <div className={`deepchat-fullscreen-console shrink-0 overflow-hidden transition-[max-height,opacity,transform,margin] duration-300 ease-out ${consoleOpen ? 'max-h-56 translate-y-0 opacity-100' : 'max-h-0 translate-y-3 opacity-0 pointer-events-none'}`}>
@@ -406,15 +465,27 @@ export default function CodePreview({ language, value, highlighter, isStreaming 
   ) : null;
 
   return (
-    <div className="not-prose mb-4 overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm">
-      <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex min-w-0 items-center gap-3">
-          <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-700 ring-1 ring-slate-200">
-            {isStreaming ? <CodeStreamingSpinner /> : <Code2 className="h-4 w-4" />}
+    <div className="not-prose mb-4 overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm dark:border-slate-800 dark:bg-[#0d1117]">
+      <div className="flex flex-wrap items-center justify-between gap-2.5 border-b border-slate-100 bg-slate-50/80 px-3.5 py-2.5 dark:border-slate-800/80 dark:bg-slate-900/70">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white text-slate-600 ring-1 ring-slate-200/80 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700/80">
+            <Code2 className="h-3.5 w-3.5" />
           </span>
-          <span className="truncate rounded-full bg-slate-100 px-3 py-1.5 font-sans text-xs font-black uppercase tracking-wide text-slate-900 ring-1 ring-slate-200">{displayLanguage}</span>
+          <span className="truncate rounded-md bg-white px-2.5 py-1 font-mono text-[11px] font-semibold uppercase tracking-wider text-slate-700 ring-1 ring-slate-200/80 dark:bg-slate-800 dark:text-slate-200 dark:ring-slate-700/80">
+            {displayLanguage}
+          </span>
+          {isStreaming && (
+            <span
+              role="status"
+              aria-live="polite"
+              className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 px-2.5 py-1 text-[11px] font-medium text-indigo-600 ring-1 ring-indigo-200/80 dark:bg-indigo-500/15 dark:text-indigo-300 dark:ring-indigo-400/25"
+            >
+              <CodeStreamingSpinner />
+              <span>Streaming</span>
+            </span>
+          )}
         </div>
-        <div className="flex flex-wrap items-center justify-end gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-1.5">
           <IconButton title={copied ? 'Copied' : 'Copy'} onClick={handleCopy}>
             {copied ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
           </IconButton>
@@ -430,7 +501,7 @@ export default function CodePreview({ language, value, highlighter, isStreaming 
         </div>
       </div>
 
-      <div className={mode === 'preview' && isPreviewable ? 'p-3 pt-0' : 'border-t border-slate-100'}>
+      <div className={mode === 'preview' && isPreviewable ? 'p-3' : ''}>
         {mode === 'preview' && isPreviewable ? (
           <div className="relative">
             <PreviewFrame key={runId} srcDoc={srcDoc} />
@@ -439,7 +510,7 @@ export default function CodePreview({ language, value, highlighter, isStreaming 
               onClick={() => openFullscreen(false)}
               title="Fullscreen"
               aria-label="Fullscreen"
-              className="absolute right-3 top-3 inline-flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-800 shadow-sm transition hover:bg-slate-100"
+              className="absolute right-3 top-3 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-white/95 text-slate-800 shadow-sm ring-1 ring-slate-200/80 transition hover:bg-slate-100 dark:bg-slate-900/95 dark:text-slate-100 dark:ring-slate-700 dark:hover:bg-slate-800"
             >
               <Maximize2 className="h-4 w-4" />
             </button>

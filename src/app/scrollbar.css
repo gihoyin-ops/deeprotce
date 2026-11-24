@@ -85,22 +85,14 @@ html.dark .code-preview-code code,
 html[data-appearance="dark"] .code-preview-code,
 html[data-appearance="dark"] .code-preview-code pre,
 html[data-appearance="dark"] .code-preview-code code {
-  background-color: #0b1220 !important;
-}
-
-html.dark .code-preview-code,
-html.dark .code-preview-code pre,
-html.dark .code-preview-code code,
-html[data-appearance="dark"] .code-preview-code,
-html[data-appearance="dark"] .code-preview-code pre,
-html[data-appearance="dark"] .code-preview-code code {
-  color: #dbeafe;
+  background-color: #0d1117 !important;
+  color: #e6edf3;
 }
 
 html.dark .code-preview-code textarea,
 html[data-appearance="dark"] .code-preview-code textarea {
-  background-color: #0b1220 !important;
-  color: #dbeafe !important;
+  background-color: #0d1117 !important;
+  color: #e6edf3 !important;
   caret-color: #a5b4fc;
 }
 
@@ -110,14 +102,14 @@ html[data-appearance="dark"] .code-preview-code ::selection {
 }
 
 .deepchat-code-spinner {
-  width: 16px;
-  height: 16px;
+  width: 13px;
+  height: 13px;
   display: inline-block;
-  border: 2px solid #cbd5e1;
-  border-top-color: #334155;
+  flex-shrink: 0;
+  border: 2px solid color-mix(in srgb, currentColor 24%, transparent);
+  border-top-color: currentColor;
   border-radius: 999px;
-  animation: deepchat-code-spin 700ms linear infinite;
-  animation-fill-mode: both;
+  animation: deepchat-code-spin 650ms linear infinite;
   contain: layout paint;
   transform-origin: center;
   backface-visibility: hidden;
