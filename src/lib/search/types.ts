@@ -1,9 +1,6 @@
-export interface SearchSource {
-  title: string;
-  url: string;
-  snippet?: string;
-  displayUrl?: string;
-}
+import type { SearchSource } from './source-display';
+
+export type { SearchSource, SearchStatus } from './source-display';
 
 export interface SearchProviderResult {
   providerId: string;
@@ -12,8 +9,7 @@ export interface SearchProviderResult {
 }
 
 /**
- * structural copy of the chat tool runtime item
- * search folder must not import mcp-runtime (which imports the engine back)
+ * Structural copy of the chat tool runtime item
  */
 export interface SearchRuntimeItem {
   toolId: string;

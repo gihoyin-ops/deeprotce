@@ -1,5 +1,5 @@
 import { searchBrave, searchDuckDuckGo, searchWikipedia } from './providers/html';
-import { searchParallel } from './providers/mcp';
+import { searchParallel } from './providers/parallel';
 import {
   searchBraveApi, searchExa, searchGoogleCustom, searchKagi, searchLinkup,
   searchOpenAICompatible, searchPerplexity, searchSerpApi, searchTavily
@@ -12,7 +12,7 @@ import {
   type SearchProviderResult, type SearchRuntimeItem, type SearchSource, type WebSearchOutcome
 } from './types';
 
-export const MAX_SEARCH_RESULTS = 12;
+export const MAX_SEARCH_RESULTS = 15;
 export const MAX_SEARCH_CONTEXT_CHARS = 9000;
 const PROVIDER_TIMEOUT_MS = 15000;
 // live free providers answer in 1.5-2s; 6s is 3x headroom while a hung endpoint
@@ -249,14 +249,8 @@ export const runWebSearch = async (tools: SearchRuntimeItem[], prompt: string, o
 
   const providerNotice = buildProviderNotice(failures, notices);
   if (results.length === 0) {
-    const lines = buildFailureLines(failures.length > 0 ? failures : notices);
     return {
-      context: [
-        'Web Search unavailable',
-        'The search engines could not return results for this query.',
-        ...lines,
-        'Answer from your own knowledge without claiming you searched the web or quoting sources. If the topic is time-sensitive, tell the user web search is temporarily unavailable.'
-      ].join('\n'),
+      context: 'Web search returned no results for this query. Answer helpfully from your own knowledge without claiming you searched the web and without mentioning search engines or errors.',
       sources: [],
       providersUsed: [],
       providerFailures: failures,
@@ -268,9 +262,8 @@ export const runWebSearch = async (tools: SearchRuntimeItem[], prompt: string, o
   const sources = mergeProviderResults(results, maxResults);
   return {
     context: [
-      formatSearchContext(results, sources),
-      providerNotice,
-      'Search instructions: treat these sources as current external context, prefer the most relevant and recent sources, and cite source numbers inline only for factual claims that are supported by the listed sources. Do not cite unsupported claims, do not invent source titles or URLs, and do not expose raw search diagnostics to the user.'
+      formatSearchContext(sources),
+      'Search instructions: treat these sources as current external context, prefer the most relevant and recent sources, and cite source numbers inline (for example [1] or [1, 2]) right after factual claims supported by the listed sources. Do not cite unsupported claims, do not invent source titles or URLs, do not write prelude filler like "Searching for...", and never mention search engines, rate limits, or diagnostics.'
     ].filter(Boolean).join('\n\n').slice(0, MAX_SEARCH_CONTEXT_CHARS),
     sources,
     providersUsed: results.map(result => result.providerName),
@@ -287,14 +280,6 @@ const friendlyFailure = (kind: SearchErrorKind, name: string): string => {
   return `${name} was unavailable`;
 };
 
-type ProviderLine = ProviderFailure | ProviderNotice;
-
-const buildFailureLines = (lines: ProviderLine[]): string[] =>
-  lines.slice(0, 6).map(line =>
-    line.status === 'failed' ? friendlyFailure(line.kind, line.providerName) : `${line.providerName} paused for this search`);
-
-// partial outage stays one quiet line so the model does not open the answer
-// with search apologies; the full card details reach the user directly
 const buildProviderNotice = (failures: ProviderFailure[], notices: ProviderNotice[]): string => {
   const failed = failures.slice(0, 3).map(failure => friendlyFailure(failure.kind, failure.providerName));
   const resting = notices.slice(0, 3).map(notice => `${notice.providerName} could not be used`);
@@ -303,11 +288,12 @@ const buildProviderNotice = (failures: ProviderFailure[], notices: ProviderNotic
   return `Search note: ${lines.join('; ')}. Answer from the sources provided for this query.`;
 };
 
-const formatSearchContext = (results: SearchProviderResult[], merged: SearchSource[]): string => [
-  `Web Search Sources from ${results.map(result => result.providerName).join(', ')} (${results.length} provider${results.length === 1 ? '' : 's'} in parallel)`,
+const formatSearchContext = (merged: SearchSource[]): string => [
+  `Web Search Sources (${merged.length} result${merged.length === 1 ? '' : 's'})`,
   merged.map((source, index) => [
     `[${index + 1}] ${source.title}`,
     `URL: ${source.url}`,
+    source.publishedDate ? `Date: ${source.publishedDate}` : '',
     source.snippet ? `Snippet: ${source.snippet}` : ''
   ].filter(Boolean).join('\n')).join('\n\n')
 ].join('\n\n');

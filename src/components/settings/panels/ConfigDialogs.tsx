@@ -2,8 +2,7 @@
 
 import React, { useState } from 'react';
 import toast from 'react-hot-toast';
-import { CheckCircle2, Search, Settings as SettingsIcon } from '@/components/ui/icons';
-import { updateMCPServerConfig, type InstalledMCPServer, type MCPSettings } from '@/lib/mcp/mcp-settings';
+import { CheckCircle2, Search } from '@/components/ui/icons';
 import { updateToolConfig, type InstalledTool, type ToolSettings } from '@/lib/settings/tool-settings';
 import { Dialog, DialogHeader, dialogBody } from '../dialog';
 
@@ -81,34 +80,7 @@ export function EnvConfigDialog({ title, category, description, envKeys, command
   );
 }
 
-// server config wrappers
-export function MCPConfigDialog({ server, closing, onClose, onSaved }: {
-  server: InstalledMCPServer;
-  closing: boolean;
-  onClose: () => void;
-  onSaved: (next: MCPSettings) => void;
-}) {
-  return (
-    <EnvConfigDialog
-      title={`Configure ${server.name}`}
-      category={server.category}
-      description={server.description}
-      envKeys={server.env}
-      command={`${server.command} ${server.args.join(' ')}`.trim()}
-      icon={<SettingsIcon className="h-5 w-5" />}
-      initialValues={server.config || {}}
-      zIndex={360}
-      closing={closing}
-      onClose={onClose}
-      onSave={values => {
-        onSaved(updateMCPServerConfig(server.id, values));
-        toast.success('MCP configuration saved');
-        onClose();
-      }}
-    />
-  );
-}
-
+// search tool config wrapper
 export function ToolConfigDialog({ tool, closing, onClose, onSaved }: {
   tool: InstalledTool;
   closing: boolean;

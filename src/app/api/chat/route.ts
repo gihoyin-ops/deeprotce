@@ -23,25 +23,16 @@ import {
   LIVE_LITE_CONNECTION_ID
 } from '@/lib/ai/live';
 import {
-  buildIntegrationSystemPrompt,
-  collectMCPRuntimeContextWithUsage,
-  collectToolRuntimeContextWithSources,
-  getMCPRuntimeCandidateServers,
-  normalizeChatMCPServers,
-  normalizeChatTools,
-  type ChatMCPRuntimeServer,
-  type ChatToolRuntimeItem,
-  type SearchSource,
-  type ProviderFailure,
-  type ProviderNotice,
-  type MCPRuntimeUsageItem
-} from '@/lib/mcp/mcp-runtime';
+  buildSearchSystemPrompt,
+  collectSearchRuntimeContext,
+  normalizeChatTools
+} from '@/lib/search/runtime';
+import type { SearchSource } from '@/lib/search';
 import { assertEgressUrl } from '@/lib/security/url-guard';
 import { MAX_ATTACHMENT_BYTES, MAX_MESSAGE_CHARS, validateChatBody } from '@/lib/security/limits';
 import { checkUsageBudget, recordTokens } from '@/lib/security/usage';
 import { completeChatTokens, estimateChatPromptTokens, meterSseBody } from '@/lib/security/usage-meter';
 import { getClientIp } from '@/lib/security/rate-limit';
-import { buildClarificationInstruction, parseAgentClarification } from '@/lib/agent/agent-clarification';
 import { isImageGenerationModel } from '@/lib/images/image-generation';
 import { normalizeImageAspectRatio, type ImageAspectRatio } from '@/lib/images/image-aspect-ratio';
 import { TEMP_FILE_DIR as TEMP_FILE_ROOT } from '@/lib/data-directories';
@@ -204,17 +195,6 @@ const prependSseEvents = (body: ReadableStream<Uint8Array> | null, events: unkno
   });
 };
 
-const getMCPStreamEvents = (usage: MCPRuntimeUsageItem[]) => {
-  if (usage.length === 0) return [];
-  return usage.map(item => ({
-    type: 'deepchat_mcp',
-    id: item.id,
-    name: item.name,
-    status: item.status,
-    details: item.details
-  }));
-};
-
 type GeneratedImageOutput = {
   mimeType: string;
   base64?: string;
@@ -222,61 +202,24 @@ type GeneratedImageOutput = {
   prompt?: string;
 };
 
-const getSearchSourceEvents = (sources: SearchSource[]) => {
-  if (sources.length === 0) return [];
-  return [{
-    type: 'deepchat_sources',
-    sources
-  }];
-};
-
-const getToolRuntimeEvents = (tools: ChatToolRuntimeItem[], result: { context: string; sources: SearchSource[]; providersUsed: string[]; providerFailures?: ProviderFailure[]; providerNotices?: ProviderNotice[] }) => {
-  const searchTools = tools.filter(tool => tool.toolId !== 'url-context');
-  if (searchTools.length === 0) return [];
-  const providerDetails = [...(result.providerFailures || []), ...(result.providerNotices || [])];
-  if (result.sources.length > 0) {
-    const providers = result.providersUsed.length > 0 ? result.providersUsed.join(', ') : 'Web Search';
-    return [{
-      type: 'deepchat_mcp',
-      id: 'web-search',
-      name: 'Search',
+const buildSearchCompletionEvents = (sources: SearchSource[], readSources: SearchSource[], searched: boolean, hasReasoning: boolean) => {
+  const events: unknown[] = [];
+  if (sources.length > 0 || readSources.length > 0) {
+    events.push({
+      type: 'deepchat_sources',
+      sources,
+      readSources
+    });
+  }
+  if (searched) {
+    events.push({
+      type: 'deepchat_search',
       status: 'completed',
-      details: providerDetails.length > 0
-        ? `${result.sources.length} source${result.sources.length === 1 ? '' : 's'} found via ${providers} (${providerDetails.length} engine${providerDetails.length === 1 ? '' : 's'} unavailable)`
-        : `${result.sources.length} source${result.sources.length === 1 ? '' : 's'} found via ${providers}`,
-      providerDetails
-    }];
+      sourceCount: sources.length,
+      hasReasoning
+    });
   }
-  if (/Web Search unavailable/i.test(result.context)) {
-    return [{
-      type: 'deepchat_mcp',
-      id: 'web-search',
-      name: 'Search',
-      status: 'error',
-      details: providerDetails.length > 0
-        ? `No sources found. ${providerDetails.length} engine${providerDetails.length === 1 ? ' was' : 's were'} unavailable for this query.`
-        : 'Search did not return usable sources.',
-      providerDetails
-    }];
-  }
-  return [{
-    type: 'deepchat_mcp',
-    id: 'web-search',
-    name: 'Search',
-    status: 'completed',
-    details: 'Search was requested but no source context was returned.',
-    providerDetails
-  }];
-};
-
-const getMCPWorkingEvents = (servers: { serverId: string; name: string }[]) => {
-  return servers.map(server => ({
-    type: 'deepchat_mcp',
-    id: server.serverId,
-    name: server.name,
-    status: 'running',
-    details: 'Working...'
-  }));
+  return events;
 };
 
 const singleSseResponse = (provider: string, data: unknown, events: unknown[] = []) => {
@@ -735,170 +678,11 @@ const logUpstreamFailure = (status: number, detail: string) => {
   }
 };
 
-const withSystemInstruction = (messages: ChatMessage[], instruction: string): ChatMessage[] => {
-  const nextMessages = messages.map(message => ({ ...message }));
-  const systemIndex = nextMessages.findIndex(message => message.role === 'system');
-  if (systemIndex !== -1) {
-    nextMessages[systemIndex] = {
-      ...nextMessages[systemIndex],
-      content: [nextMessages[systemIndex].content, instruction].filter(Boolean).join('\n\n')
-    };
-    return nextMessages;
-  }
-  return [{ role: 'system', content: instruction }, ...nextMessages];
-};
-
 const buildPlatformCapabilityPrompt = () => [
   'DeepChat platform capabilities:',
   '- Search can gather fresh web facts and source-aware context when enabled by the router or user.',
-  '- Do not ask the user which internal tool to use. Continue naturally and let DeepChat route tools.'
+  '- Do not ask the user which internal tool to use. Continue naturally and let DeepChat continue seamlessly.'
 ].join('\n');
-
-// server random, only the agentic self-POST sends this header
-// a client cannot forge usageKey without it
-const INTERNAL_METER_SECRET = (() => {
-  let hex = '';
-  for (const byte of crypto.getRandomValues(new Uint8Array(16))) hex += byte.toString(16).padStart(2, '0');
-  return hex;
-})();
-const INTERNAL_SELF_POST_HEADER = 'x-dc-internal';
-
-const pipeSseResponse = async (controller: ReadableStreamDefaultController<Uint8Array>, response: Response) => {
-  if (!response.ok || !response.body) {
-    const upstreamBody = await getRouteResponseError(response);
-    logUpstreamFailure(response.status, upstreamBody);
-    controller.enqueue(encoder.encode(sse({ error: upstreamSseError(response.status) })));
-    return;
-  }
-  const reader = response.body.getReader();
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    controller.enqueue(value);
-  }
-};
-
-const createAgenticMCPResponse = (requestUrl: string, provider: string, payload: Record<string, unknown>, originalMessages: ChatMessage[], mcpServers: ChatMCPRuntimeServer[], tools: ChatToolRuntimeItem[], latestUserMessage: string, identityKey: string) => {
-  const candidateServers = getMCPRuntimeCandidateServers(mcpServers, latestUserMessage);
-  const preludeMessages = withSystemInstruction(originalMessages, [
-    'Before using any MCP context, give a short natural first response to the user.',
-    'State your initial approach or what you are about to verify.',
-    'Keep it concise and do not provide the full final answer yet.',
-    'Do not ask what tool to use, do not ask for confirmation, and do not say the platform cannot perform a runtime action when tools are available.',
-    buildClarificationInstruction()
-  ].join('\n'));
-  const callDirect = (phaseMessages: ChatMessage[]) => fetch(requestUrl, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      // marks this as a server self-POST so the usageKey is trusted
-      [INTERNAL_SELF_POST_HEADER]: INTERNAL_METER_SECRET
-    },
-    body: JSON.stringify({
-      ...payload,
-      // carries the caller's identity so sub-requests key on the user, not __direct__
-      usageKey: identityKey,
-      messages: phaseMessages,
-      mcpServers: [],
-      tools: [],
-      skipAgentLoop: true,
-      skipRuntimeIntegrations: true
-    })
-  });
-  const getStreamText = async (response: Response) => {
-    if (!response.ok || !response.body) {
-      const upstreamBody = await getRouteResponseError(response);
-      logUpstreamFailure(response.status, upstreamBody);
-      throw new Error(upstreamSseError(response.status));
-    }
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-    let text = '';
-    let truncated = false;
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      // untrusted self-POST stream; stop accumulating past the cap to bound function memory
-      if (truncated) continue;
-      buffer += decoder.decode(value, { stream: true });
-      if (buffer.length > 5 * 1024 * 1024) truncated = true;
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
-      for (const line of lines) {
-        if (!line.trim() || line.startsWith(':')) continue;
-        const data = line.replace(/^data:\s*/, '').trim();
-        if (data === '[DONE]') continue;
-        try {
-          const parsed = JSON.parse(data) as unknown;
-          if (!parsed || typeof parsed !== 'object') continue;
-          const json = parsed as Record<string, unknown>;
-          if (json.error) throw new Error(typeof json.error === 'string' ? json.error : 'Provider returned an error.');
-          const choices = Array.isArray(json.choices) ? json.choices : [];
-          const choice = choices[0] && typeof choices[0] === 'object' ? choices[0] as Record<string, unknown> : null;
-          const delta = choice?.delta && typeof choice.delta === 'object' ? choice.delta as Record<string, unknown> : null;
-          if (typeof delta?.content === 'string') {
-            text += delta.content;
-          } else if (typeof json.text === 'string') {
-            text += json.text;
-          }
-        } catch (error) {
-          throw new Error(getErrorMessage(error));
-        }
-      }
-    }
-    return text;
-  };
-  return new Response(new ReadableStream({
-    async start(controller) {
-      try {
-        const preludeText = await getStreamText(await callDirect(preludeMessages));
-        const clarificationResult = parseAgentClarification(preludeText);
-        if (clarificationResult.visibleContent) {
-          controller.enqueue(encoder.encode(sse({
-            type: 'deepchat_content',
-            text: clarificationResult.visibleContent
-          })));
-        }
-        if (clarificationResult.clarification) {
-          controller.enqueue(encoder.encode(sse({
-            type: 'deepchat_clarification',
-            clarification: clarificationResult.clarification
-          })));
-          controller.enqueue(DONE_BYTES);
-          controller.close();
-          return;
-        }
-        for (const event of getMCPWorkingEvents(candidateServers)) {
-          controller.enqueue(encoder.encode(sse(event)));
-        }
-        const [mcpRuntimeResult, toolRuntimeResult] = await Promise.all([
-          collectMCPRuntimeContextWithUsage(candidateServers, latestUserMessage),
-          collectToolRuntimeContextWithSources(tools, latestUserMessage)
-        ]);
-        const runtimeContext = [mcpRuntimeResult.context, toolRuntimeResult.context].filter(Boolean).join('\n\n');
-        const finalMessages = withSystemInstruction(originalMessages, [
-          'Continue after MCP usage.',
-          'Use the MCP runtime context below as the authoritative external context for the final answer.',
-          'Do not claim unavailable tool actions. If the MCP context is capability-only, use it to decide approach and say what must be verified.',
-          runtimeContext
-        ].filter(Boolean).join('\n\n'));
-        for (const event of getMCPStreamEvents(mcpRuntimeResult.usage)) {
-          controller.enqueue(encoder.encode(sse(event)));
-        }
-        for (const event of [...getToolRuntimeEvents(tools, toolRuntimeResult), ...getSearchSourceEvents(toolRuntimeResult.sources)]) {
-          controller.enqueue(encoder.encode(sse(event)));
-        }
-        await pipeSseResponse(controller, await callDirect(finalMessages));
-        controller.close();
-      } catch (error) {
-        controller.enqueue(encoder.encode(sse({ error: getErrorMessage(error) })));
-        controller.enqueue(DONE_BYTES);
-        controller.close();
-      }
-    }
-  }), { headers: streamHeaders(provider) });
-};
 
 export async function POST(req: Request) {
   try {
@@ -906,16 +690,13 @@ export async function POST(req: Request) {
       messages?: ChatMessage[];
       modelId?: string;
       connectionId?: string;
-      mcpServers?: unknown;
       tools?: unknown;
-      skipAgentLoop?: boolean;
       skipRuntimeIntegrations?: boolean;
       imageAspectRatio?: ImageAspectRatio;
       imageEdit?: unknown;
       injectedPrompt?: string;
-      usageKey?: string;
     };
-    const { messages, modelId, connectionId, mcpServers, tools, skipAgentLoop, skipRuntimeIntegrations, imageAspectRatio, imageEdit, injectedPrompt } = payload;
+    const { messages, modelId, connectionId, tools, skipRuntimeIntegrations, imageAspectRatio, imageEdit, injectedPrompt } = payload;
 
     const validImageEdit = imageEdit !== undefined ? normalizeImageEditPayload(imageEdit) : null;
     if (imageEdit !== undefined && !validImageEdit) {
@@ -932,11 +713,7 @@ export async function POST(req: Request) {
     }
 
     // budget gate, identity is the client IP
-    // agentic sub-requests carry a stamped usageKey, trusted only when
-    // the internal header proves it is a server self-POST
-    const internalSelfPost = req.headers.get(INTERNAL_SELF_POST_HEADER) === INTERNAL_METER_SECRET;
-    const givenKey = typeof payload.usageKey === 'string' ? payload.usageKey.trim() : '';
-    const identityKey = (internalSelfPost && givenKey ? givenKey : getClientIp(req)).slice(0, 128);
+    const identityKey = getClientIp(req).slice(0, 128);
     const gate = checkUsageBudget(identityKey);
     if (!gate.allowed) {
       const headers: Record<string, string> = { 'x-usage-expiry': gate.exhaustedWindow as string };
@@ -997,36 +774,27 @@ export async function POST(req: Request) {
     const isStream = llmSettings.streamingResponse;
 
     const latestUserMessage = getRuntimeMessageText(latestUser);
-    const runtimeMCPServers = skipRuntimeIntegrations ? [] : normalizeChatMCPServers(mcpServers);
     const runtimeTools = skipRuntimeIntegrations ? [] : normalizeChatTools(tools);
+    const hasSearchTools = runtimeTools.some(tool => tool.toolId !== 'url-context');
+    const isImageRequest = requestedImageGeneration || isImageGenerationModel(selectedModel) || Boolean(validImageEdit);
 
-    if (!skipAgentLoop && runtimeMCPServers.length > 0 && getMCPRuntimeCandidateServers(runtimeMCPServers, latestUserMessage).length > 0) {
-      return createAgenticMCPResponse(req.url, p, { modelId: selectedModel, connectionId: conn.id }, messages, runtimeMCPServers, runtimeTools, latestUserMessage, identityKey);
-    }
-
-    const [mcpRuntimeResult, toolRuntimeResult] = await Promise.all([
-      skipRuntimeIntegrations ? Promise.resolve({ context: '', usage: [] as MCPRuntimeUsageItem[] }) : collectMCPRuntimeContextWithUsage(runtimeMCPServers, latestUserMessage),
-      skipRuntimeIntegrations ? Promise.resolve({ context: '', sources: [] as SearchSource[], providersUsed: [] as string[], providerFailures: [] as ProviderFailure[], providerNotices: [] as ProviderNotice[] }) : collectToolRuntimeContextWithSources(runtimeTools, latestUserMessage)
-    ]);
-    const mcpRuntimeContext = mcpRuntimeResult.context;
-    const runtimeContext = [mcpRuntimeContext, toolRuntimeResult.context].filter(Boolean).join('\n\n');
-    const integrationEvents = [...getMCPStreamEvents(mcpRuntimeResult.usage), ...getToolRuntimeEvents(runtimeTools, toolRuntimeResult), ...getSearchSourceEvents(toolRuntimeResult.sources)];
-    const usedMCPIds = new Set(mcpRuntimeResult.usage.map(item => item.id));
-    const promptMCPServers = runtimeMCPServers.filter(server => usedMCPIds.has(server.serverId));
-
-    const integrationPrompt = [buildPlatformCapabilityPrompt(), buildIntegrationSystemPrompt(promptMCPServers, runtimeTools, runtimeContext)].filter(Boolean).join('\n\n');
-    const systemIndex = messages.findIndex((m: unknown) => isChatMessageLike(m) && m.role === 'system');
-    // client composes persona/memory itself; server must not fabricate system prompt from state
     const promptToInject = typeof injectedPrompt === 'string' ? injectedPrompt : '';
-    if (systemIndex !== -1) {
-      const baseSystemPrompt = [persona.memoryReferenceHistory === false ? '' : messages[systemIndex].content, integrationPrompt].filter(Boolean).join('\n\n');
-      messages[systemIndex].content = [promptToInject, baseSystemPrompt].filter(Boolean).join('\n\n');
-    } else {
-      const combined = [promptToInject, integrationPrompt].filter(Boolean).join('\n\n');
-      if (combined) {
-        messages.unshift({ role: 'system', content: combined });
+    const injectSearchSystemPrompt = (targetMessages: ChatMessage[], context: string, hasSources: boolean) => {
+      const runtimePrompt = [
+        skipRuntimeIntegrations ? '' : buildPlatformCapabilityPrompt(),
+        buildSearchSystemPrompt(context, hasSources)
+      ].filter(Boolean).join('\n\n');
+      const systemIndex = targetMessages.findIndex((m: unknown) => isChatMessageLike(m) && m.role === 'system');
+      if (systemIndex !== -1) {
+        const baseSystemPrompt = [persona.memoryReferenceHistory === false ? '' : targetMessages[systemIndex].content, runtimePrompt].filter(Boolean).join('\n\n');
+        targetMessages[systemIndex].content = [promptToInject, baseSystemPrompt].filter(Boolean).join('\n\n');
+      } else {
+        const combined = [promptToInject, runtimePrompt].filter(Boolean).join('\n\n');
+        if (combined) {
+          targetMessages.unshift({ role: 'system', content: combined });
+        }
       }
-    }
+    };
 
     const aiLogPayload = {
       route: 'chat',
@@ -1035,7 +803,84 @@ export async function POST(req: Request) {
       input: latestUserMessage
     };
 
-    if (requestedImageGeneration || isImageGenerationModel(selectedModel) || validImageEdit) {
+    if (hasSearchTools && isStream && !isImageRequest) {
+      const url = getChatCompletionsUrl(p, cleanBase);
+      const headers: Record<string, string> = {
+        'content-type': 'application/json',
+        Authorization: `Bearer ${conn.apiKey}`
+      };
+      const mistralTarget = isMistralChatCompletionsTarget(conn, cleanBase, p);
+      const providerName = conn.provider;
+      const modelToUse = selectedModel || conn.model;
+
+      return new Response(new ReadableStream({
+        async start(controller) {
+          try {
+            controller.enqueue(encoder.encode(sse({
+              type: 'deepchat_search',
+              status: 'searching',
+              hasReasoning: llmSettings.reasoning
+            })));
+
+            const searchResult = await collectSearchRuntimeContext(runtimeTools, latestUserMessage);
+            for (const event of buildSearchCompletionEvents(searchResult.sources, searchResult.readSources, searchResult.searched, llmSettings.reasoning)) {
+              controller.enqueue(encoder.encode(sse(event)));
+            }
+
+            injectSearchSystemPrompt(messages, searchResult.context, searchResult.sources.length > 0);
+            const openAICompatibleMessages = await buildOpenAICompatibleMessages(messages, providerName, mistralTarget);
+            const promptTokens = estimateChatPromptTokens(openAICompatibleMessages);
+            const body = applyOpenAICompatibleReasoning({
+              model: modelToUse,
+              messages: openAICompatibleMessages,
+              stream: true
+            }, llmSettings);
+
+            const res = await fetch(url, {
+              method: 'POST',
+              headers,
+              body: JSON.stringify(body)
+            });
+
+            if (!res.ok || !res.body) {
+              const upstreamBody = await getRouteResponseError(res);
+              logUpstreamFailure(res.status, upstreamBody);
+              controller.enqueue(encoder.encode(sse({ error: upstreamSseError(res.status) })));
+              controller.enqueue(DONE_BYTES);
+              controller.close();
+              return;
+            }
+
+            const streamBody = isAiLogEnabled() ? streamWithAiLog(res.body, aiLogPayload) : res.body;
+            const meteredBody = meterSseBody(streamBody, identityKey, promptTokens);
+            if (!meteredBody) {
+              controller.enqueue(DONE_BYTES);
+              controller.close();
+              return;
+            }
+            const reader = meteredBody.getReader();
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              controller.enqueue(value);
+            }
+            controller.close();
+          } catch (error) {
+            controller.enqueue(encoder.encode(sse({ error: getErrorMessage(error) || 'Could not reach the chat server just now. Try again in a bit.' })));
+            controller.enqueue(DONE_BYTES);
+            controller.close();
+          }
+        }
+      }), { headers: streamHeaders(p) });
+    }
+
+    const searchResult = !skipRuntimeIntegrations && runtimeTools.length > 0
+      ? await collectSearchRuntimeContext(runtimeTools, latestUserMessage)
+      : { context: '', sources: [] as SearchSource[], readSources: [] as SearchSource[], searched: false };
+    const integrationEvents = buildSearchCompletionEvents(searchResult.sources, searchResult.readSources, searchResult.searched, llmSettings.reasoning);
+    injectSearchSystemPrompt(messages, searchResult.context, searchResult.sources.length > 0);
+
+    if (isImageRequest) {
       const liveImage = getLiveImageConfig();
       // server image endpoint is env-provisioned only; client strings must not select base or model
       if (!liveImage) {

@@ -3,7 +3,6 @@ export const MAX_MESSAGE_CHARS = 50_000;
 export const MAX_TOTAL_CONTENT_CHARS = 200_000;
 export const MAX_ATTACHMENTS = 4;
 export const MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024;
-export const MAX_MCP_SERVERS = 128;
 export const MAX_TOOLS = 5;
 export const MAX_BODY_BYTES = 12 * 1024 * 1024;
 export const MAX_TITLE_PROMPT_CHARS = 5_000;
@@ -33,7 +32,6 @@ const getAttachmentBase64 = (file: unknown): string => {
 
 type ChatBodyPayload = {
   messages?: unknown;
-  mcpServers?: unknown;
   tools?: unknown;
 };
 
@@ -63,9 +61,6 @@ export const validateChatBody = (payload: unknown): string | null => {
     }
   }
   if (totalChars > MAX_TOTAL_CONTENT_CHARS) return 'content too long';
-
-  const mcpServers = Array.isArray(payload.mcpServers) ? payload.mcpServers : [];
-  if (mcpServers.length > MAX_MCP_SERVERS) return 'too many mcp servers';
 
   const tools = Array.isArray(payload.tools) ? payload.tools : [];
   if (tools.length > MAX_TOOLS) return 'too many tools';

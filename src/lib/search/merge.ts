@@ -6,11 +6,15 @@ export const normalizeSearchSource = (source: Partial<SearchSource>): SearchSour
   const host = getHost(url);
   const title = (typeof source.title === 'string' && source.title.trim() ? source.title : host || url).replace(/\s+/g, ' ').trim().slice(0, 120);
   const snippet = typeof source.snippet === 'string' ? source.snippet.replace(/\s+/g, ' ').trim().slice(0, 420) : '';
+  const siteName = typeof source.siteName === 'string' ? source.siteName.replace(/\s+/g, ' ').trim().slice(0, 64) : '';
+  const publishedDate = typeof source.publishedDate === 'string' ? source.publishedDate.replace(/\s+/g, ' ').trim().slice(0, 40) : '';
   return {
     title,
     url,
     ...(snippet ? { snippet } : {}),
-    displayUrl: typeof source.displayUrl === 'string' && source.displayUrl.trim() ? source.displayUrl.replace(/\s+/g, ' ').trim().slice(0, 160) : host
+    displayUrl: typeof source.displayUrl === 'string' && source.displayUrl.trim() ? source.displayUrl.replace(/\s+/g, ' ').trim().slice(0, 160) : host,
+    ...(siteName ? { siteName } : {}),
+    ...(publishedDate ? { publishedDate } : {})
   };
 };
 

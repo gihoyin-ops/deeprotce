@@ -3,7 +3,7 @@ import { getHost, normalizeSearchSource } from '../merge';
 import { type SearchProviderResult, type SearchSource } from '../types';
 
 // hosted streamable HTTP endpoint, free tier, no key
-const PARALLEL_MCP_ENDPOINT = 'https://search.parallel.ai/mcp';
+const PARALLEL_SEARCH_ENDPOINT = 'https://search.parallel.ai/mcp';
 
 interface JsonRpcResult {
   content?: Array<{ type?: unknown; text?: unknown }>;
@@ -16,6 +16,8 @@ interface JsonRpcBody {
 interface ParallelSearchResult {
   url?: unknown;
   title?: unknown;
+  publish_date?: unknown;
+  published_date?: unknown;
   excerpts?: Array<unknown>;
 }
 interface ParallelResponse {
@@ -23,7 +25,7 @@ interface ParallelResponse {
 }
 
 const rpcRequest = async (request: object, signal?: AbortSignal): Promise<JsonRpcBody> => {
-  const response = await searchFetch(PARALLEL_MCP_ENDPOINT, {
+  const response = await searchFetch(PARALLEL_SEARCH_ENDPOINT, {
     method: 'POST',
     signal,
     headers: {
@@ -34,7 +36,7 @@ const rpcRequest = async (request: object, signal?: AbortSignal): Promise<JsonRp
   });
   const body = (await response.json()) as JsonRpcBody;
   if (body.error) {
-    throw new Error(`MCP error: ${typeof body.error.message === 'string' ? body.error.message : 'unknown'}`);
+    throw new Error(`Parallel search error: ${typeof body.error.message === 'string' ? body.error.message : 'unknown'}`);
   }
   return body;
 };
@@ -50,6 +52,9 @@ const parseParallelSources = (text: string): SearchSource[] => {
   return results.flatMap(result => {
     const url = typeof result.url === 'string' ? result.url : '';
     const title = typeof result.title === 'string' ? result.title : '';
+    const publishedDate = typeof result.publish_date === 'string'
+      ? result.publish_date
+      : (typeof result.published_date === 'string' ? result.published_date : undefined);
     const excerpt = Array.isArray(result.excerpts)
       ? result.excerpts.filter((item): item is string => typeof item === 'string').join(' ').slice(0, 420)
       : '';
@@ -57,7 +62,8 @@ const parseParallelSources = (text: string): SearchSource[] => {
       ? [normalizeSearchSource({
           url,
           title: title || getHost(url),
-          snippet: excerpt
+          snippet: excerpt,
+          publishedDate
         })]
       : [];
   }).filter((source): source is SearchSource => Boolean(source));

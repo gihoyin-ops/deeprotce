@@ -12,6 +12,11 @@ interface SearchApiRecord {
   description?: unknown;
   content?: unknown;
   text?: unknown;
+  published_date?: unknown;
+  publishedDate?: unknown;
+  date?: unknown;
+  age?: unknown;
+  page_age?: unknown;
 }
 interface ApiJsonResult {
   results?: Array<unknown>;
@@ -39,8 +44,17 @@ const mapApiSources = (records: SearchApiRecord[]) => records.flatMap(record => 
       : (typeof record.content === 'string'
         ? record.content
         : (typeof record.text === 'string' ? record.text : '')));
+  const publishedDate = typeof record.published_date === 'string'
+    ? record.published_date
+    : (typeof record.publishedDate === 'string'
+      ? record.publishedDate
+      : (typeof record.date === 'string'
+        ? record.date
+        : (typeof record.page_age === 'string'
+          ? record.page_age
+          : (typeof record.age === 'string' ? record.age : undefined))));
   return url
-    ? [normalizeSearchSource({ url, title, snippet })]
+    ? [normalizeSearchSource({ url, title, snippet, publishedDate })]
     : [];
 }).filter((source): source is SearchSource => Boolean(source));
 

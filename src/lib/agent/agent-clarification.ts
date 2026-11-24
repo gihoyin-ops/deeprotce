@@ -61,7 +61,7 @@ const normalizeOptions = (value: unknown) => {
 
 export const buildClarificationInstruction = () => [
   'Clarification protocol is strict.',
-  'Before using tools or MCP, decide whether one missing decision would materially change the result.',
+  'Before using web search or tools, decide whether one missing decision would materially change the result.',
   'If clarification is required, ask exactly one concise question and create exactly three context-specific answer options yourself.',
   'Never ask a plain-text clarification question. Never write visible markdown choices, numbered lists, "Options", or "Choices".',
   'When clarification is required, your visible text may contain at most one short sentence before the payload, and the actual question/options must be only inside this payload:',

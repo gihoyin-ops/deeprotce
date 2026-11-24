@@ -13,10 +13,9 @@ export type StoredMessageVersion = {
   reasoning?: unknown;
   reasoningDuration?: unknown;
   versionIndex?: unknown;
-  mcpNotice?: unknown;
-  mcpUsage?: unknown;
-  mcpContentOffset?: unknown;
+  searchStatus?: unknown;
   searchSources?: unknown;
+  readSources?: unknown;
   clarification?: unknown;
   clarificationAnswer?: unknown;
   generationMode?: unknown;
@@ -39,10 +38,9 @@ export type StoredMessage = {
   isStopped?: unknown;
   attachedFiles?: StoredAttachment[];
   attachedFile?: StoredAttachment;
-  mcpNotice?: unknown;
-  mcpUsage?: unknown;
-  mcpContentOffset?: unknown;
+  searchStatus?: unknown;
   searchSources?: unknown;
+  readSources?: unknown;
   clarification?: unknown;
   clarificationAnswer?: unknown;
   generationMode?: unknown;

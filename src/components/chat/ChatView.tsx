@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import Image from 'next/image';
 import { gsap } from 'gsap';
 import { getChat, saveMessage, uploadFile } from '@/app/actions';
 import MarkdownRenderer from '@/components/ui/MarkdownRenderer';
@@ -14,7 +13,6 @@ import { prefersReducedMotion, triggerSubtleHaptic } from '@/components/mobile/g
 import {
   ChatGenerationSnapshot,
   type ImageEditRequestPayload,
-  type MCPUsageItem,
   getChatGenerationState,
   startChatGeneration,
   stopChatGeneration,
@@ -26,11 +24,16 @@ import { FeedbackDialog } from '@/components/chat/FeedbackDialog';
 import { extractGeneratedImagesFromMarkdown, getGenerationMode, type ExtractedGeneratedImage, type GenerationMode } from '@/lib/images/image-generation';
 import { normalizeImageAspectRatio, type ImageAspectRatio } from '@/lib/images/image-aspect-ratio';
 import { defaultComposerToolState, loadComposerToolState, saveComposerToolState } from '@/lib/agent/composer-tool-state';
+import type { SearchSource, SearchStatus } from '@/lib/search/source-display';
+import { ThinkingSection } from '@/components/chat/search/ThinkingSection';
+import { SearchStatusIndicator } from '@/components/chat/search/SearchStatusIndicator';
+import { SearchResultsSidebar } from '@/components/chat/search/SearchResultsSidebar';
+import { StackedFavicons } from '@/components/chat/search/StackedFavicons';
 import ImageGenerationStage from '@/components/chat/image-generation/ImageGenerationStage';
 import GeneratedImagePreviewModal from '@/components/chat/image-generation/GeneratedImagePreviewModal';
 import { type ImageStudioEditRequest, type ImageStudioMode } from '@/components/chat/image-generation/image-studio-export';
 import {
-  Check, CheckCircle2, ChevronDown, ChevronRight, BrainCircuit, ChevronLeft, X, Cpu, Copy, RefreshCw, Edit3, ThumbsUp, ThumbsUpFill, ThumbsDown, ThumbsDownFill, Globe
+  Check, CheckCircle2, ChevronDown, ChevronRight, ChevronLeft, X, Copy, RefreshCw, Edit3, ThumbsUp, ThumbsUpFill, ThumbsDown, ThumbsDownFill
 } from '@/components/ui/icons';
 import toast from 'react-hot-toast';
 
@@ -61,21 +64,14 @@ const stripAttachedPreview = (file: AttachedFile) => ({
   size: file.size
 });
 
-type SearchSource = {
-  title: string;
-  url: string;
-  snippet?: string;
-  displayUrl?: string;
-};
-
 type MessageVersion = {
   content?: string;
   reasoning?: string;
   reasoningDuration?: number;
-  mcpNotice?: string;
-  mcpUsage?: MCPUsageItem[];
-  mcpContentOffset?: number;
+  searchStatus?: SearchStatus;
+  searchHasReasoning?: boolean;
   searchSources?: SearchSource[];
+  readSources?: SearchSource[];
   clarification?: AgentClarification;
   clarificationAnswer?: AgentClarificationAnswer;
   versionIndex?: number;
@@ -89,10 +85,10 @@ type ChatMessage = {
   content?: string;
   reasoning?: string;
   reasoningDuration?: number;
-  mcpNotice?: string;
-  mcpUsage?: MCPUsageItem[];
-  mcpContentOffset?: number;
+  searchStatus?: SearchStatus;
+  searchHasReasoning?: boolean;
   searchSources?: SearchSource[];
+  readSources?: SearchSource[];
   clarification?: AgentClarification;
   clarificationAnswer?: AgentClarificationAnswer;
   versions?: MessageVersion[];
@@ -128,9 +124,12 @@ const normalizeVersions = (versions: MessageVersion[] = []) => versions.map((ver
 const normalizeMessageForDisplay = (message: ChatMessage) => {
   const parsedMessage = parseAgentClarification(message.content || '');
   if (!Array.isArray(message.versions) || message.versions.length === 0) {
+    const resolvedSources = message.searchSources;
+    const resolvedStatus: SearchStatus = message.searchStatus ?? (resolvedSources && resolvedSources.length > 0 ? 'completed' : 'idle');
     return {
       ...message,
       content: parsedMessage.visibleContent,
+      searchStatus: resolvedStatus,
       clarification: message.clarification || parsedMessage.clarification,
       isStreaming: false
     };
@@ -141,6 +140,11 @@ const normalizeMessageForDisplay = (message: ChatMessage) => {
   const currentVersionIndex = Math.min(Math.max(requestedIndex, 0), versions.length - 1);
   const currentVersion = versions[currentVersionIndex];
   const parsedVersion = parseAgentClarification(currentVersion?.content ?? message.content ?? '');
+  const resolvedSources = currentVersion?.searchSources ?? message.searchSources;
+  const resolvedStatus: SearchStatus =
+    currentVersion?.searchStatus ??
+    message.searchStatus ??
+    (resolvedSources && resolvedSources.length > 0 ? 'completed' : 'idle');
 
   return {
     ...message,
@@ -149,10 +153,10 @@ const normalizeMessageForDisplay = (message: ChatMessage) => {
     content: parsedVersion.visibleContent,
     reasoning: currentVersion?.reasoning ?? message.reasoning,
     reasoningDuration: currentVersion?.reasoningDuration ?? message.reasoningDuration,
-    mcpNotice: currentVersion?.mcpNotice ?? message.mcpNotice,
-    mcpUsage: currentVersion?.mcpUsage ?? message.mcpUsage,
-    mcpContentOffset: currentVersion?.mcpContentOffset ?? message.mcpContentOffset,
-    searchSources: currentVersion?.searchSources ?? message.searchSources,
+    searchStatus: resolvedStatus,
+    searchHasReasoning: currentVersion?.searchHasReasoning ?? message.searchHasReasoning,
+    searchSources: resolvedSources,
+    readSources: currentVersion?.readSources ?? message.readSources,
     clarification: currentVersion?.clarification ?? message.clarification ?? parsedVersion.clarification,
     clarificationAnswer: currentVersion?.clarificationAnswer ?? message.clarificationAnswer,
     generationMode: currentVersion?.generationMode ?? message.generationMode,
@@ -169,10 +173,10 @@ const mergeGenerationSnapshot = (items: ChatMessage[], snapshot: ChatGenerationS
     content: parsedSnapshot.visibleContent,
     reasoning: snapshot.reasoning,
     reasoningDuration: snapshot.reasoningDuration,
-    mcpNotice: snapshot.mcpNotice,
-    mcpUsage: snapshot.mcpUsage,
-    mcpContentOffset: snapshot.mcpContentOffset,
+    searchStatus: snapshot.searchStatus,
+    searchHasReasoning: snapshot.searchHasReasoning,
     searchSources: snapshot.searchSources,
+    readSources: snapshot.readSources,
     clarification: snapshot.clarification || parsedSnapshot.clarification,
     clarificationAnswer: m.clarificationAnswer,
     generationMode: snapshot.generationMode ?? m.generationMode,
@@ -188,10 +192,10 @@ const mergeGenerationSnapshot = (items: ChatMessage[], snapshot: ChatGenerationS
       content: parsedSnapshot.visibleContent,
       reasoning: snapshot.reasoning,
       reasoningDuration: snapshot.reasoningDuration,
-      mcpNotice: snapshot.mcpNotice,
-      mcpUsage: snapshot.mcpUsage,
-      mcpContentOffset: snapshot.mcpContentOffset,
+      searchStatus: snapshot.searchStatus,
+      searchHasReasoning: snapshot.searchHasReasoning,
       searchSources: snapshot.searchSources,
+      readSources: snapshot.readSources,
       clarification: snapshot.clarification || parsedSnapshot.clarification,
       clarificationAnswer: updated.versions[updated.currentVersionIndex]?.clarificationAnswer,
       generationMode: snapshot.generationMode ?? updated.versions[updated.currentVersionIndex]?.generationMode
@@ -247,7 +251,27 @@ export default function ChatView({ chatId }: { chatId: string }) {
   const [composerReserve, setComposerReserve] = useState(160);
   const [feedbackMap, setFeedbackMap] = useState(() => getFeedbackMap());
   const [feedbackTarget, setFeedbackTarget] = useState<{ messageId: string; isError: boolean; rating: 'like' | 'dislike'; versionIndex: number } | null>(null);
+  const [searchSidebar, setSearchSidebar] = useState<{ messageId: string; sources: SearchSource[] } | null>(null);
+  const [isSearchSidebarOpen, setIsSearchSidebarOpen] = useState(false);
   const observerRef = useRef<IntersectionObserver | null>(null);
+
+  const activeSidebarSources = React.useMemo(() => {
+    if (!searchSidebar) return [];
+    const liveMessage = messages.find(m => m.id === searchSidebar.messageId);
+    return liveMessage?.searchSources && liveMessage.searchSources.length > 0
+      ? liveMessage.searchSources
+      : searchSidebar.sources;
+  }, [messages, searchSidebar]);
+
+  const handleToggleSearchSidebar = useCallback((messageId: string, sources: SearchSource[]) => {
+    if (!sources.length) return;
+    if (isSearchSidebarOpen && searchSidebar?.messageId === messageId) {
+      setIsSearchSidebarOpen(false);
+      return;
+    }
+    setSearchSidebar({ messageId, sources });
+    setIsSearchSidebarOpen(true);
+  }, [isSearchSidebarOpen, searchSidebar?.messageId]);
 
   // Mobile floating scroll-to-bottom visibility
   useEffect(() => {
@@ -495,6 +519,8 @@ export default function ChatView({ chatId }: { chatId: string }) {
       const initialImageAspectRatio = normalizeImageAspectRatio(urlParams.get('ratio'));
 
       if (!mounted) return;
+      setIsSearchSidebarOpen(false);
+      setSearchSidebar(null);
 
       if (chat?.title) {
         setChatTitle(chat.title);
@@ -644,9 +670,10 @@ export default function ChatView({ chatId }: { chatId: string }) {
       role: 'assistant',
       content: '',
       reasoning: '',
-      mcpUsage: [],
-      mcpContentOffset: undefined,
+      searchStatus: (useWebSearch && generationMode !== 'image' ? 'searching' : 'idle') as SearchStatus,
+      searchHasReasoning: false,
       searchSources: [],
+      readSources: [],
       clarification: undefined,
       createdAt: new Date().toISOString(),
       isStreaming: true,
@@ -735,10 +762,10 @@ export default function ChatView({ chatId }: { chatId: string }) {
       content: assistantMsg.content,
       reasoning: assistantMsg.reasoning,
       reasoningDuration: assistantMsg.reasoningDuration,
-      mcpNotice: assistantMsg.mcpNotice,
-      mcpUsage: assistantMsg.mcpUsage,
-      mcpContentOffset: assistantMsg.mcpContentOffset,
+      searchStatus: assistantMsg.searchStatus,
+      searchHasReasoning: assistantMsg.searchHasReasoning,
       searchSources: assistantMsg.searchSources,
+      readSources: assistantMsg.readSources,
       clarification: assistantMsg.clarification,
       clarificationAnswer: assistantMsg.clarificationAnswer,
       generationMode: assistantMsg.generationMode
@@ -752,10 +779,10 @@ export default function ChatView({ chatId }: { chatId: string }) {
       currentVersionIndex: newVersionIndex,
       content: '',
       reasoning: '',
-      mcpNotice: undefined,
-      mcpUsage: [],
-      mcpContentOffset: undefined,
+      searchStatus: (prevUser?.webSearchEnabled && generationMode !== 'image' ? 'searching' : 'idle') as SearchStatus,
+      searchHasReasoning: false,
       searchSources: [],
+      readSources: [],
       clarification: undefined,
       clarificationAnswer: undefined,
       reasoningDuration: undefined,
@@ -809,10 +836,10 @@ export default function ChatView({ chatId }: { chatId: string }) {
         ...nextMessage,
         content: '',
         reasoning: '',
-        mcpNotice: undefined,
-        mcpUsage: [],
-        mcpContentOffset: undefined,
+        searchStatus: (updatedUserMessage.webSearchEnabled && generationMode !== 'image' ? 'searching' : 'idle') as SearchStatus,
+        searchHasReasoning: false,
         searchSources: [],
+        readSources: [],
         clarification: undefined,
         clarificationAnswer: undefined,
         reasoningDuration: undefined,
@@ -834,9 +861,10 @@ export default function ChatView({ chatId }: { chatId: string }) {
         role: 'assistant',
         content: '',
         reasoning: '',
-        mcpUsage: [],
-        mcpContentOffset: undefined,
+        searchStatus: (updatedUserMessage.webSearchEnabled && generationMode !== 'image' ? 'searching' : 'idle') as SearchStatus,
+        searchHasReasoning: false,
         searchSources: [],
+        readSources: [],
         clarification: undefined,
         clarificationAnswer: undefined,
         createdAt: new Date().toISOString(),
@@ -880,10 +908,10 @@ export default function ChatView({ chatId }: { chatId: string }) {
       content: version.content,
       reasoning: version.reasoning,
       reasoningDuration: version.reasoningDuration,
-      mcpNotice: version.mcpNotice,
-      mcpUsage: version.mcpUsage,
-      mcpContentOffset: version.mcpContentOffset,
+      searchStatus: version.searchStatus ?? (version.searchSources && version.searchSources.length > 0 ? 'completed' : 'idle'),
+      searchHasReasoning: version.searchHasReasoning,
       searchSources: version.searchSources,
+      readSources: version.readSources,
       clarification: version.clarification,
       clarificationAnswer: version.clarificationAnswer,
       generationMode: version.generationMode,
@@ -928,10 +956,10 @@ export default function ChatView({ chatId }: { chatId: string }) {
       ...assistantMsg,
       content: '',
       reasoning: '',
-      mcpNotice: undefined,
-      mcpUsage: [],
-      mcpContentOffset: undefined,
+      searchStatus: 'idle' as SearchStatus,
+      searchHasReasoning: false,
       searchSources: [],
+      readSources: [],
       clarification: undefined,
       clarificationAnswer: answer,
       versions,
@@ -972,8 +1000,9 @@ export default function ChatView({ chatId }: { chatId: string }) {
   const activeClarificationMessage = [...messages].reverse().find(m => m.role === 'assistant' && m.clarification && !m.clarificationAnswer && !m.isStreaming);
 
   return (
-    <div className="deepchat-chat-view relative flex min-h-0 flex-1 flex-col bg-[var(--dc-canvas)] text-[var(--dc-text)]">
-      {chatTitle && (
+    <div className="deepchat-chat-view relative flex min-h-0 flex-1 flex-row overflow-hidden bg-[var(--dc-canvas)] text-[var(--dc-text)]">
+      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+        {chatTitle && (
         <div
           className="pointer-events-none absolute top-0 left-0 right-0 z-10 hidden h-16 items-start px-5 pt-3.5 sm:flex"
           style={{ background: 'linear-gradient(to bottom, var(--dc-canvas) 0%, var(--dc-canvas) 52%, transparent 100%)' }}
@@ -1022,6 +1051,8 @@ export default function ChatView({ chatId }: { chatId: string }) {
                 feedbackRating={feedbackFor(msg.id, activeVersion)?.rating ?? null}
                 onLike={msg.role === 'assistant' && !msg.isStreaming ? () => handleMessageFeedback(msg.id, 'like', activeVersion) : undefined}
                 onDislike={msg.role === 'assistant' && !msg.isStreaming ? () => handleMessageFeedback(msg.id, 'dislike', activeVersion) : undefined}
+                isSearchSidebarOpen={isSearchSidebarOpen && searchSidebar?.messageId === msg.id}
+                onOpenSearchResults={handleToggleSearchSidebar}
               />
             );
           })}
@@ -1147,118 +1178,15 @@ export default function ChatView({ chatId }: { chatId: string }) {
           onSubmitEdit={handleSubmitImageStudioEdit}
         />
       )}
-    </div>
-  );
-}
-
-function ReasoningSection({ content, isStreaming = false, duration }: { content: string, isStreaming?: boolean, duration?: number }) {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [liveSeconds, setLiveSeconds] = useState(0);
-
-  useEffect(() => {
-    let interval: ReturnType<typeof window.setInterval> | undefined;
-    if (isStreaming) {
-      interval = setInterval(() => {
-        setLiveSeconds(s => s + 1);
-      }, 1000);
-    }
-    return () => {
-      if (interval !== undefined) window.clearInterval(interval);
-    };
-  }, [isStreaming]);
-
-  const displayDuration = duration !== undefined ? duration : liveSeconds;
-  let title = isStreaming ? `Thinking${liveSeconds > 0 ? ` (${liveSeconds}s)` : '...'}` : 'Reasoning';
-  if (!isStreaming) {
-    if (displayDuration < 5) {
-      title = 'Thought for a few seconds';
-    } else {
-      title = `Thought for ${displayDuration} seconds`;
-    }
-  }
-
-  return (
-    <div className="mb-3 max-w-full">
-      <button
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="flex items-center gap-2 text-slate-400 hover:text-slate-600 font-bold text-sm transition-colors mb-1.5"
-      >
-        <div className="w-6 h-6 rounded-lg bg-slate-100 flex items-center justify-center">
-          <BrainCircuit className={`w-3.5 h-3.5 ${isStreaming ? 'animate-pulse text-indigo-500' : ''}`} />
-        </div>
-        <span>{title}</span>
-        {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-      </button>
-      {isExpanded && (
-        <div className="pl-4 border-l-2 border-slate-100 ml-3 py-1 italic text-slate-500 text-sm whitespace-pre-wrap leading-relaxed animate-in fade-in slide-in-from-left-1 duration-300">
-          {content}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function MCPUsageSection({ notice, usage = [], searchSources = [] }: { notice?: string, usage?: MCPUsageItem[], searchSources?: SearchSource[] }) {
-  const [isExpanded, setIsExpanded] = useState(false);
-  if (!notice && usage.length === 0) return null;
-  if (!notice && usage.length === 1 && isSearchUsage(usage[0])) {
-    return <SearchUsageSection usage={usage[0]} searchSources={searchSources} />;
-  }
-
-  const searchUsage = usage.find(isSearchUsage);
-  const panelUsage = usage.filter(item => !isSearchUsage(item));
-
-  const names = panelUsage.map(item => item.name).join(', ');
-  const hasRunning = panelUsage.some(item => item.status === 'running');
-  const hasError = panelUsage.some(item => item.status === 'error');
-  const title = names ? `Using MCP ${names}` : 'Using MCP';
-
-  return (
-    <div className="mb-3 max-w-full">
-      {notice && (
-        <div className="mb-2 rounded-2xl rounded-tl-sm border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm">
-          {notice}
-        </div>
-      )}
-      {searchUsage && <SearchUsageSection usage={searchUsage} searchSources={searchSources} />}
-      {panelUsage.length > 0 && (
-        <div className="overflow-hidden rounded-2xl border border-indigo-100 bg-indigo-50/70 shadow-sm">
-          <button
-            type="button"
-            onClick={() => setIsExpanded(open => !open)}
-            className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
-          >
-            <span className="flex min-w-0 items-center gap-2">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-white text-indigo-600 shadow-sm">
-                <Cpu className={`h-4 w-4 ${hasRunning ? 'animate-pulse' : ''}`} />
-              </span>
-              <span className="min-w-0">
-                <span className="block truncate text-sm font-extrabold text-slate-800">{title}</span>
-                <span className={`mt-0.5 block text-xs font-bold ${hasError ? 'text-red-500' : hasRunning ? 'text-indigo-500' : 'text-emerald-600'}`}>
-                  {hasError ? 'Needs attention' : hasRunning ? 'Working' : 'Completed'}
-                </span>
-              </span>
-            </span>
-            {isExpanded ? <ChevronDown className="h-4 w-4 shrink-0 text-indigo-500" /> : <ChevronRight className="h-4 w-4 shrink-0 text-indigo-500" />}
-          </button>
-          {isExpanded && (
-            <div className="space-y-3 border-t border-indigo-100 bg-white px-4 py-3">
-              {panelUsage.map(item => (
-                <div key={item.id}>
-                  <div className="mb-1 flex items-center justify-between gap-3">
-                    <p className="text-xs font-extrabold text-slate-700">{item.name}</p>
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase ${item.status === 'error' ? 'bg-red-50 text-red-500' : item.status === 'running' ? 'bg-indigo-50 text-indigo-500' : 'bg-emerald-50 text-emerald-600'}`}>
-                      {item.status}
-                    </span>
-                  </div>
-                  {item.details && (
-                    <pre className="max-h-52 overflow-y-auto whitespace-pre-wrap rounded-xl bg-slate-950 p-3 text-xs leading-relaxed text-slate-100 custom-scrollbar">{item.details}</pre>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+      </div>
+      {searchSidebar && (
+        <SearchResultsSidebar
+          open={isSearchSidebarOpen}
+          sources={activeSidebarSources}
+          messageId={searchSidebar.messageId}
+          onClose={() => setIsSearchSidebarOpen(false)}
+          onExited={() => setSearchSidebar(null)}
+        />
       )}
     </div>
   );
@@ -1350,150 +1278,6 @@ function ClarificationAnswerBadge({ answer }: { answer: AgentClarificationAnswer
   );
 }
 
-function isSearchUsage(usage: MCPUsageItem) {
-  return usage.id === 'web-search' || usage.name.toLowerCase() === 'search';
-}
-
-function AnimatedSearchDots() {
-  const [dotCount, setDotCount] = useState(1);
-
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      setDotCount(count => count === 3 ? 1 : count + 1);
-    }, 420);
-    return () => window.clearInterval(timer);
-  }, []);
-
-  return <span className="inline-block w-4 text-left" aria-hidden="true">{'.'.repeat(dotCount)}</span>;
-}
-
-function SearchUsageSection({ usage, searchSources = [] }: { usage: MCPUsageItem, searchSources?: SearchSource[] }) {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const isError = usage.status === 'error';
-  const isRunning = usage.status === 'running';
-  const providerDetails = usage.providerDetails || [];
-  const sourceCount = searchSources.length > 0 ? String(searchSources.length) : getSearchSourceCount(usage);
-  const sourceText = sourceCount ? `${sourceCount} source${sourceCount === '1' ? '' : 's'}` : '';
-  const title = isError ? 'Search error' : isRunning ? `Searching${sourceCount ? ` ${sourceCount}` : ''}` : `Searched${sourceText ? ` ${sourceText}` : ''}`;
-  const detailLines = getSearchDisplayDetails(usage, sourceCount);
-  const hasDropdown = isError || searchSources.length > 0 || providerDetails.length > 0 || detailLines.length > 0;
-
-  return (
-    <div className="mb-3 ml-1 max-w-full">
-      <button
-        type="button"
-        disabled={!hasDropdown}
-        onClick={() => setIsExpanded(open => !open)}
-        className={`inline-flex items-center gap-0.5 rounded-full px-1 py-0.5 text-sm font-semibold transition-colors disabled:cursor-default ${isError ? 'text-amber-500 dark:text-amber-400' : isRunning ? 'deepchat-subtle-analyzing text-slate-400 hover:text-slate-500 dark:text-slate-500' : 'text-slate-400 hover:text-slate-500 dark:text-slate-500 dark:hover:text-slate-400'}`}
-      >
-        <span>{title}</span>
-        {!isError && isRunning && <AnimatedSearchDots />}
-        {hasDropdown && (isExpanded ? <ChevronDown className="ml-1 h-3.5 w-3.5" /> : <ChevronRight className="ml-1 h-3.5 w-3.5" />)}
-      </button>
-      {isExpanded && hasDropdown && (
-        <div className="deepchat-panel-dropdown mt-2 max-w-[min(720px,calc(100vw-3rem))] overflow-hidden rounded-2xl border border-slate-200 bg-white text-xs font-semibold leading-relaxed text-slate-500 shadow-sm dark:border-slate-700/70 dark:bg-slate-900 dark:text-slate-400">
-          {searchSources.length > 0 && (
-            <div className="grid auto-cols-[minmax(190px,240px)] grid-flow-col gap-2 overflow-x-auto p-3 pb-2 custom-scrollbar">
-              {searchSources.map((source, index) => (
-                <a
-                  key={`${source.url}-${index}`}
-                  href={source.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="group block h-full overflow-hidden rounded-2xl border border-slate-200 bg-white p-3 text-left no-underline shadow-sm transition hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:hover:border-slate-600"
-                >
-                  <span className="mb-2 flex min-w-0 items-center gap-2">
-                    <span className="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-50 ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-700">
-                      <SearchFavicon source={source} />
-                    </span>
-                    <span className="min-w-0 truncate text-xs font-bold text-slate-500 group-hover:text-slate-700 dark:text-slate-300 dark:group-hover:text-slate-100">{source.displayUrl || getSearchHost(source.url)}</span>
-                  </span>
-                  <span className="line-clamp-2 text-sm font-extrabold leading-snug text-slate-800 dark:text-slate-100">{source.title || source.displayUrl || getSearchHost(source.url)}</span>
-                  {source.snippet && <span className="mt-2 line-clamp-3 text-xs font-medium leading-relaxed text-slate-500 dark:text-slate-300">{source.snippet}</span>}
-                </a>
-              ))}
-            </div>
-          )}
-          {(providerDetails.length > 0 || detailLines.length > 0) && (
-            <div className={`space-y-2 px-3 py-2.5 ${searchSources.length > 0 ? 'border-t border-slate-100 dark:border-slate-800' : ''}`}>
-              {isError && (
-                <p className="font-bold text-slate-700 dark:text-slate-200">
-                  Search couldn&apos;t return sources for this query. The engines run in parallel and the ones below didn&apos;t make it — the answer below is based on what the model knows. New searches will try again automatically.
-                </p>
-              )}
-              {providerDetails.map(detail => (
-                <div key={`${detail.providerId}-${detail.statusLabel}`} className="flex items-start gap-2">
-                  <span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${detail.status === 'failed' ? 'bg-amber-400 dark:bg-amber-400' : 'bg-slate-300 dark:bg-slate-600'}`} />
-                  <span className="min-w-0">
-                    <span className="font-extrabold text-slate-700 dark:text-slate-200">{detail.providerName}</span>
-                    <span className="font-bold text-slate-400 dark:text-slate-500"> — {detail.statusLabel}</span>
-                    {detail.hint && <span className="mt-0.5 block font-medium text-slate-500 dark:text-slate-400">{detail.hint}</span>}
-                  </span>
-                </div>
-              ))}
-              {providerDetails.length === 0 && detailLines.map(item => (
-                <div key={item} className="flex gap-2">
-                  <span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${isError ? 'bg-amber-400 dark:bg-amber-400' : 'bg-slate-300 dark:bg-slate-600'}`} />
-                  <span className="font-semibold text-slate-500 dark:text-slate-400">{item}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function SearchFavicon({ source }: { source: SearchSource }) {
-  const [error, setError] = useState(false);
-  if (error) {
-    return <Globe className="h-3.5 w-3.5 text-slate-400" />;
-  }
-  return (
-    <Image
-      src={getSearchFaviconUrl(source)}
-      alt=""
-      width={16}
-      height={16}
-      unoptimized
-      onError={() => setError(true)}
-      className="h-4 w-4 rounded-sm"
-    />
-  );
-}
-
-function getSearchSourceCount(usage: MCPUsageItem) {
-  const details = usage.details || '';
-  const sourceMatch = details.match(/\b(\d+)\s+sources?\b/i);
-  if (sourceMatch) return sourceMatch[1];
-  const numberMatch = details.match(/\b(\d+)\b/);
-  return numberMatch?.[1] || '';
-}
-
-function getSearchDisplayDetails(usage: MCPUsageItem, sourceCount: string) {
-  // structured provider rows already explain the outcome; the legacy one-line
-  // summary would just repeat them, so it only shows for older saved messages
-  if (usage.providerDetails && usage.providerDetails.length > 0) return [];
-  if (usage.status === 'error') return [usage.details || 'Search failed.'];
-  if (sourceCount) return [`${sourceCount} result${sourceCount === '1' ? '' : 's'} found.`];
-  if (usage.details) return [usage.details];
-  return [];
-}
-
-function getSearchFaviconUrl(source: SearchSource) {
-  return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(getSearchHost(source.url))}&sz=32`;
-}
-
-function getSearchHost(url: string) {
-  try {
-    return new URL(url).hostname.replace(/^www\./, '');
-  } catch {
-    return url;
-  }
-}
-
-
 type MessageBubbleProps = {
   message: ChatMessage;
   deferOffscreen?: boolean;
@@ -1512,6 +1296,8 @@ type MessageBubbleProps = {
   feedbackRating?: 'like' | 'dislike' | null;
   onLike?: () => void;
   onDislike?: () => void;
+  isSearchSidebarOpen?: boolean;
+  onOpenSearchResults?: (messageId: string, sources: SearchSource[]) => void;
 };
 
 function MemorySavedBadge({ memoryKey }: { memoryKey: string }) {
@@ -1565,7 +1351,7 @@ function CopyActionIcon({ copied, className = 'h-4 w-4' }: { copied: boolean; cl
   return <Copy className={className} strokeWidth={2} />;
 }
 
-const MessageBubble = React.memo(function MessageBubble({ message, deferOffscreen = false, requestedAspectRatio, onOpenGeneratedImagePreview, onRegenerate, onSwitchVersion, canEditUserMessage = false, onEditUserMessage, isMobileActionsOpen = false, onActivateMobileActions, feedbackRating = null, onLike, onDislike }: MessageBubbleProps) {
+const MessageBubble = React.memo(function MessageBubble({ message, deferOffscreen = false, requestedAspectRatio, onOpenGeneratedImagePreview, onRegenerate, onSwitchVersion, canEditUserMessage = false, onEditUserMessage, isMobileActionsOpen = false, onActivateMobileActions, feedbackRating = null, onLike, onDislike, isSearchSidebarOpen = false, onOpenSearchResults }: MessageBubbleProps) {
   const isUser = message.role === 'user';
   const [copied, setCopied] = useState(false);
   const [isEditingUserMessage, setIsEditingUserMessage] = useState(false);
@@ -1632,13 +1418,21 @@ const MessageBubble = React.memo(function MessageBubble({ message, deferOffscree
   const hasVersions = message.versions && message.versions.length > 1;
   const totalVersions = message.versions?.length || 1;
   const currentIdx = Math.min(Math.max(message.currentVersionIndex || 0, 0), totalVersions - 1);
-  const visibleMCPUsage = message.mcpUsage || [];
-  const hasMCPUsage = !isUser && visibleMCPUsage.length > 0;
-  const mcpOffset = typeof message.mcpContentOffset === 'number' ? Math.min(Math.max(message.mcpContentOffset, 0), (message.content || '').length) : undefined;
-  const preMCPContent = hasMCPUsage && mcpOffset !== undefined ? (message.content || '').slice(0, mcpOffset).trim() : '';
-  const postMCPContent = hasMCPUsage && mcpOffset !== undefined ? (message.content || '').slice(mcpOffset).trim() : '';
-  const standardContent = hasMCPUsage && mcpOffset !== undefined ? '' : message.content;
-  const mainAssistantContent = !isUser ? (postMCPContent || standardContent || '') : '';
+  const mainAssistantContent = !isUser ? (message.content || '') : '';
+  const searchSources = React.useMemo(() => message.searchSources ?? [], [message.searchSources]);
+  const hasReasoningBlock = !isUser && (
+    Boolean(message.reasoning) ||
+    (message.searchStatus === 'searching' && message.searchHasReasoning === true)
+  );
+  const hasStandaloneSearch = !isUser && !hasReasoningBlock && (
+    message.searchStatus === 'searching' ||
+    searchSources.length > 0
+  );
+  const handleOpenThisSearchSidebar = useCallback(() => {
+    if (searchSources.length > 0) {
+      onOpenSearchResults?.(message.id, searchSources);
+    }
+  }, [message.id, onOpenSearchResults, searchSources]);
   const extractedImageContent = React.useMemo(
     () => extractGeneratedImagesFromMarkdown(mainAssistantContent),
     [mainAssistantContent]
@@ -1658,22 +1452,31 @@ const MessageBubble = React.memo(function MessageBubble({ message, deferOffscree
       className={`group/message flex w-full items-start ${isUser ? 'justify-end message-user' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 ${deferOffscreen ? 'dc-mob-msg-deferred' : ''}`}
     >
       <div className={`relative flex min-w-0 flex-col ${isUser ? 'max-w-[78%] items-end sm:max-w-[52%]' : 'w-full max-w-[44rem] items-start sm:max-w-[48rem]'}`}>
-        {!isUser && message.reasoning && (
-          <ReasoningSection content={message.reasoning} isStreaming={message.isStreaming && !message.content} duration={message.reasoningDuration} />
+        {hasReasoningBlock && (
+          <ThinkingSection
+            content={message.reasoning || ''}
+            isStreaming={Boolean(message.isStreaming && !message.content)}
+            duration={message.reasoningDuration}
+            searchStatus={message.searchStatus}
+            searchSources={searchSources}
+            readSources={message.readSources}
+            answerContent={mainAssistantContent}
+            isSidebarOpen={isSearchSidebarOpen}
+            onOpenSearchResults={searchSources.length > 0 ? handleOpenThisSearchSidebar : undefined}
+          />
+        )}
+
+        {hasStandaloneSearch && (
+          <SearchStatusIndicator
+            status={message.searchStatus}
+            sources={searchSources}
+            isSidebarOpen={isSearchSidebarOpen}
+            onOpenSearchResults={handleOpenThisSearchSidebar}
+          />
         )}
 
         {!isUser && message.clarificationAnswer && (
           <ClarificationAnswerBadge answer={message.clarificationAnswer} />
-        )}
-
-        {!isUser && preMCPContent && (
-          <div className="mb-2 max-w-full px-1 py-1 text-slate-800">
-            <MarkdownRenderer content={preMCPContent} isStreaming={message.isStreaming && !postMCPContent} searchSources={message.searchSources} />
-          </div>
-        )}
-
-        {!isUser && hasMCPUsage && (
-          <MCPUsageSection notice={message.mcpNotice} usage={visibleMCPUsage} searchSources={message.searchSources} />
         )}
 
         {isUser && message.attachedFiles && message.attachedFiles.length > 0 && (
@@ -1728,7 +1531,7 @@ const MessageBubble = React.memo(function MessageBubble({ message, deferOffscree
               </div>
             )}
           </div>
-        ) : (standardContent || postMCPContent) ? (
+        ) : mainAssistantContent ? (
           <div className={`max-w-full ${isUser
             ? 'rounded-[20px] rounded-br-[6px] border border-[var(--dc-border-subtle)] bg-[var(--dc-fill)] px-4 py-2.5 text-[var(--dc-text-strong)] shadow-none sm:rounded-[1.65rem] sm:border-0 sm:bg-[#aeeefa] sm:px-5 sm:py-3.5 dark:text-slate-100'
             : message.isError
@@ -1770,10 +1573,48 @@ const MessageBubble = React.memo(function MessageBubble({ message, deferOffscree
                 {message.content}
               </div>
             ) : (
-              <MarkdownRenderer content={postMCPContent || standardContent || ''} isStreaming={message.isStreaming} searchSources={message.searchSources} />
+              <MarkdownRenderer content={mainAssistantContent} isStreaming={message.isStreaming} searchSources={message.searchSources} />
             )}
           </div>
-        ) : message.isStreaming && !message.reasoning && (
+        ) : isUser ? (
+          <div className="max-w-full rounded-[20px] rounded-br-[6px] border border-[var(--dc-border-subtle)] bg-[var(--dc-fill)] px-4 py-2.5 text-[var(--dc-text-strong)] shadow-none sm:rounded-[1.65rem] sm:border-0 sm:bg-[#aeeefa] sm:px-5 sm:py-3.5 dark:text-slate-100">
+            {isEditingUserMessage ? (
+              <div className="w-[min(72vw,520px)]">
+                <textarea
+                  ref={userEditRef}
+                  value={userDraft}
+                  onChange={(event) => setUserDraft(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Escape') cancelUserEdit();
+                    if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') void saveUserEdit();
+                  }}
+                  rows={Math.min(8, Math.max(3, userDraft.split('\n').length))}
+                  className="w-full resize-none bg-transparent px-1 pb-3 pt-0 text-[17px] font-medium leading-relaxed text-black outline-none placeholder:text-black/40 sm:text-[16px] dark:text-slate-100 dark:placeholder:text-slate-500"
+                />
+                <div className="-mt-0.5 flex justify-end gap-2 pr-0.5">
+                  <button
+                    type="button"
+                    onClick={cancelUserEdit}
+                    className="inline-flex h-7 items-center rounded-full border border-[#cfbfc0] bg-white/95 px-3 text-[14px] font-medium leading-none text-black transition hover:bg-white dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void saveUserEdit()}
+                    className="inline-flex h-7 items-center rounded-full bg-black px-3.5 text-[14px] font-medium leading-none text-white transition hover:bg-black/80"
+                  >
+                    Send
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="whitespace-pre-wrap break-words text-[15.5px] font-medium leading-[1.55] sm:text-[17px] sm:leading-relaxed">
+                {message.content}
+              </div>
+            )}
+          </div>
+        ) : message.isStreaming && !hasReasoningBlock && !hasStandaloneSearch && (
           <div className="flex min-h-8 w-fit items-center px-1 py-2">
             <div className="flex space-x-1.5">
               <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
@@ -1882,6 +1723,21 @@ const MessageBubble = React.memo(function MessageBubble({ message, deferOffscree
                 <RefreshCw className="h-4 w-4" strokeWidth={2} />
               </MessageActionButton>
             )}
+            {searchSources.length > 0 && onOpenSearchResults && (
+              <button
+                type="button"
+                onClick={handleOpenThisSearchSidebar}
+                aria-expanded={isSearchSidebarOpen}
+                className={`ml-1 inline-flex cursor-pointer items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-medium transition-colors ${
+                  isSearchSidebarOpen
+                    ? 'bg-[var(--dc-surface-hover)] text-[var(--dc-text-strong)]'
+                    : 'text-[var(--dc-text-muted)] hover:bg-[var(--dc-surface-hover)] hover:text-[var(--dc-text-strong)]'
+                }`}
+              >
+                <StackedFavicons sources={searchSources} max={3} size="sm" />
+                <span>Sources</span>
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -1893,4 +1749,4 @@ const MessageBubble = React.memo(function MessageBubble({ message, deferOffscree
       />
     </div>
   );
-}, (prev, next) => prev.message === next.message && prev.deferOffscreen === next.deferOffscreen && prev.requestedAspectRatio === next.requestedAspectRatio && prev.onOpenGeneratedImagePreview === next.onOpenGeneratedImagePreview && prev.canEditUserMessage === next.canEditUserMessage && prev.onEditUserMessage === next.onEditUserMessage && prev.isMobileActionsOpen === next.isMobileActionsOpen && prev.feedbackRating === next.feedbackRating);
+}, (prev, next) => prev.message === next.message && prev.deferOffscreen === next.deferOffscreen && prev.requestedAspectRatio === next.requestedAspectRatio && prev.onOpenGeneratedImagePreview === next.onOpenGeneratedImagePreview && prev.canEditUserMessage === next.canEditUserMessage && prev.onEditUserMessage === next.onEditUserMessage && prev.isMobileActionsOpen === next.isMobileActionsOpen && prev.feedbackRating === next.feedbackRating && prev.isSearchSidebarOpen === next.isSearchSidebarOpen && prev.onOpenSearchResults === next.onOpenSearchResults);

@@ -3,12 +3,11 @@
 import React, { useEffect, useRef } from 'react';
 import { gsap } from 'gsap';
 import GsapMorphSvg from '@/components/ui/GsapMorphSvg';
-import { Cpu, Search, Settings as SettingsIcon, Trash2 } from '@/components/ui/icons';
-import type { MCPCatalogServer, InstalledMCPServer } from '@/lib/mcp/mcp-settings';
+import { Search, Settings as SettingsIcon, Trash2 } from '@/components/ui/icons';
 import type { InstalledTool, TOOL_CATALOG } from '@/lib/settings/tool-settings';
 import { StatusPill } from './primitives';
 
-// rows for mcp and tools
+// rows for search tools
 
 const card = 'rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-colors hover:border-indigo-200 dark:border-slate-700/60 dark:bg-slate-900/60 dark:hover:border-indigo-500/40';
 const iconButton = 'rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition-colors hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:hover:border-indigo-500/40 dark:hover:bg-indigo-500/10 dark:hover:text-indigo-300';
@@ -54,90 +53,6 @@ export function RowSwitch({ checked, onChange, label }: { checked: boolean; onCh
     >
       <span ref={thumbRef} className="block h-6 w-6 rounded-full bg-white shadow-md will-change-transform" />
     </button>
-  );
-}
-
-export function MCPInstalledRow({ server, onToggle, onRemove, onConfigure }: {
-  server: InstalledMCPServer;
-  onToggle: (installedId: string, enabled: boolean) => void;
-  onRemove: (installedId: string) => void;
-  onConfigure: (server: InstalledMCPServer) => void;
-}) {
-  const configuredCount = server.env.filter(envKey => Boolean(server.config?.[envKey])).length;
-  return (
-    <div className={card}>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
-          <div className="mb-2 flex flex-wrap items-center gap-2">
-            <p className="text-sm font-extrabold text-slate-900 dark:text-slate-100">{server.name}</p>
-            <StatusPill tone={server.enabled ? 'success' : 'muted'}>{server.enabled ? 'Enabled' : 'Disabled'}</StatusPill>
-            <StatusPill tone={server.availability === 'offline' ? 'success' : 'info'}>{server.availability}</StatusPill>
-          </div>
-          <p className="text-sm font-medium leading-relaxed text-slate-500 dark:text-slate-400">{server.description}</p>
-          <p className="mt-3 text-[11px] font-bold text-slate-400 dark:text-slate-500">
-            {server.env.length > 0 ? `${configuredCount}/${server.env.length} configuration values set` : 'No API key required'}
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-2 self-start">
-          {server.env.length > 0 && (
-            <button onClick={() => onConfigure(server)} className={iconButton} title="Configure MCP">
-              <SettingsIcon className="h-4 w-4" />
-            </button>
-          )}
-          <RowSwitch checked={server.enabled} onChange={enabled => onToggle(server.id, enabled)} label={`Toggle ${server.name}`} />
-          <button
-            onClick={() => onRemove(server.id)}
-            className="rounded-full p-2 text-slate-300 transition-colors hover:bg-red-50 hover:text-red-500 dark:text-slate-600 dark:hover:bg-red-500/10 dark:hover:text-red-300"
-            title="Remove MCP"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export function MCPBrowseCard({ server, installed, onInstall, onConfigure }: {
-  server: MCPCatalogServer;
-  installed: boolean;
-  onInstall: (serverId: string) => void;
-  onConfigure: (serverId: string) => void;
-}) {
-  return (
-    <div className={`flex min-h-52 flex-col ${card}`}>
-      <div className="mb-3 flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-sm font-extrabold text-slate-900 dark:text-slate-100">{server.name}</p>
-          <p className="mt-1 text-[11px] font-extrabold uppercase tracking-[0.08em] text-indigo-500 dark:text-indigo-300">{server.category}</p>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <StatusPill tone={server.availability === 'offline' ? 'success' : 'info'}>{server.availability}</StatusPill>
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-300">
-            <Cpu className="h-5 w-5" />
-          </div>
-        </div>
-      </div>
-      <p className="flex-1 text-sm font-medium leading-relaxed text-slate-500 dark:text-slate-400">{server.description}</p>
-      <div className="mt-4 flex flex-wrap gap-2">
-        {server.tags.slice(0, 3).map(tag => (
-          <span key={tag} className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-400">{tag}</span>
-        ))}
-      </div>
-      <div className="mt-4 flex items-center justify-between gap-3">
-        <span className="truncate font-mono text-[11px] font-semibold text-slate-400 dark:text-slate-500">{server.command} {server.args[0]}</span>
-        <div className="flex shrink-0 items-center gap-2">
-          {server.env.length > 0 && (
-            <button onClick={() => onConfigure(server.id)} className={iconButton} title="Configure MCP">
-              <SettingsIcon className="h-4 w-4" />
-            </button>
-          )}
-          <button onClick={() => onInstall(server.id)} disabled={installed} className={installButton(installed)}>
-            {installed ? 'Installed' : 'Install'}
-          </button>
-        </div>
-      </div>
-    </div>
   );
 }
 

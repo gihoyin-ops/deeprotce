@@ -143,6 +143,7 @@ export const decideBackendTools = async (messages: BackendChatMessage[], latestU
   const fallback = getHeuristicToolDecision(latestUserMessage);
   if (!latestUserMessage) return fallback;
   const manualSearch = latestUserMessage.webSearchEnabled === true;
+  if (manualSearch) return fallback;
   if (!selectedConnection?.connectionId && !selectedConnection?.id) return fallback;
   try {
     const res = await fetch('/api/chat', {
@@ -155,9 +156,7 @@ export const decideBackendTools = async (messages: BackendChatMessage[], latestU
         ],
         connectionId: selectedConnection.connectionId,
         modelId: selectedConnection.id,
-        mcpServers: [],
         tools: [],
-        skipAgentLoop: true,
         skipRuntimeIntegrations: true
       }),
       signal

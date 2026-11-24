@@ -46,7 +46,8 @@ export const searchWikipedia = async (query: string, signal?: AbortSignal): Prom
       ? [normalizeSearchSource({
           title,
           url: `https://en.wikipedia.org/wiki/${encodeURIComponent(title.replace(/\s+/g, '_'))}`,
-          snippet: typeof entry.snippet === 'string' ? entry.snippet : ''
+          snippet: typeof entry.snippet === 'string' ? entry.snippet : '',
+          siteName: 'Wikipedia'
         })]
       : [];
   }).filter((source): source is SearchSource => Boolean(source));
@@ -56,6 +57,7 @@ export const searchWikipedia = async (query: string, signal?: AbortSignal): Prom
 // title and snippet each have a primary class and a fallback; a missing one
 // degrades to empty rather than throwing the whole block away
 const DATE_TAIL = /\s*[-–—|]?\s*\d+\s+(?:second|minute|hour|day|week|month|year)s?\s+(?:ago|old)?\s*[-|–—]?/i;
+const LEADING_DATE_PATTERN = /^(\d{4}[-/]\d{1,2}[-/]\d{1,2}|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},?\s+\d{4}|\d+\s+(?:second|minute|hour|day|week|month|year)s?\s+ago)\s*[-–—|·•:]?\s*/i;
 
 const splitDateTrim = (value: string) => stripHtml(value).split(DATE_TAIL)[0].trim();
 
@@ -75,10 +77,15 @@ export const searchBrave = async (query: string, signal?: AbortSignal): Promise<
     const snippetMatch = block.match(/class="[^"]*generic-snippet[^"]*"[^>]*>([\s\S]*?)<\/(?:div|p)>/)
       || block.match(/class="[^"]*snippet[- ]content[^"]*"[^>]*>([\s\S]*?)<\/(?:div|p)>/);
     const title = splitDateTrim(titleMatch?.[1] || '').split(' | ')[0];
+    const rawSnippet = stripHtml(snippetMatch?.[1] || '');
+    const dateMatch = rawSnippet.match(LEADING_DATE_PATTERN);
+    const publishedDate = dateMatch?.[1]?.trim();
+    const cleanSnippet = dateMatch ? rawSnippet.slice(dateMatch[0].length).trim() : rawSnippet;
     const source = normalizeSearchSource({
       url,
       title,
-      snippet: stripHtml(snippetMatch?.[1] || '').slice(0, 420)
+      snippet: cleanSnippet.slice(0, 420),
+      ...(publishedDate ? { publishedDate } : {})
     });
     if (source) sources.push(source);
   }

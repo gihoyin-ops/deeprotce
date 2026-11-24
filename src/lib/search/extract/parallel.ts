@@ -14,10 +14,10 @@ interface ParallelExtractResponse {
   results?: Array<ParallelExtractResult>;
 }
 
-const PARALLEL_MCP_ENDPOINT = 'https://search.parallel.ai/mcp';
+const PARALLEL_EXTRACT_ENDPOINT = 'https://search.parallel.ai/mcp';
 
 const rpcRequest = async (request: object, signal?: AbortSignal): Promise<JsonRpcBody> => {
-  const response = await searchFetch(PARALLEL_MCP_ENDPOINT, {
+  const response = await searchFetch(PARALLEL_EXTRACT_ENDPOINT, {
     method: 'POST',
     signal,
     headers: {
@@ -28,7 +28,7 @@ const rpcRequest = async (request: object, signal?: AbortSignal): Promise<JsonRp
   });
   const body = (await response.json()) as JsonRpcBody;
   if (body.error) {
-    throw new Error(`MCP error: ${typeof body.error.message === 'string' ? body.error.message : 'unknown'}`);
+    throw new Error(`Parallel extract error: ${typeof body.error.message === 'string' ? body.error.message : 'unknown'}`);
   }
   return body;
 };

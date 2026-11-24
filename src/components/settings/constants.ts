@@ -1,6 +1,5 @@
 import { LANGUAGE_OPTIONS } from '@/lib/settings/languages';
 import { defaultNotificationSettings, type NotificationEventKey } from '@/lib/settings/notification-settings';
-import { MCP_CATALOG, type MCPServerCategory } from '@/lib/mcp/mcp-settings';
 import { TOOL_CATALOG, type ToolCategory } from '@/lib/settings/tool-settings';
 import type { DropdownOption } from '@/components/ui/CustomDropdown';
 import type { MobileSettingsMenuSection, SettingsTab } from './types';
@@ -63,8 +62,6 @@ export const DEFAULT_BASE_URL_BY_PROVIDER: Record<string, string> = {
 };
 
 export const NOTIFICATION_EVENT_KEYS = Object.keys(defaultNotificationSettings.events) as NotificationEventKey[];
-export const MCP_CATEGORY_OPTIONS = ['All', ...Array.from(new Set(MCP_CATALOG.map(server => server.category)))] as Array<'All' | MCPServerCategory>;
-export const MCP_AVAILABILITY_OPTIONS = ['All', 'offline', 'online'] as Array<'All' | 'offline' | 'online'>;
 export const TOOL_CATEGORY_OPTIONS = ['All', ...Array.from(new Set(TOOL_CATALOG.map(tool => tool.category)))] as Array<'All' | ToolCategory>;
 
 export const MOBILE_APPEARANCE_OPTIONS: DropdownOption[] = [

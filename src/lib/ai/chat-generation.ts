@@ -3,24 +3,17 @@
 import { getChat, saveMessage, updateChatTitle } from '@/app/actions';
 import { getInjectedSystemPrompt } from '@/app/persona';
 import { saveExtractedMemories, recordChatHistoryMemory } from '@/app/memory';
-import { getEnabledMCPRuntimeServers } from '@/lib/mcp/mcp-settings';
 import { publishDeepChatNotification } from '@/lib/settings/notification-settings';
 import { getEnabledToolRuntimeItems } from '@/lib/settings/tool-settings';
 import { parseAgentClarification, parseGeneratedClarificationAnswerContent, type AgentClarification } from '@/lib/agent/agent-clarification';
 import { getGenerationMode, stripGeneratedImageMarkdown, type GenerationMode } from '@/lib/images/image-generation';
 import { normalizeImageAspectRatio, type ImageAspectRatio } from '@/lib/images/image-aspect-ratio';
+import type { SearchSource, SearchStatus } from '@/lib/search/source-display';
 import {
   decideBackendTools,
   getLatestUserMessage,
   shouldRequestImageGeneration
 } from '@/lib/agent/backend-tools';
-
-interface SearchSource {
-  title: string;
-  url: string;
-  snippet?: string;
-  displayUrl?: string;
-}
 
 interface MemoryApiMessage {
   id?: string;
@@ -49,41 +42,21 @@ interface ChatMessageVersion {
   content?: string;
   reasoning?: string;
   reasoningDuration?: number;
-  mcpNotice?: string;
-  mcpUsage?: MCPUsageItem[];
-  mcpContentOffset?: number;
+  searchStatus?: SearchStatus;
   searchSources?: SearchSource[];
+  readSources?: SearchSource[];
   clarification?: AgentClarification;
   versionIndex?: number;
   generationMode?: GenerationMode;
   [key: string]: unknown;
 }
 
-export interface MCPUsageProviderDetail {
-  providerId: string;
-  providerName: string;
-  status: 'failed' | 'resting';
-  kind: 'rate-limited' | 'unreachable' | 'timeout' | 'unavailable' | 'cooling';
-  statusLabel: string;
-  hint: string;
-  httpStatus?: number;
-}
-
-export interface MCPUsageItem {
-  id: string;
-  name: string;
-  status: 'running' | 'completed' | 'error';
-  details?: string;
-  providerDetails?: MCPUsageProviderDetail[];
-}
-
 interface StoredChatMessage extends MemoryAssistantMessage {
   reasoning?: string;
   reasoningDuration?: number;
-  mcpNotice?: string;
-  mcpUsage?: MCPUsageItem[];
-  mcpContentOffset?: number;
+  searchStatus?: SearchStatus;
   searchSources?: SearchSource[];
+  readSources?: SearchSource[];
   clarification?: AgentClarification;
   versions?: ChatMessageVersion[];
   currentVersionIndex?: number;
@@ -103,10 +76,10 @@ export interface ChatGenerationSnapshot {
   assistantMsgId: string;
   content: string;
   reasoning: string;
-  mcpNotice?: string;
-  mcpUsage: MCPUsageItem[];
-  mcpContentOffset?: number;
+  searchStatus: SearchStatus;
+  searchHasReasoning: boolean;
   searchSources: SearchSource[];
+  readSources: SearchSource[];
   clarification?: AgentClarification;
   isStreaming: boolean;
   isError?: boolean;
@@ -131,10 +104,10 @@ interface ChatGenerationTask {
   controller: AbortController;
   fullContent: string;
   fullReasoning: string;
-  mcpNotice?: string;
-  mcpUsage: MCPUsageItem[];
-  mcpContentOffset?: number;
+  searchStatus: SearchStatus;
+  searchHasReasoning: boolean;
   searchSources: SearchSource[];
+  readSources: SearchSource[];
   clarification?: AgentClarification;
   startedAt: number;
   reasoningEndTime: number;
@@ -190,10 +163,10 @@ const getSnapshot = (task: ChatGenerationTask): ChatGenerationSnapshot => ({
   assistantMsgId: task.assistantMsgId,
   content: task.fullContent,
   reasoning: task.fullReasoning,
-  mcpNotice: task.mcpNotice,
-  mcpUsage: task.mcpUsage,
-  mcpContentOffset: task.mcpContentOffset,
+  searchStatus: task.searchStatus,
+  searchHasReasoning: task.searchHasReasoning,
   searchSources: task.searchSources,
+  readSources: task.readSources,
   clarification: task.clarification,
   isStreaming: task.status === 'running',
   isError: task.status === 'error',
@@ -275,16 +248,25 @@ const getSelectedConnection = (): SelectedModelConnection | null => {
   return selectedModelStr ? JSON.parse(selectedModelStr) : null;
 };
 
-const updateMessageVersion = (message: StoredChatMessage, content: string, reasoning: string, reasoningDuration?: number, mcpNotice?: string, mcpUsage: MCPUsageItem[] = [], mcpContentOffset?: number, searchSources: SearchSource[] = [], clarification?: AgentClarification, generationMode?: GenerationMode) => {
+const updateMessageVersion = (
+  message: StoredChatMessage,
+  content: string,
+  reasoning: string,
+  reasoningDuration?: number,
+  searchStatus: SearchStatus = 'idle',
+  searchSources: SearchSource[] = [],
+  readSources: SearchSource[] = [],
+  clarification?: AgentClarification,
+  generationMode?: GenerationMode
+) => {
   const updated = {
     ...message,
     content,
     reasoning,
     reasoningDuration,
-    mcpNotice,
-    mcpUsage,
-    mcpContentOffset,
+    searchStatus,
     searchSources,
+    readSources,
     clarification,
     generationMode
   };
@@ -296,10 +278,9 @@ const updateMessageVersion = (message: StoredChatMessage, content: string, reaso
       content,
       reasoning,
       reasoningDuration,
-      mcpNotice,
-      mcpUsage,
-      mcpContentOffset,
+      searchStatus,
       searchSources,
+      readSources,
       clarification,
       generationMode
     };
@@ -321,8 +302,19 @@ const saveFinalMessage = async (task: ChatGenerationTask, options: { isError?: b
   const parsedContent = parseAgentClarification(task.fullContent);
   const clarification = task.clarification || parsedContent.clarification;
   const content = options.errorMessage || parsedContent.visibleContent || (options.isStopped ? 'Done, finished up.' : '');
+  const finalSearchStatus: SearchStatus = task.searchSources.length > 0 ? 'completed' : 'idle';
   const finalMessage = {
-    ...updateMessageVersion(currentMsg, content, task.fullReasoning, getDuration(task), task.mcpNotice, task.mcpUsage, task.mcpContentOffset, task.searchSources, clarification, task.generationMode),
+    ...updateMessageVersion(
+      currentMsg,
+      content,
+      task.fullReasoning,
+      getDuration(task),
+      finalSearchStatus,
+      task.searchSources,
+      task.readSources,
+      clarification,
+      task.generationMode
+    ),
     isStreaming: false,
     isError: options.isError === true,
     isStopped: options.isStopped === true
@@ -447,45 +439,6 @@ const getGeminiText = (json: Record<string, unknown>) => {
   return parts.map(part => isRecord(part) ? getString(part.text) : '').join('');
 };
 
-const providerKindFromRaw = (raw: string): MCPUsageProviderDetail['kind'] =>
-  raw === 'rate-limited' || raw === 'unreachable' || raw === 'timeout' || raw === 'cooling' ? raw : 'unavailable';
-
-const normalizeProviderDetails = (value: unknown): MCPUsageProviderDetail[] | undefined => {
-  if (!Array.isArray(value)) return undefined;
-  const details: MCPUsageProviderDetail[] = [];
-  for (const item of value) {
-    if (!isRecord(item)) continue;
-    const providerName = getString(item.providerName) || getString(item.name);
-    if (!providerName) continue;
-    const itemStatus = getString(item.status);
-    details.push({
-      providerId: getString(item.providerId) || providerName,
-      providerName,
-      status: itemStatus === 'failed' ? 'failed' : 'resting',
-      kind: providerKindFromRaw(getString(item.kind) || 'unavailable'),
-      statusLabel: getString(item.statusLabel) || (itemStatus === 'failed' ? 'Unusable' : 'Paused'),
-      hint: getString(item.hint),
-      httpStatus: typeof item.httpStatus === 'number' ? item.httpStatus : undefined
-    });
-  }
-  return details.length > 0 ? details : undefined;
-};
-
-const normalizeMCPUsageEvent = (json: Record<string, unknown>): MCPUsageItem | null => {
-  const id = getString(json.id);
-  const name = getString(json.name);
-  const rawStatus = getString(json.status);
-  const status = rawStatus === 'completed' || rawStatus === 'error' ? rawStatus : 'running';
-  if (!id || !name) return null;
-  return {
-    id,
-    name,
-    status,
-    details: getString(json.details),
-    providerDetails: normalizeProviderDetails(json.providerDetails)
-  };
-};
-
 const normalizeSearchSources = (value: unknown): SearchSource[] => {
   if (!Array.isArray(value)) return [];
   const sources = value.map((item): SearchSource | null => {
@@ -493,23 +446,18 @@ const normalizeSearchSources = (value: unknown): SearchSource[] => {
     const title = getString(item.title);
     const url = getString(item.url);
     if (!url) return null;
+    const siteName = getString(item.siteName);
+    const publishedDate = getString(item.publishedDate);
     return {
       title: title || url,
       url,
       snippet: getString(item.snippet),
-      displayUrl: getString(item.displayUrl)
+      displayUrl: getString(item.displayUrl),
+      ...(siteName ? { siteName } : {}),
+      ...(publishedDate ? { publishedDate } : {})
     };
   }).filter((item): item is SearchSource => Boolean(item));
   return sources;
-};
-
-const applyMCPUsageEvent = (task: ChatGenerationTask, event: MCPUsageItem) => {
-  const index = task.mcpUsage.findIndex(item => item.id === event.id);
-  if (index === -1) {
-    task.mcpUsage.push(event);
-  } else {
-    task.mcpUsage[index] = { ...task.mcpUsage[index], ...event };
-  }
 };
 
 const finishSuccessfulTask = async (task: ChatGenerationTask) => {
@@ -633,26 +581,20 @@ const consumeStream = async (task: ChatGenerationTask, res: Response) => {
         continue;
       }
 
-      if (json.type === 'deepchat_mcp_notice') {
-        task.mcpNotice = getString(json.text);
-        emitSnapshot(task, true);
-        continue;
-      }
-
-      if (json.type === 'deepchat_mcp') {
-        const event = normalizeMCPUsageEvent(json);
-        if (event) {
-          if (task.mcpContentOffset === undefined) {
-            task.mcpContentOffset = task.fullContent.length;
-          }
-          applyMCPUsageEvent(task, event);
-          emitSnapshot(task, true);
+      if (json.type === 'deepchat_search') {
+        task.searchStatus = json.status === 'searching' ? 'searching' : 'completed';
+        if (typeof json.hasReasoning === 'boolean') {
+          task.searchHasReasoning = json.hasReasoning;
         }
+        emitSnapshot(task, true);
         continue;
       }
 
       if (json.type === 'deepchat_sources') {
         task.searchSources = normalizeSearchSources(json.sources);
+        if (Array.isArray(json.readSources)) {
+          task.readSources = normalizeSearchSources(json.readSources);
+        }
         emitSnapshot(task, true);
         continue;
       }
@@ -660,23 +602,31 @@ const consumeStream = async (task: ChatGenerationTask, res: Response) => {
       if (provider === 'anthropic') {
         const delta = isRecord(json.delta) ? json.delta : null;
         if (json.type === 'content_block_delta') {
+          if (task.searchStatus === 'searching') task.searchStatus = 'completed';
           task.fullContent += getString(delta?.text);
         }
       } else if (provider === 'gemini' || provider === 'vertexai') {
-        task.fullContent += getGeminiText(json);
+        const text = getGeminiText(json);
+        if (text && task.searchStatus === 'searching') task.searchStatus = 'completed';
+        task.fullContent += text;
       } else {
         const delta = getOpenAiDelta(json);
         if (delta.reasoning) {
+          if (task.searchStatus === 'searching') task.searchStatus = 'completed';
           task.fullReasoning += delta.reasoning;
           task.reasoningEndTime = Date.now();
         }
         if (delta.content) {
+          if (task.searchStatus === 'searching') task.searchStatus = 'completed';
           task.fullContent += delta.content;
         }
       }
     }
 
     emitSnapshot(task);
+  }
+  if (task.searchStatus === 'searching') {
+    task.searchStatus = task.searchSources.length > 0 ? 'completed' : 'idle';
   }
   const parsedContent = parseAgentClarification(task.fullContent);
   task.fullContent = parsedContent.visibleContent;
@@ -693,6 +643,10 @@ const runTask = async (task: ChatGenerationTask) => {
     const toolDecision = isImageTask
       ? { useSearch: false, source: 'heuristic' as const }
       : await decideBackendTools(task.apiMessages, latestUserMessage, task.connection, task.controller.signal);
+    if (toolDecision.useSearch && task.searchStatus !== 'searching') {
+      task.searchStatus = 'searching';
+      emitSnapshot(task, true);
+    }
     const formattedMessages = formatMessages(task.apiMessages);
     const injectedPrompt = await getInjectedSystemPrompt('', latestUserMessage?.content || '');
     const res = await fetch('/api/chat', {
@@ -705,7 +659,6 @@ const runTask = async (task: ChatGenerationTask) => {
         injectedPrompt,
         imageAspectRatio: normalizeImageAspectRatio(latestUserMessage?.imageAspectRatio),
         imageEdit: task.imageEdit,
-        mcpServers: getEnabledMCPRuntimeServers(),
         tools: getEnabledToolRuntimeItems(toolDecision.useSearch)
       }),
       signal: task.controller.signal
@@ -741,6 +694,9 @@ export const startChatGeneration = (
   const existing = tasks.get(chatId);
   if (existing) return getSnapshot(existing);
   const selectedConnection = getSelectedConnection();
+  const latestUser = getLatestUserMessage(apiMessages);
+  const isImageTask = Boolean(imageEdit) || shouldRequestImageGeneration(latestUser);
+  const manualSearch = !isImageTask && latestUser?.webSearchEnabled === true;
 
   const task: ChatGenerationTask = {
     chatId,
@@ -749,19 +705,19 @@ export const startChatGeneration = (
     controller: new AbortController(),
     fullContent: '',
     fullReasoning: '',
-    mcpUsage: [],
-    mcpContentOffset: undefined,
+    searchStatus: manualSearch ? 'searching' : 'idle',
+    searchHasReasoning: false,
     searchSources: [],
+    readSources: [],
     clarification: undefined,
     startedAt: Date.now(),
     reasoningEndTime: Date.now(),
     status: 'running',
     stopRequested: false,
     connection: selectedConnection,
-    generationMode:
-      imageEdit || shouldRequestImageGeneration(getLatestUserMessage(apiMessages))
-        ? 'image'
-        : getGenerationMode(selectedConnection?.id),
+    generationMode: isImageTask
+      ? 'image'
+      : getGenerationMode(selectedConnection?.id),
     imageEdit,
     lastEmittedAt: 0,
     pendingEmit: null
