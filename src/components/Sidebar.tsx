@@ -394,15 +394,19 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
             )}
           </div>
 
-          {/* Log out (blocked / disabled) */}
+          {/* Log in */}
           <button
             type="button"
-            disabled
-            aria-disabled="true"
-            className="flex w-full cursor-not-allowed items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm font-medium text-[var(--dc-text-muted)] opacity-50"
+            onClick={() => {
+              setProfileMenuOpen(false);
+              setHelpMenuOpen(false);
+              setMobileOpen(false);
+              router.push('/login');
+            }}
+            className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm font-medium text-[var(--dc-text)] transition-colors hover:bg-[var(--dc-surface-hover)]"
           >
-            <IconMask icon="/icons/log-out.svg" className="h-4 w-4 shrink-0" />
-            <span>Log out</span>
+            <IconMask icon="/icons/arrow-right-to-line.svg" className="h-4 w-4 shrink-0" />
+            <span>Log in</span>
           </button>
         </div>,
         document.body
