@@ -11,7 +11,6 @@ import {
   Trash2, FileText, User
 } from '@/components/ui/icons';
 import Sidebar from './Sidebar';
-import { DeepChatWordmarkSvg } from './brand';
 import MobileNavbar from './mobile/MobileNavbar';
 import { useIsMobileViewport } from './mobile/useIsMobileViewport';
 import {
@@ -830,7 +829,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
             <div className="w-8 h-8 sm:w-10 sm:h-10 bg-indigo-600 rounded-[14px] sm:rounded-2xl flex items-center justify-center shadow-md shadow-indigo-200">
               <Bot className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
             </div>
-            <DeepChatWordmarkSvg className="h-7 w-[106px] sm:h-8 sm:w-[120px] text-slate-800" />
+            <span className="text-[20px] sm:text-[22px] font-bold tracking-tight text-slate-800">DeepChat</span>
           </div>
           <div className="flex items-center" />
         </div>

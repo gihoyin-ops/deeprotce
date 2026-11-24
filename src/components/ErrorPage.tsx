@@ -2,8 +2,6 @@
 
 import { useEffect, useRef } from 'react';
 import gsap from 'gsap';
-import DeepChatLogoMark from '@/components/brand/DeepChatLogoMark';
-import DeepChatWordmarkSvg from '@/components/brand/DeepChatWordmarkSvg';
 
 type ErrorPageProps = {
   kind: '404' | '500' | 'offline' | 'server' | 'naughty';
@@ -11,6 +9,43 @@ type ErrorPageProps = {
   lines: string[];
   primary?: { label: string; action: () => void };
   secondary?: { label: string; action: () => void };
+};
+
+const StageIcon = ({ kind }: { kind: ErrorPageProps['kind'] }) => {
+  if (kind === 'naughty') {
+    return (
+      <svg className="ep-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <rect x="11" y="21" width="26" height="18" rx="4" />
+        <path d="M16 21v-5a8 8 0 0 1 16 0v5" />
+        <circle cx="24" cy="30" r="2" fill="currentColor" stroke="none" />
+      </svg>
+    );
+  }
+  if (kind === '404') {
+    return (
+      <svg className="ep-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <circle cx="24" cy="24" r="15" />
+        <path d="M29.5 18.5l-3.6 7.4-7.4 3.6 3.6-7.4 7.4-3.6z" />
+      </svg>
+    );
+  }
+  if (kind === 'offline') {
+    return (
+      <svg className="ep-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M10 19a21 21 0 0 1 28 0" />
+        <path d="M15.5 25a13 13 0 0 1 17 0" />
+        <path d="M20.5 30.5a5.5 5.5 0 0 1 7 0" />
+        <path d="M11 37L37 11" />
+      </svg>
+    );
+  }
+  return (
+    <svg className="ep-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="24" cy="24" r="15" />
+      <path d="M24 16v10" />
+      <circle cx="24" cy="32" r="1.6" fill="currentColor" stroke="none" />
+    </svg>
+  );
 };
 
 // Self-contained error & restricted-route surface styled with DeepChat theme tokens
@@ -53,19 +88,21 @@ const ErrorPage = ({ kind, title, lines, primary, secondary }: ErrorPageProps) =
           '-=0.4'
         );
 
-      const logoPaths = root.querySelectorAll<SVGPathElement>('.ep-logo path');
-      logoPaths.forEach((path) => {
-        const length = path.getTotalLength();
-        gsap.set(path, { strokeDasharray: length, strokeDashoffset: length });
+      const iconShapes = root.querySelectorAll<SVGGeometryElement>('.ep-icon path, .ep-icon rect, .ep-icon circle:not([fill="currentColor"])');
+      iconShapes.forEach((shape) => {
+        if (typeof shape.getTotalLength === 'function') {
+          const length = shape.getTotalLength();
+          gsap.set(shape, { strokeDasharray: length, strokeDashoffset: length });
+        }
       });
 
-      if (logoPaths.length > 0) {
+      if (iconShapes.length > 0) {
         tl.to(
-          logoPaths,
+          iconShapes,
           {
             strokeDashoffset: 0,
-            duration: 0.75,
-            stagger: 0.1,
+            duration: 0.7,
+            stagger: 0.08,
             ease: 'power2.inOut',
           },
           '-=0.45'
@@ -73,22 +110,16 @@ const ErrorPage = ({ kind, title, lines, primary, secondary }: ErrorPageProps) =
       }
 
       tl.fromTo(
-        '.ep-logo circle',
+        '.ep-icon circle[fill="currentColor"]',
         { scale: 0, opacity: 0, transformOrigin: 'center center' },
-        { scale: 1, opacity: 1, duration: 0.35, stagger: 0.07, ease: 'back.out(2)' },
-        '-=0.35'
+        { scale: 1, opacity: 1, duration: 0.3, ease: 'back.out(2)' },
+        '-=0.3'
       )
         .fromTo(
           '.ep-stagger',
           { opacity: 0, y: 12 },
           { opacity: 1, y: 0, duration: 0.48, stagger: 0.07 },
           '-=0.3'
-        )
-        .fromTo(
-          '.ep-foot',
-          { opacity: 0 },
-          { opacity: 1, duration: 0.4 },
-          '-=0.2'
         );
 
       // Ambient micro-animations
@@ -165,7 +196,6 @@ const ErrorPage = ({ kind, title, lines, primary, secondary }: ErrorPageProps) =
           --ep-border-strong: var(--dc-border-strong, rgba(15, 23, 42, 0.14));
           --ep-text-strong: var(--dc-text-strong, var(--foreground, #0a0a0a));
           --ep-text-body: var(--dc-text-body, #52525b);
-          --ep-text-muted: var(--dc-text-muted, #71717a);
           --ep-invert: var(--dc-invert, #0a0a0a);
           --ep-invert-hover: var(--dc-invert-hover, #27272a);
           --ep-on-invert: var(--dc-text-on-invert, #ffffff);
@@ -203,7 +233,6 @@ const ErrorPage = ({ kind, title, lines, primary, secondary }: ErrorPageProps) =
           --ep-border-strong: var(--dc-border-strong, rgba(255, 255, 255, 0.15));
           --ep-text-strong: var(--dc-text-strong, #fafafa);
           --ep-text-body: var(--dc-text-body, #a1a1aa);
-          --ep-text-muted: var(--dc-text-muted, #71717a);
           --ep-invert: var(--dc-invert, #fafafa);
           --ep-invert-hover: var(--dc-invert-hover, #e4e4e7);
           --ep-on-invert: var(--dc-text-on-invert, #09090b);
@@ -245,21 +274,13 @@ const ErrorPage = ({ kind, title, lines, primary, secondary }: ErrorPageProps) =
         }
 
         .ep-brand {
-          display: inline-flex;
-          align-items: center;
-          gap: 0.5rem;
           margin-bottom: 1.5rem;
-          opacity: 0.92;
-        }
-        .ep-brand-mark {
-          width: 22px;
-          height: 22px;
+          font-size: 1.35rem;
+          font-weight: 700;
+          letter-spacing: -0.025em;
+          line-height: 1.2;
           color: var(--ep-text-strong);
-        }
-        .ep-brand-word {
-          height: 20px;
-          width: auto;
-          color: var(--ep-text-strong);
+          user-select: none;
         }
 
         .ep-card {
@@ -343,9 +364,9 @@ const ErrorPage = ({ kind, title, lines, primary, secondary }: ErrorPageProps) =
           align-items: center;
           justify-content: center;
         }
-        .ep-logo {
-          width: 3rem;
-          height: 3rem;
+        .ep-icon {
+          width: 2.5rem;
+          height: 2.5rem;
           color: var(--ep-text-strong);
         }
 
@@ -448,25 +469,12 @@ const ErrorPage = ({ kind, title, lines, primary, secondary }: ErrorPageProps) =
           background: var(--ep-fill-hover);
           border-color: var(--ep-border-strong);
         }
-
-        .ep-foot {
-          margin: 1.35rem 0 0;
-          font-size: 0.78rem;
-          font-weight: 500;
-          letter-spacing: 0.01em;
-          line-height: 1.4;
-          color: var(--ep-text-muted);
-          text-align: center;
-        }
       `}</style>
 
       <div className="ep-grid" aria-hidden="true" />
 
       <div className="ep-wrap">
-        <div className="ep-brand">
-          <DeepChatLogoMark className="ep-brand-mark" />
-          <DeepChatWordmarkSvg className="ep-brand-word" />
-        </div>
+        <div className="ep-brand">DeepChat</div>
 
         <main ref={cardRef} className="ep-card">
           <div className="ep-stage" aria-hidden="true">
@@ -475,7 +483,7 @@ const ErrorPage = ({ kind, title, lines, primary, secondary }: ErrorPageProps) =
             <div className="ep-ring-inner" />
             <div className="ep-emblem-float">
               <div ref={emblemRef} className="ep-emblem-parallax">
-                <DeepChatLogoMark className="ep-logo" />
+                <StageIcon kind={kind} />
               </div>
             </div>
           </div>
@@ -508,8 +516,6 @@ const ErrorPage = ({ kind, title, lines, primary, secondary }: ErrorPageProps) =
             </div>
           )}
         </main>
-
-        <p className="ep-foot">DeepChat</p>
       </div>
     </div>
   );
