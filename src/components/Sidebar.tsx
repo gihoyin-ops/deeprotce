@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/icons';
 import { useShortcutLabels } from './shortcuts';
 import Tooltip from './ui/Tooltip';
+import { AnimatedChatTitle } from './ui/AnimatedChatTitle';
 import type { SettingsTab } from './SettingsModal';
 import { IconMask } from './settings/mobile';
 import { deepchatQueryKeys } from '@/lib/query-keys';
@@ -807,7 +808,7 @@ function ExpandedChatItem({ chat, active, onAction, onClick }: { chat: ChatItem;
             onClick={onClick}
             className="min-w-0 flex-1 truncate text-left text-[13.5px] font-normal leading-normal"
           >
-            {chat.title}
+            <AnimatedChatTitle title={chat.title} chatId={chat.id} />
           </button>
         )}
 

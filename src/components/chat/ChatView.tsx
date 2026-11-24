@@ -9,6 +9,7 @@ import ChatComposer, { getComposerDisplayName, getComposerFileIcon } from '@/com
 import AttachmentPreviewModal from '@/components/ui/AttachmentPreviewModal';
 import DotRevealHeadline from '@/components/home/DotRevealHeadline';
 import Tooltip from '@/components/ui/Tooltip';
+import { AnimatedChatTitle } from '@/components/ui/AnimatedChatTitle';
 import { prefersReducedMotion, triggerSubtleHaptic } from '@/components/mobile/gesture-utils';
 import {
   ChatGenerationSnapshot,
@@ -599,6 +600,9 @@ export default function ChatView({ chatId }: { chatId: string }) {
     const reloadChatMessages = async (event: Event) => {
       const detail = event instanceof CustomEvent ? event.detail : undefined;
       if (detail?.chatId && detail.chatId !== chatId) return;
+      if (detail?.title) {
+        setChatTitle(detail.title);
+      }
       const chat = await getChat(chatId) as ChatPayload | null;
       if (!mounted) return;
       if (chat?.title) setChatTitle(chat.title);
@@ -975,7 +979,7 @@ export default function ChatView({ chatId }: { chatId: string }) {
           style={{ background: 'linear-gradient(to bottom, var(--dc-canvas) 0%, var(--dc-canvas) 52%, transparent 100%)' }}
         >
           <h1 className="pointer-events-auto truncate text-[15px] font-semibold tracking-[-0.01em] text-[var(--dc-text-strong)]">
-            {chatTitle}
+            <AnimatedChatTitle title={chatTitle} chatId={chatId} />
           </h1>
         </div>
       )}

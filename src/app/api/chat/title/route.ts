@@ -11,6 +11,8 @@ export const maxDuration = 15;
 
 const ID_GREETING_PATTERN = /^(halo+|hai+|permisi|assalamualaikum|selamat\s+(pagi|siang|sore|malam)|pagi|siang|sore|malam|tes+|oke+|ok)$/i;
 const EN_GREETING_PATTERN = /^(hi+|hello+|hey+|yo+|test+|testing|ping|sup|good\s+(morning|afternoon|evening))$/i;
+const ID_IDENTITY_PATTERN = /^(siapa\s+(sih\s+)?(anda|kamu|lo|lu|ini)|kamu\s+siapa|anda\s+siapa)$/i;
+const EN_IDENTITY_PATTERN = /^(who\s+are\s+you|what\s+are\s+you)$/i;
 
 const normalizeForCompare = (text: string) =>
   text
@@ -29,13 +31,19 @@ const buildFallbackTitle = (prompt: string) => {
 
   if (ID_GREETING_PATTERN.test(clean)) return 'Sapaan dan Percakapan Awal';
   if (EN_GREETING_PATTERN.test(clean)) return 'Greeting and Initial Chat';
+  if (ID_IDENTITY_PATTERN.test(clean)) return 'Perkenalan Asisten AI';
+  if (EN_IDENTITY_PATTERN.test(clean)) return 'AI Assistant Introduction';
 
   const words = clean.split(' ').filter(word => word.length > 1).slice(0, 6);
-  if (words.length <= 1 && clean.length <= 12) {
+  const candidate = words.join(' ');
+  const normCandidate = normalizeForCompare(candidate);
+  const normPrompt = normalizeForCompare(prompt);
+
+  // Never echo short prompts verbatim as the fallback title
+  if (!candidate || words.length <= 2 || (normPrompt && normCandidate === normPrompt && words.length <= 6)) {
     return 'Percakapan Baru';
   }
-  const title = words.join(' ');
-  return title || 'Percakapan Baru';
+  return candidate;
 };
 
 const isGenericTitle = (title: string, sourcePrompt = '') => {
@@ -52,11 +60,15 @@ const isGenericTitle = (title: string, sourcePrompt = '') => {
     return true;
   }
 
-  // Reject verbatim echo of short prompts (e.g. "Halo" -> "Halo")
+  // Reject verbatim or prefix echoes of the user's message
   const normTitle = normalizeForCompare(title);
   const normPrompt = normalizeForCompare(sourcePrompt);
-  if (normPrompt && normTitle === normPrompt && normPrompt.split(' ').length <= 2) {
-    return true;
+  if (normPrompt && normTitle) {
+    if (normTitle === normPrompt) return true;
+    const promptWords = normPrompt.split(' ');
+    if (promptWords.length <= 8 && (normPrompt.startsWith(normTitle) || normTitle.startsWith(normPrompt))) {
+      return true;
+    }
   }
 
   return false;
@@ -115,9 +127,9 @@ export async function POST(req: Request) {
     }
 
     const sysMsg = [
-      'Generate a concise, descriptive 3-6 word title summarizing the topic or intent of the user message, in the same language as the message.',
-      'Never repeat or copy the user message verbatim, especially for short greetings or single-word inputs like "Halo", "Hi", "Test", or "Ok".',
-      'For a greeting or short opener, describe the interaction instead (e.g. "Sapaan dan Percakapan Awal" or "Greeting and Initial Chat").',
+      'Generate a concise, descriptive 3-6 word topic title for a chat based on the user message, in the same language as the message.',
+      'NEVER copy, repeat, or slightly trim the user message verbatim (e.g. if user says "Siapa sih anda ini", output "Perkenalan Asisten AI", NOT "Siapa sih anda ini"; if user says "Halo", output "Sapaan dan Percakapan Awal", NOT "Halo").',
+      'Summarize the intent or subject as a clean noun phrase.',
       'Output only the title. Never output New Chat, Untitled Chat, Chat Title, quotes, markdown, or explanations.'
     ].join(' ');
 
