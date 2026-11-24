@@ -9,6 +9,11 @@ export interface SearchSource {
 
 export type SearchStatus = 'idle' | 'searching' | 'completed';
 
+export type ThinkingStep =
+  | { type: 'thought'; text: string }
+  | { type: 'search'; query?: string; status: 'searching' | 'completed'; count?: number }
+  | { type: 'read'; sources: SearchSource[] };
+
 const KNOWN_SITE_NAMES: Array<[string, string]> = [
   ['wikipedia.org', 'Wikipedia'],
   ['bbc.co.uk', 'BBC'],

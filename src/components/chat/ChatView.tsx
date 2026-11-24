@@ -24,7 +24,7 @@ import { FeedbackDialog } from '@/components/chat/FeedbackDialog';
 import { extractGeneratedImagesFromMarkdown, getGenerationMode, type ExtractedGeneratedImage, type GenerationMode } from '@/lib/images/image-generation';
 import { normalizeImageAspectRatio, type ImageAspectRatio } from '@/lib/images/image-aspect-ratio';
 import { defaultComposerToolState, loadComposerToolState, saveComposerToolState } from '@/lib/agent/composer-tool-state';
-import type { SearchSource, SearchStatus } from '@/lib/search/source-display';
+import type { SearchSource, SearchStatus, ThinkingStep } from '@/lib/search/source-display';
 import { ThinkingSection } from '@/components/chat/search/ThinkingSection';
 import { SearchStatusIndicator } from '@/components/chat/search/SearchStatusIndicator';
 import { SearchResultsSidebar } from '@/components/chat/search/SearchResultsSidebar';
@@ -72,6 +72,7 @@ type MessageVersion = {
   searchHasReasoning?: boolean;
   searchSources?: SearchSource[];
   readSources?: SearchSource[];
+  thinkingSteps?: ThinkingStep[];
   clarification?: AgentClarification;
   clarificationAnswer?: AgentClarificationAnswer;
   versionIndex?: number;
@@ -89,6 +90,7 @@ type ChatMessage = {
   searchHasReasoning?: boolean;
   searchSources?: SearchSource[];
   readSources?: SearchSource[];
+  thinkingSteps?: ThinkingStep[];
   clarification?: AgentClarification;
   clarificationAnswer?: AgentClarificationAnswer;
   versions?: MessageVersion[];
@@ -157,6 +159,7 @@ const normalizeMessageForDisplay = (message: ChatMessage) => {
     searchHasReasoning: currentVersion?.searchHasReasoning ?? message.searchHasReasoning,
     searchSources: resolvedSources,
     readSources: currentVersion?.readSources ?? message.readSources,
+    thinkingSteps: currentVersion?.thinkingSteps ?? message.thinkingSteps,
     clarification: currentVersion?.clarification ?? message.clarification ?? parsedVersion.clarification,
     clarificationAnswer: currentVersion?.clarificationAnswer ?? message.clarificationAnswer,
     generationMode: currentVersion?.generationMode ?? message.generationMode,
@@ -177,6 +180,7 @@ const mergeGenerationSnapshot = (items: ChatMessage[], snapshot: ChatGenerationS
     searchHasReasoning: snapshot.searchHasReasoning,
     searchSources: snapshot.searchSources,
     readSources: snapshot.readSources,
+    thinkingSteps: snapshot.thinkingSteps,
     clarification: snapshot.clarification || parsedSnapshot.clarification,
     clarificationAnswer: m.clarificationAnswer,
     generationMode: snapshot.generationMode ?? m.generationMode,
@@ -196,6 +200,7 @@ const mergeGenerationSnapshot = (items: ChatMessage[], snapshot: ChatGenerationS
       searchHasReasoning: snapshot.searchHasReasoning,
       searchSources: snapshot.searchSources,
       readSources: snapshot.readSources,
+      thinkingSteps: snapshot.thinkingSteps,
       clarification: snapshot.clarification || parsedSnapshot.clarification,
       clarificationAnswer: updated.versions[updated.currentVersionIndex]?.clarificationAnswer,
       generationMode: snapshot.generationMode ?? updated.versions[updated.currentVersionIndex]?.generationMode
@@ -670,10 +675,11 @@ export default function ChatView({ chatId }: { chatId: string }) {
       role: 'assistant',
       content: '',
       reasoning: '',
-      searchStatus: (useWebSearch && generationMode !== 'image' ? 'searching' : 'idle') as SearchStatus,
+      searchStatus: 'idle' as SearchStatus,
       searchHasReasoning: false,
       searchSources: [],
       readSources: [],
+      thinkingSteps: [],
       clarification: undefined,
       createdAt: new Date().toISOString(),
       isStreaming: true,
@@ -766,6 +772,7 @@ export default function ChatView({ chatId }: { chatId: string }) {
       searchHasReasoning: assistantMsg.searchHasReasoning,
       searchSources: assistantMsg.searchSources,
       readSources: assistantMsg.readSources,
+      thinkingSteps: assistantMsg.thinkingSteps,
       clarification: assistantMsg.clarification,
       clarificationAnswer: assistantMsg.clarificationAnswer,
       generationMode: assistantMsg.generationMode
@@ -779,10 +786,11 @@ export default function ChatView({ chatId }: { chatId: string }) {
       currentVersionIndex: newVersionIndex,
       content: '',
       reasoning: '',
-      searchStatus: (prevUser?.webSearchEnabled && generationMode !== 'image' ? 'searching' : 'idle') as SearchStatus,
+      searchStatus: 'idle' as SearchStatus,
       searchHasReasoning: false,
       searchSources: [],
       readSources: [],
+      thinkingSteps: [],
       clarification: undefined,
       clarificationAnswer: undefined,
       reasoningDuration: undefined,
@@ -836,10 +844,11 @@ export default function ChatView({ chatId }: { chatId: string }) {
         ...nextMessage,
         content: '',
         reasoning: '',
-        searchStatus: (updatedUserMessage.webSearchEnabled && generationMode !== 'image' ? 'searching' : 'idle') as SearchStatus,
+        searchStatus: 'idle' as SearchStatus,
         searchHasReasoning: false,
         searchSources: [],
         readSources: [],
+        thinkingSteps: [],
         clarification: undefined,
         clarificationAnswer: undefined,
         reasoningDuration: undefined,
@@ -861,10 +870,11 @@ export default function ChatView({ chatId }: { chatId: string }) {
         role: 'assistant',
         content: '',
         reasoning: '',
-        searchStatus: (updatedUserMessage.webSearchEnabled && generationMode !== 'image' ? 'searching' : 'idle') as SearchStatus,
+        searchStatus: 'idle' as SearchStatus,
         searchHasReasoning: false,
         searchSources: [],
         readSources: [],
+        thinkingSteps: [],
         clarification: undefined,
         clarificationAnswer: undefined,
         createdAt: new Date().toISOString(),
@@ -912,6 +922,7 @@ export default function ChatView({ chatId }: { chatId: string }) {
       searchHasReasoning: version.searchHasReasoning,
       searchSources: version.searchSources,
       readSources: version.readSources,
+      thinkingSteps: version.thinkingSteps,
       clarification: version.clarification,
       clarificationAnswer: version.clarificationAnswer,
       generationMode: version.generationMode,
@@ -1512,7 +1523,8 @@ const MessageBubble = React.memo(function MessageBubble({ message, deferOffscree
   const searchSources = React.useMemo(() => message.searchSources ?? [], [message.searchSources]);
   const hasReasoningBlock = !isUser && (
     Boolean(message.reasoning) ||
-    (message.searchStatus === 'searching' && message.searchHasReasoning === true)
+    Boolean(message.thinkingSteps && message.thinkingSteps.some(step => step.type === 'thought')) ||
+    ((Boolean(message.isStreaming) || message.searchStatus === 'searching') && message.searchHasReasoning === true)
   );
   const hasStandaloneSearch = !isUser && !hasReasoningBlock && (
     message.searchStatus === 'searching' ||
@@ -1550,6 +1562,7 @@ const MessageBubble = React.memo(function MessageBubble({ message, deferOffscree
             searchStatus={message.searchStatus}
             searchSources={searchSources}
             readSources={message.readSources}
+            thinkingSteps={message.thinkingSteps}
             answerContent={mainAssistantContent}
             isSidebarOpen={isSearchSidebarOpen}
             onOpenSearchResults={searchSources.length > 0 ? handleOpenThisSearchSidebar : undefined}

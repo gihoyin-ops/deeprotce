@@ -16,6 +16,7 @@ export type StoredMessageVersion = {
   searchStatus?: unknown;
   searchSources?: unknown;
   readSources?: unknown;
+  thinkingSteps?: unknown;
   clarification?: unknown;
   clarificationAnswer?: unknown;
   generationMode?: unknown;
@@ -41,6 +42,7 @@ export type StoredMessage = {
   searchStatus?: unknown;
   searchSources?: unknown;
   readSources?: unknown;
+  thinkingSteps?: unknown;
   clarification?: unknown;
   clarificationAnswer?: unknown;
   generationMode?: unknown;

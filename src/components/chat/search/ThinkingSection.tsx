@@ -9,7 +9,8 @@ import {
   normalizeSourceUrl,
   tokenizeTextWithCitations,
   type SearchSource,
-  type SearchStatus
+  type SearchStatus,
+  type ThinkingStep
 } from '@/lib/search/source-display';
 import { CitationPill } from './CitationPill';
 import { StackedFavicons } from './StackedFavicons';
@@ -21,6 +22,7 @@ interface ThinkingSectionProps {
   searchStatus?: SearchStatus;
   searchSources?: SearchSource[];
   readSources?: SearchSource[];
+  thinkingSteps?: ThinkingStep[];
   answerContent?: string;
   isSidebarOpen?: boolean;
   onOpenSearchResults?: () => void;
@@ -212,6 +214,7 @@ export function ThinkingSection({
   searchStatus,
   searchSources = [],
   readSources = [],
+  thinkingSteps,
   answerContent = '',
   isSidebarOpen = false,
   onOpenSearchResults
@@ -401,9 +404,54 @@ export function ThinkingSection({
     return merged.slice(0, 5);
   }, [answerContent, isSearching, readSources, searchSources]);
 
-  const showSearchNode = isSearching || searchSources.length > 0;
-  const showReadNode = effectiveReadSources.length > 0;
-  const hasThoughts = thoughtParagraphs.length > 0;
+  const timelineNodes = useMemo(() => {
+    type TimelineNode =
+      | { kind: 'thought'; text: string }
+      | { kind: 'search'; status: 'searching' | 'completed'; count: number }
+      | { kind: 'read'; sources: SearchSource[] };
+
+    if (thinkingSteps && thinkingSteps.length > 0) {
+      const nodes: TimelineNode[] = [];
+      let hasExplicitRead = false;
+      for (const step of thinkingSteps) {
+        if (step.type === 'thought') {
+          const parts = step.text.split(/\n{2,}/).map(p => p.trim()).filter(Boolean);
+          for (const part of parts) {
+            nodes.push({ kind: 'thought', text: part });
+          }
+        } else if (step.type === 'search') {
+          nodes.push({
+            kind: 'search',
+            status: step.status,
+            count: step.count ?? searchSources.length
+          });
+        } else if (step.type === 'read' && step.sources.length > 0) {
+          hasExplicitRead = true;
+          nodes.push({ kind: 'read', sources: step.sources.slice(0, 5) });
+        }
+      }
+      if (!hasExplicitRead && effectiveReadSources.length > 0) {
+        nodes.push({ kind: 'read', sources: effectiveReadSources });
+      }
+      return nodes;
+    }
+
+    const legacy: TimelineNode[] = [];
+    if (isSearching || searchSources.length > 0) {
+      legacy.push({
+        kind: 'search',
+        status: isSearching ? 'searching' : 'completed',
+        count: searchSources.length
+      });
+    }
+    for (const part of thoughtParagraphs) {
+      legacy.push({ kind: 'thought', text: part });
+    }
+    if (effectiveReadSources.length > 0) {
+      legacy.push({ kind: 'read', sources: effectiveReadSources });
+    }
+    return legacy;
+  }, [effectiveReadSources, isSearching, searchSources.length, thinkingSteps, thoughtParagraphs]);
 
   const displayDuration = duration !== undefined ? duration : liveSeconds;
   const completedTitle =
@@ -426,8 +474,6 @@ export function ThinkingSection({
       ease: 'power2.out'
     });
   };
-
-  const searchNodeHasNext = hasThoughts || showReadNode;
 
   return (
     <div ref={rootRef} className="mb-3 w-full max-w-full">
@@ -458,124 +504,130 @@ export function ThinkingSection({
 
       <div ref={bodyRef} className="mt-1.5 pl-0.5">
         <div className="flex flex-col">
-          {showSearchNode && (
-            <div data-timeline-node className="flex items-stretch gap-2.5">
-              <div className="flex w-5 shrink-0 flex-col items-center">
-                <span className="mt-[3px] flex h-4 w-4 shrink-0 items-center justify-center text-slate-400 dark:text-slate-500">
-                  <Search className="h-3.5 w-3.5" />
-                </span>
-                {searchNodeHasNext && (
-                  <span className="my-1.5 w-px flex-1 bg-slate-200 dark:bg-slate-700/75" />
-                )}
-              </div>
-              <div className={`min-w-0 flex-1 ${searchNodeHasNext ? 'pb-3' : 'pb-1'}`}>
-                {isSearching ? (
-                  <span
-                    ref={shimmerStepRef}
-                    style={{ backgroundSize: '240% 100%' }}
-                    className="inline-block bg-gradient-to-r from-slate-400 via-slate-800 to-slate-400 bg-clip-text text-[13.5px] font-normal leading-[1.6] text-transparent dark:from-slate-500 dark:via-slate-100 dark:to-slate-500 motion-reduce:bg-none motion-reduce:text-slate-500"
-                  >
-                    Searching the web
-                  </span>
-                ) : (
-                  <button
-                    ref={foundBtnRef}
-                    type="button"
-                    onClick={onOpenSearchResults}
-                    onMouseEnter={() => handleFoundHover(true)}
-                    onMouseLeave={() => handleFoundHover(false)}
-                    disabled={!onOpenSearchResults || searchSources.length === 0}
-                    aria-expanded={isSidebarOpen}
-                    className="inline-flex cursor-pointer flex-wrap items-center gap-2 text-left text-[13.5px] font-normal leading-[1.6] text-slate-500 transition-colors hover:text-slate-800 disabled:cursor-default dark:text-slate-400 dark:hover:text-slate-200"
-                  >
-                    <span>
-                      Found {searchSources.length} web page{searchSources.length === 1 ? '' : 's'}
-                    </span>
-                    <StackedFavicons sources={searchSources} max={4} size="sm" />
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
+          {timelineNodes.map((node, index) => {
+            const hasNext = index < timelineNodes.length - 1;
 
-          {thoughtParagraphs.map((paragraph, index) => {
-            const hasNext = index < thoughtParagraphs.length - 1 || showReadNode;
-            const tokens = tokenizeTextWithCitations(paragraph, searchSources);
-            return (
-              <div key={`thought-${index}`} data-timeline-node className="flex items-stretch gap-2.5">
-                <div className="flex w-5 shrink-0 flex-col items-center">
-                  <span className="mt-[8px] h-1.5 w-1.5 shrink-0 rounded-full bg-slate-400 dark:bg-slate-500" />
-                  {hasNext && (
-                    <span className="my-1.5 w-px flex-1 bg-slate-200 dark:bg-slate-700/75" />
-                  )}
-                </div>
-                <p
-                  className={`min-w-0 flex-1 whitespace-pre-wrap break-words text-[13.5px] font-normal leading-[1.65] text-slate-500 dark:text-slate-400 ${
-                    hasNext ? 'pb-3' : 'pb-1'
-                  }`}
-                >
-                  {tokens.map((token, tokenIdx) =>
-                    token.type === 'citation' ? (
-                      <CitationPill key={`cite-${tokenIdx}`} sources={token.sources} />
+            if (node.kind === 'search') {
+              const searchingNow = node.status === 'searching';
+              return (
+                <div key={`search-${index}`} data-timeline-node className="flex items-stretch gap-2.5">
+                  <div className="flex w-5 shrink-0 flex-col items-center">
+                    <span className="mt-[3px] flex h-4 w-4 shrink-0 items-center justify-center text-slate-400 dark:text-slate-500">
+                      <Search className="h-3.5 w-3.5" />
+                    </span>
+                    {hasNext && (
+                      <span className="my-1.5 w-px flex-1 bg-slate-200 dark:bg-slate-700/75" />
+                    )}
+                  </div>
+                  <div className={`min-w-0 flex-1 ${hasNext ? 'pb-3' : 'pb-1'}`}>
+                    {searchingNow ? (
+                      <span
+                        ref={shimmerStepRef}
+                        style={{ backgroundSize: '240% 100%' }}
+                        className="inline-block bg-gradient-to-r from-slate-400 via-slate-800 to-slate-400 bg-clip-text text-[13.5px] font-normal leading-[1.6] text-transparent dark:from-slate-500 dark:via-slate-100 dark:to-slate-500 motion-reduce:bg-none motion-reduce:text-slate-500"
+                      >
+                        Searching the web
+                      </span>
                     ) : (
-                      <React.Fragment key={`txt-${tokenIdx}`}>{token.text}</React.Fragment>
-                    )
-                  )}
-                </p>
+                      <button
+                        ref={foundBtnRef}
+                        type="button"
+                        onClick={onOpenSearchResults}
+                        onMouseEnter={() => handleFoundHover(true)}
+                        onMouseLeave={() => handleFoundHover(false)}
+                        disabled={!onOpenSearchResults || searchSources.length === 0}
+                        aria-expanded={isSidebarOpen}
+                        className="inline-flex cursor-pointer flex-wrap items-center gap-2 text-left text-[13.5px] font-normal leading-[1.6] text-slate-500 transition-colors hover:text-slate-800 disabled:cursor-default dark:text-slate-400 dark:hover:text-slate-200"
+                      >
+                        <span>
+                          Found {node.count} web page{node.count === 1 ? '' : 's'}
+                        </span>
+                        <StackedFavicons sources={searchSources} max={4} size="sm" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            }
+
+            if (node.kind === 'thought') {
+              const tokens = tokenizeTextWithCitations(node.text, searchSources);
+              return (
+                <div key={`thought-${index}`} data-timeline-node className="flex items-stretch gap-2.5">
+                  <div className="flex w-5 shrink-0 flex-col items-center">
+                    <span className="mt-[8px] h-1.5 w-1.5 shrink-0 rounded-full bg-slate-400 dark:bg-slate-500" />
+                    {hasNext && (
+                      <span className="my-1.5 w-px flex-1 bg-slate-200 dark:bg-slate-700/75" />
+                    )}
+                  </div>
+                  <p
+                    className={`min-w-0 flex-1 whitespace-pre-wrap break-words text-[13.5px] font-normal leading-[1.65] text-slate-500 dark:text-slate-400 ${
+                      hasNext ? 'pb-3' : 'pb-1'
+                    }`}
+                  >
+                    {tokens.map((token, tokenIdx) =>
+                      token.type === 'citation' ? (
+                        <CitationPill key={`cite-${tokenIdx}`} sources={token.sources} />
+                      ) : (
+                        <React.Fragment key={`txt-${tokenIdx}`}>{token.text}</React.Fragment>
+                      )
+                    )}
+                  </p>
+                </div>
+              );
+            }
+
+            return (
+              <div key={`read-${index}`} data-timeline-node className="flex items-stretch gap-2.5">
+                <div className="flex w-5 shrink-0 flex-col items-center">
+                  <span className="mt-[3px] flex h-4 w-4 shrink-0 items-center justify-center text-slate-400 dark:text-slate-500">
+                    <FileText className="h-3.5 w-3.5" />
+                  </span>
+                  <span className="mt-1.5 w-px flex-1 bg-slate-200/80 dark:bg-slate-700/60" />
+                </div>
+                <div className={`min-w-0 flex-1 text-[13.5px] leading-[1.65] text-slate-500 dark:text-slate-400 ${hasNext ? 'pb-3' : 'pb-1'}`}>
+                  <div className="flex flex-col items-start gap-1">
+                    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                      {onOpenSearchResults ? (
+                        <button
+                          type="button"
+                          onClick={onOpenSearchResults}
+                          className="cursor-pointer whitespace-nowrap text-slate-500 transition-colors hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
+                        >
+                          Read {node.sources.length} page{node.sources.length === 1 ? '' : 's'}
+                        </button>
+                      ) : (
+                        <span className="whitespace-nowrap">
+                          Read {node.sources.length} page{node.sources.length === 1 ? '' : 's'}
+                        </span>
+                      )}
+                      <a
+                        href={node.sources[0].url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="group/link inline max-w-full break-words text-slate-500 underline decoration-slate-300 underline-offset-[3px] transition-colors hover:text-slate-800 hover:decoration-slate-500 dark:text-slate-400 dark:decoration-slate-600 dark:hover:text-slate-200 dark:hover:decoration-slate-400"
+                      >
+                        <span>{node.sources[0].title}</span>
+                        <DiagonalArrowIcon />
+                      </a>
+                    </div>
+                    {node.sources.slice(1).map((source, idx) => (
+                      <a
+                        key={`${source.url}-${idx}`}
+                        href={source.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="group/link inline max-w-full break-words text-slate-500 underline decoration-slate-300 underline-offset-[3px] transition-colors hover:text-slate-800 hover:decoration-slate-500 dark:text-slate-400 dark:decoration-slate-600 dark:hover:text-slate-200 dark:hover:decoration-slate-400"
+                      >
+                        <span>{source.title}</span>
+                        <DiagonalArrowIcon />
+                      </a>
+                    ))}
+                  </div>
+                </div>
               </div>
             );
           })}
-
-          {showReadNode && (
-            <div data-timeline-node className="flex items-stretch gap-2.5">
-              <div className="flex w-5 shrink-0 flex-col items-center">
-                <span className="mt-[3px] flex h-4 w-4 shrink-0 items-center justify-center text-slate-400 dark:text-slate-500">
-                  <FileText className="h-3.5 w-3.5" />
-                </span>
-                <span className="mt-1.5 w-px flex-1 bg-slate-200/80 dark:bg-slate-700/60" />
-              </div>
-              <div className="min-w-0 flex-1 pb-1 text-[13.5px] leading-[1.65] text-slate-500 dark:text-slate-400">
-                <div className="flex flex-col items-start gap-1">
-                  <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                    {onOpenSearchResults ? (
-                      <button
-                        type="button"
-                        onClick={onOpenSearchResults}
-                        className="cursor-pointer whitespace-nowrap text-slate-500 transition-colors hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
-                      >
-                        Read {effectiveReadSources.length} page{effectiveReadSources.length === 1 ? '' : 's'}
-                      </button>
-                    ) : (
-                      <span className="whitespace-nowrap">
-                        Read {effectiveReadSources.length} page{effectiveReadSources.length === 1 ? '' : 's'}
-                      </span>
-                    )}
-                    <a
-                      href={effectiveReadSources[0].url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="group/link inline max-w-full break-words text-slate-500 underline decoration-slate-300 underline-offset-[3px] transition-colors hover:text-slate-800 hover:decoration-slate-500 dark:text-slate-400 dark:decoration-slate-600 dark:hover:text-slate-200 dark:hover:decoration-slate-400"
-                    >
-                      <span>{effectiveReadSources[0].title}</span>
-                      <DiagonalArrowIcon />
-                    </a>
-                  </div>
-                  {effectiveReadSources.slice(1).map((source, idx) => (
-                    <a
-                      key={`${source.url}-${idx}`}
-                      href={source.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="group/link inline max-w-full break-words text-slate-500 underline decoration-slate-300 underline-offset-[3px] transition-colors hover:text-slate-800 hover:decoration-slate-500 dark:text-slate-400 dark:decoration-slate-600 dark:hover:text-slate-200 dark:hover:decoration-slate-400"
-                    >
-                      <span>{source.title}</span>
-                      <DiagonalArrowIcon />
-                    </a>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>

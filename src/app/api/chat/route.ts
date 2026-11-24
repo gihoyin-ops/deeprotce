@@ -23,11 +23,15 @@ import {
   LIVE_LITE_CONNECTION_ID
 } from '@/lib/ai/live';
 import {
+  buildDynamicSearchSystemPrompt,
   buildSearchSystemPrompt,
   collectSearchRuntimeContext,
+  executeDynamicReadPage,
+  executeDynamicWebSearch,
   normalizeChatTools
 } from '@/lib/search/runtime';
 import type { SearchSource } from '@/lib/search';
+import { normalizeSourceUrl } from '@/lib/search/source-display';
 import { assertEgressUrl } from '@/lib/security/url-guard';
 import { MAX_ATTACHMENT_BYTES, MAX_MESSAGE_CHARS, validateChatBody } from '@/lib/security/limits';
 import { checkUsageBudget, recordTokens } from '@/lib/security/usage';
@@ -71,8 +75,47 @@ type OpenAICompatibleContentPart =
 
 type OpenAICompatibleMessage = {
   role: string;
-  content: string | OpenAICompatibleContentPart[];
+  content: string | OpenAICompatibleContentPart[] | null;
+  tool_calls?: Array<{
+    id: string;
+    type: 'function';
+    function: { name: string; arguments: string };
+  }>;
+  tool_call_id?: string;
 };
+
+const OPENAI_SEARCH_TOOLS = [
+  {
+    type: 'function' as const,
+    function: {
+      name: 'web_search',
+      description: 'Search the web for current facts, news, people, prices, releases, or information you are not certain about. Correct any obvious user typos in the query.',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'Concise, typo-corrected web search query.' }
+        },
+        required: ['query']
+      }
+    }
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'read_page',
+      description: 'Read the full text content of a specific web page URL from search results or the user message to verify details.',
+      parameters: {
+        type: 'object',
+        properties: {
+          url: { type: 'string', description: 'The full https:// URL to read.' }
+        },
+        required: ['url']
+      }
+    }
+  }
+];
+
+const MAX_TOOL_ROUNDS = 4;
 
 type AttachmentPayload =
   | {
@@ -691,12 +734,13 @@ export async function POST(req: Request) {
       modelId?: string;
       connectionId?: string;
       tools?: unknown;
+      manualSearch?: boolean;
       skipRuntimeIntegrations?: boolean;
       imageAspectRatio?: ImageAspectRatio;
       imageEdit?: unknown;
       injectedPrompt?: string;
     };
-    const { messages, modelId, connectionId, tools, skipRuntimeIntegrations, imageAspectRatio, imageEdit, injectedPrompt } = payload;
+    const { messages, modelId, connectionId, tools, manualSearch, skipRuntimeIntegrations, imageAspectRatio, imageEdit, injectedPrompt } = payload;
 
     const validImageEdit = imageEdit !== undefined ? normalizeImageEditPayload(imageEdit) : null;
     if (imageEdit !== undefined && !validImageEdit) {
@@ -812,58 +856,325 @@ export async function POST(req: Request) {
       const mistralTarget = isMistralChatCompletionsTarget(conn, cleanBase, p);
       const providerName = conn.provider;
       const modelToUse = selectedModel || conn.model;
+      const fallbackMessages = messages.map(m => ({ ...m }));
+      const urlContextTools = runtimeTools.filter(tool => tool.toolId === 'url-context');
 
       return new Response(new ReadableStream({
         async start(controller) {
           try {
-            controller.enqueue(encoder.encode(sse({
-              type: 'deepchat_search',
-              status: 'searching',
-              hasReasoning: llmSettings.reasoning
-            })));
-
-            const searchResult = await collectSearchRuntimeContext(runtimeTools, latestUserMessage);
-            for (const event of buildSearchCompletionEvents(searchResult.sources, searchResult.readSources, searchResult.searched, llmSettings.reasoning)) {
-              controller.enqueue(encoder.encode(sse(event)));
+            if (llmSettings.reasoning) {
+              controller.enqueue(encoder.encode(sse({
+                type: 'deepchat_reasoning_state',
+                hasReasoning: true
+              })));
             }
 
-            injectSearchSystemPrompt(messages, searchResult.context, searchResult.sources.length > 0);
-            const openAICompatibleMessages = await buildOpenAICompatibleMessages(messages, providerName, mistralTarget);
-            const promptTokens = estimateChatPromptTokens(openAICompatibleMessages);
-            const body = applyOpenAICompatibleReasoning({
-              model: modelToUse,
-              messages: openAICompatibleMessages,
-              stream: true
-            }, llmSettings);
+            // Read any explicit URLs pasted in the user message in parallel
+            const urlOutcome = urlContextTools.length > 0
+              ? await collectSearchRuntimeContext(urlContextTools, latestUserMessage)
+              : { context: '', sources: [] as SearchSource[], readSources: [] as SearchSource[], searched: false };
 
-            const res = await fetch(url, {
-              method: 'POST',
-              headers,
-              body: JSON.stringify(body)
-            });
+            const allSources: SearchSource[] = [];
+            const allReadSources: SearchSource[] = [...urlOutcome.readSources];
+            const sourceIndexByUrl = new Map<string, number>();
 
-            if (!res.ok || !res.body) {
-              const upstreamBody = await getRouteResponseError(res);
-              logUpstreamFailure(res.status, upstreamBody);
-              controller.enqueue(encoder.encode(sse({ error: upstreamSseError(res.status) })));
-              controller.enqueue(DONE_BYTES);
-              controller.close();
-              return;
+            const addSources = (incoming: SearchSource[]): Array<{ index: number; source: SearchSource }> => {
+              const mapped: Array<{ index: number; source: SearchSource }> = [];
+              for (const src of incoming) {
+                const key = normalizeSourceUrl(src.url);
+                let idx = sourceIndexByUrl.get(key);
+                if (idx === undefined) {
+                  allSources.push(src);
+                  idx = allSources.length;
+                  sourceIndexByUrl.set(key, idx);
+                }
+                mapped.push({ index: idx, source: allSources[idx - 1] });
+              }
+              return mapped;
+            };
+
+            const addReadSource = (src: SearchSource | null) => {
+              if (!src) return;
+              const key = normalizeSourceUrl(src.url);
+              if (!allReadSources.some(item => normalizeSourceUrl(item.url) === key)) {
+                allReadSources.push(src);
+              }
+            };
+
+            if (allReadSources.length > 0) {
+              controller.enqueue(encoder.encode(sse({
+                type: 'deepchat_sources',
+                sources: allSources,
+                readSources: allReadSources
+              })));
             }
 
-            const streamBody = isAiLogEnabled() ? streamWithAiLog(res.body, aiLogPayload) : res.body;
-            const meteredBody = meterSseBody(streamBody, identityKey, promptTokens);
-            if (!meteredBody) {
-              controller.enqueue(DONE_BYTES);
-              controller.close();
-              return;
+            const dynamicSystemText = [
+              buildPlatformCapabilityPrompt(),
+              buildDynamicSearchSystemPrompt(manualSearch === true, urlOutcome.context)
+            ].filter(Boolean).join('\n\n');
+
+            const dynamicMessages = messages.map(m => ({ ...m }));
+            const sysIdx = dynamicMessages.findIndex((m: unknown) => isChatMessageLike(m) && m.role === 'system');
+            if (sysIdx !== -1) {
+              const base = [persona.memoryReferenceHistory === false ? '' : dynamicMessages[sysIdx].content, dynamicSystemText].filter(Boolean).join('\n\n');
+              dynamicMessages[sysIdx].content = [promptToInject, base].filter(Boolean).join('\n\n');
+            } else {
+              const combined = [promptToInject, dynamicSystemText].filter(Boolean).join('\n\n');
+              if (combined) dynamicMessages.unshift({ role: 'system', content: combined });
             }
-            const reader = meteredBody.getReader();
-            while (true) {
-              const { done, value } = await reader.read();
-              if (done) break;
-              controller.enqueue(value);
+
+            const loopMessages: OpenAICompatibleMessage[] = await buildOpenAICompatibleMessages(dynamicMessages, providerName, mistralTarget);
+
+            for (let round = 0; round < MAX_TOOL_ROUNDS; round += 1) {
+              const roundPromptTokens = estimateChatPromptTokens(loopMessages as Array<{ role?: string; content?: unknown }>);
+              const allowTools = round < MAX_TOOL_ROUNDS - 1;
+              const body = applyOpenAICompatibleReasoning({
+                model: modelToUse,
+                messages: loopMessages,
+                stream: true,
+                ...(allowTools ? { tools: OPENAI_SEARCH_TOOLS, tool_choice: 'auto' } : {})
+              }, llmSettings);
+
+              const res = await fetch(url, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(body)
+              });
+
+              // Graceful fallback if upstream provider rejects `tools` parameter
+              if (round === 0 && !res.ok && (res.status === 400 || res.status === 404 || res.status === 422)) {
+                const upstreamBody = await getRouteResponseError(res);
+                logUpstreamFailure(res.status, `Tools rejected (${res.status}), falling back: ${upstreamBody}`);
+                if (manualSearch) {
+                  controller.enqueue(encoder.encode(sse({
+                    type: 'deepchat_search',
+                    status: 'searching',
+                    hasReasoning: llmSettings.reasoning
+                  })));
+                  const fallbackSearch = await collectSearchRuntimeContext(runtimeTools, latestUserMessage);
+                  for (const event of buildSearchCompletionEvents(fallbackSearch.sources, fallbackSearch.readSources, fallbackSearch.searched, llmSettings.reasoning)) {
+                    controller.enqueue(encoder.encode(sse(event)));
+                  }
+                  injectSearchSystemPrompt(fallbackMessages, fallbackSearch.context, fallbackSearch.sources.length > 0);
+                } else {
+                  injectSearchSystemPrompt(fallbackMessages, urlOutcome.context, false);
+                }
+                const fbOpenAI = await buildOpenAICompatibleMessages(fallbackMessages, providerName, mistralTarget);
+                const fbTokens = estimateChatPromptTokens(fbOpenAI as Array<{ role?: string; content?: unknown }>);
+                const fbRes = await fetch(url, {
+                  method: 'POST',
+                  headers,
+                  body: JSON.stringify(applyOpenAICompatibleReasoning({ model: modelToUse, messages: fbOpenAI, stream: true }, llmSettings))
+                });
+                if (!fbRes.ok || !fbRes.body) {
+                  const fbErr = await getRouteResponseError(fbRes);
+                  logUpstreamFailure(fbRes.status, fbErr);
+                  controller.enqueue(encoder.encode(sse({ error: upstreamSseError(fbRes.status) })));
+                  controller.enqueue(DONE_BYTES);
+                  controller.close();
+                  return;
+                }
+                const fbStream = isAiLogEnabled() ? streamWithAiLog(fbRes.body, aiLogPayload) : fbRes.body;
+                const fbMetered = meterSseBody(fbStream, identityKey, fbTokens);
+                if (fbMetered) {
+                  const fbReader = fbMetered.getReader();
+                  while (true) {
+                    const { done, value } = await fbReader.read();
+                    if (done) break;
+                    controller.enqueue(value);
+                  }
+                }
+                controller.close();
+                return;
+              }
+
+              if (!res.ok || !res.body) {
+                const upstreamBody = await getRouteResponseError(res);
+                logUpstreamFailure(res.status, upstreamBody);
+                controller.enqueue(encoder.encode(sse({ error: upstreamSseError(res.status) })));
+                controller.enqueue(DONE_BYTES);
+                controller.close();
+                return;
+              }
+
+              const streamBody = isAiLogEnabled() ? streamWithAiLog(res.body, aiLogPayload) : res.body;
+              const meteredBody = meterSseBody(streamBody, identityKey, roundPromptTokens);
+              if (!meteredBody) {
+                controller.enqueue(DONE_BYTES);
+                controller.close();
+                return;
+              }
+
+              const reader = meteredBody.getReader();
+              const decoder = new TextDecoder();
+              let sseBuffer = '';
+              let roundContent = '';
+              const toolCallsMap = new Map<number, { id: string; name: string; arguments: string }>();
+
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                sseBuffer += decoder.decode(value, { stream: true });
+                const lines = sseBuffer.split('\n');
+                sseBuffer = lines.pop() || '';
+
+                for (const line of lines) {
+                  const trimmed = line.trim();
+                  if (!trimmed || trimmed.startsWith(':')) continue;
+                  const dataStr = trimmed.replace(/^data:\s*/, '').trim();
+                  if (dataStr === '[DONE]') continue;
+
+                  let parsed: Record<string, unknown>;
+                  try {
+                    const raw = JSON.parse(dataStr) as unknown;
+                    if (!raw || typeof raw !== 'object') continue;
+                    parsed = raw as Record<string, unknown>;
+                  } catch {
+                    continue;
+                  }
+
+                  const choices = Array.isArray(parsed.choices) ? parsed.choices : [];
+                  const firstChoice = choices[0] && typeof choices[0] === 'object' ? choices[0] as Record<string, unknown> : null;
+                  const delta = firstChoice?.delta && typeof firstChoice.delta === 'object' ? firstChoice.delta as Record<string, unknown> : null;
+
+                  if (delta) {
+                    if (typeof delta.content === 'string' && delta.content) {
+                      roundContent += delta.content;
+                    }
+                    if (Array.isArray(delta.tool_calls)) {
+                      for (const rawTc of delta.tool_calls) {
+                        if (!rawTc || typeof rawTc !== 'object') continue;
+                        const tc = rawTc as Record<string, unknown>;
+                        const tcIdx = typeof tc.index === 'number' ? tc.index : 0;
+                        const existing = toolCallsMap.get(tcIdx) || { id: `call_${round}_${tcIdx}`, name: '', arguments: '' };
+                        if (typeof tc.id === 'string' && tc.id) existing.id = tc.id;
+                        const fn = tc.function && typeof tc.function === 'object' ? tc.function as Record<string, unknown> : null;
+                        if (typeof fn?.name === 'string' && fn.name) existing.name += fn.name;
+                        if (typeof fn?.arguments === 'string' && fn.arguments) existing.arguments += fn.arguments;
+                        toolCallsMap.set(tcIdx, existing);
+                      }
+                    }
+
+                    const hasTextDelta =
+                      (typeof delta.content === 'string' && delta.content.length > 0) ||
+                      (typeof delta.reasoning_content === 'string' && delta.reasoning_content.length > 0);
+                    if (hasTextDelta) {
+                      controller.enqueue(encoder.encode(`data: ${JSON.stringify(parsed)}\n\n`));
+                    }
+                  } else if (parsed.error) {
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify(parsed)}\n\n`));
+                  }
+                }
+              }
+
+              const toolCalls = [...toolCallsMap.entries()]
+                .sort((a, b) => a[0] - b[0])
+                .map(([, tc]) => tc)
+                .filter(tc => tc.name);
+
+              if (toolCalls.length === 0) {
+                controller.enqueue(DONE_BYTES);
+                controller.close();
+                return;
+              }
+
+              loopMessages.push({
+                role: 'assistant',
+                content: roundContent || null,
+                tool_calls: toolCalls.map(tc => ({
+                  id: tc.id,
+                  type: 'function' as const,
+                  function: { name: tc.name, arguments: tc.arguments || '{}' }
+                }))
+              });
+
+              const searchCalls = toolCalls.filter(tc => tc.name === 'web_search');
+              let primaryQuery = '';
+              if (searchCalls.length > 0) {
+                try {
+                  const firstArgs = JSON.parse(searchCalls[0].arguments || '{}') as { query?: unknown };
+                  if (typeof firstArgs.query === 'string') primaryQuery = firstArgs.query.trim();
+                } catch {}
+                controller.enqueue(encoder.encode(sse({
+                  type: 'deepchat_search',
+                  status: 'searching',
+                  query: primaryQuery || undefined,
+                  hasReasoning: llmSettings.reasoning
+                })));
+              }
+
+              const toolOutputs = await Promise.all(
+                toolCalls.map(async tc => {
+                  let args: Record<string, unknown> = {};
+                  try {
+                    const parsedArgs = JSON.parse(tc.arguments || '{}') as unknown;
+                    if (parsedArgs && typeof parsedArgs === 'object') args = parsedArgs as Record<string, unknown>;
+                  } catch {}
+
+                  if (tc.name === 'web_search') {
+                    const query = typeof args.query === 'string' ? args.query.trim() : latestUserMessage;
+                    const found = await executeDynamicWebSearch(runtimeTools, query);
+                    const mapped = addSources(found);
+                    if (mapped.length === 0) {
+                      return { id: tc.id, content: 'No web search results found for this query.' };
+                    }
+                    const formatted = mapped
+                      .map(({ index, source }) =>
+                        [
+                          `[${index}] ${source.title}`,
+                          `URL: ${source.url}`,
+                          source.publishedDate ? `Date: ${source.publishedDate}` : '',
+                          source.snippet ? `Snippet: ${source.snippet}` : ''
+                        ]
+                          .filter(Boolean)
+                          .join('\n')
+                      )
+                      .join('\n\n');
+                    return { id: tc.id, content: formatted };
+                  }
+
+                  if (tc.name === 'read_page') {
+                    const pageUrl = typeof args.url === 'string' ? args.url.trim() : '';
+                    const extracted = await executeDynamicReadPage(pageUrl, allSources);
+                    addReadSource(extracted.source);
+                    return {
+                      id: tc.id,
+                      content: extracted.text || 'Could not extract readable text from this URL.'
+                    };
+                  }
+
+                  return { id: tc.id, content: 'Unsupported tool.' };
+                })
+              );
+
+              if (allSources.length > 0 || allReadSources.length > 0) {
+                controller.enqueue(encoder.encode(sse({
+                  type: 'deepchat_sources',
+                  sources: allSources,
+                  readSources: allReadSources
+                })));
+              }
+              if (searchCalls.length > 0) {
+                controller.enqueue(encoder.encode(sse({
+                  type: 'deepchat_search',
+                  status: 'completed',
+                  sourceCount: allSources.length,
+                  query: primaryQuery || undefined,
+                  hasReasoning: llmSettings.reasoning
+                })));
+              }
+
+              for (const out of toolOutputs) {
+                loopMessages.push({
+                  role: 'tool',
+                  tool_call_id: out.id,
+                  content: out.content
+                });
+              }
             }
+
+            controller.enqueue(DONE_BYTES);
             controller.close();
           } catch (error) {
             controller.enqueue(encoder.encode(sse({ error: getErrorMessage(error) || 'Could not reach the chat server just now. Try again in a bit.' })));

@@ -128,6 +128,62 @@ export const collectSearchRuntimeContext = async (
   };
 };
 
+export const executeDynamicWebSearch = async (
+  tools: ChatToolRuntimeItem[],
+  query: string
+): Promise<SearchSource[]> => {
+  const searchTools = tools.filter(tool => tool.toolId !== 'url-context');
+  const cleanQuery = query.replace(/\s+/g, ' ').trim();
+  if (searchTools.length === 0 || !cleanQuery) return [];
+  try {
+    const outcome = await runWebSearch(searchTools, cleanQuery);
+    return outcome.sources;
+  } catch {
+    return [];
+  }
+};
+
+export const executeDynamicReadPage = async (
+  rawUrl: string,
+  knownSources: SearchSource[] = []
+): Promise<{ source: SearchSource | null; text: string }> => {
+  const cleanUrl = rawUrl.trim();
+  if (!/^https?:\/\//i.test(cleanUrl)) {
+    return { source: null, text: '' };
+  }
+  try {
+    const page = await extractUrlContent(cleanUrl);
+    if (!page.text) return { source: null, text: '' };
+    const matched = knownSources.find(s => s.url === page.url || s.url === cleanUrl);
+    const source = normalizeSearchSource({
+      url: page.url,
+      title: matched?.title || getHost(page.url) || page.url,
+      snippet: matched?.snippet || page.text.slice(0, 260),
+      siteName: matched?.siteName,
+      publishedDate: matched?.publishedDate
+    });
+    return {
+      source,
+      text: page.text.slice(0, 5000)
+    };
+  } catch {
+    return { source: null, text: '' };
+  }
+};
+
+export const buildDynamicSearchSystemPrompt = (
+  manualSearch: boolean,
+  urlContext = ''
+): string => [
+  'You have access to two web tools: `web_search` and `read_page`.',
+  manualSearch
+    ? 'The user enabled Web Search for this turn. Think briefly about what the user actually means (correct any typos in your query), call `web_search` with a clean query, and use the results to answer.'
+    : 'Think carefully first before deciding whether to search. If the request can be answered accurately from conversation history or stable general knowledge, answer directly without calling `web_search`. If you need fresh facts, current events, prices, verification, or specific sources, call `web_search` with a clean, typo-corrected query.',
+  'After searching, you may call `read_page` on specific promising URLs if you need deeper details, or call `web_search` again with a refined query.',
+  'Cite factual claims inline using source numbers like [1] or [1, 2] matching the numbered sources returned by `web_search`. Never invent URLs or titles, never mention search engines or rate limits, and never write filler like "Searching for...".',
+  urlContext
+].filter(Boolean).join('\n\n');
+
 export const buildSearchSystemPrompt = (context: string, hasSources: boolean): string => {
   if (!context) return '';
   return [

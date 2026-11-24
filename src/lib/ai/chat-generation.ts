@@ -8,9 +8,8 @@ import { getEnabledToolRuntimeItems } from '@/lib/settings/tool-settings';
 import { parseAgentClarification, parseGeneratedClarificationAnswerContent, type AgentClarification } from '@/lib/agent/agent-clarification';
 import { getGenerationMode, stripGeneratedImageMarkdown, type GenerationMode } from '@/lib/images/image-generation';
 import { normalizeImageAspectRatio, type ImageAspectRatio } from '@/lib/images/image-aspect-ratio';
-import type { SearchSource, SearchStatus } from '@/lib/search/source-display';
+import type { SearchSource, SearchStatus, ThinkingStep } from '@/lib/search/source-display';
 import {
-  decideBackendTools,
   getLatestUserMessage,
   shouldRequestImageGeneration
 } from '@/lib/agent/backend-tools';
@@ -45,6 +44,7 @@ interface ChatMessageVersion {
   searchStatus?: SearchStatus;
   searchSources?: SearchSource[];
   readSources?: SearchSource[];
+  thinkingSteps?: ThinkingStep[];
   clarification?: AgentClarification;
   versionIndex?: number;
   generationMode?: GenerationMode;
@@ -57,6 +57,7 @@ interface StoredChatMessage extends MemoryAssistantMessage {
   searchStatus?: SearchStatus;
   searchSources?: SearchSource[];
   readSources?: SearchSource[];
+  thinkingSteps?: ThinkingStep[];
   clarification?: AgentClarification;
   versions?: ChatMessageVersion[];
   currentVersionIndex?: number;
@@ -80,6 +81,7 @@ export interface ChatGenerationSnapshot {
   searchHasReasoning: boolean;
   searchSources: SearchSource[];
   readSources: SearchSource[];
+  thinkingSteps: ThinkingStep[];
   clarification?: AgentClarification;
   isStreaming: boolean;
   isError?: boolean;
@@ -108,6 +110,7 @@ interface ChatGenerationTask {
   searchHasReasoning: boolean;
   searchSources: SearchSource[];
   readSources: SearchSource[];
+  thinkingSteps: ThinkingStep[];
   clarification?: AgentClarification;
   startedAt: number;
   reasoningEndTime: number;
@@ -167,6 +170,7 @@ const getSnapshot = (task: ChatGenerationTask): ChatGenerationSnapshot => ({
   searchHasReasoning: task.searchHasReasoning,
   searchSources: task.searchSources,
   readSources: task.readSources,
+  thinkingSteps: [...task.thinkingSteps],
   clarification: task.clarification,
   isStreaming: task.status === 'running',
   isError: task.status === 'error',
@@ -256,6 +260,7 @@ const updateMessageVersion = (
   searchStatus: SearchStatus = 'idle',
   searchSources: SearchSource[] = [],
   readSources: SearchSource[] = [],
+  thinkingSteps: ThinkingStep[] = [],
   clarification?: AgentClarification,
   generationMode?: GenerationMode
 ) => {
@@ -267,6 +272,7 @@ const updateMessageVersion = (
     searchStatus,
     searchSources,
     readSources,
+    thinkingSteps,
     clarification,
     generationMode
   };
@@ -281,6 +287,7 @@ const updateMessageVersion = (
       searchStatus,
       searchSources,
       readSources,
+      thinkingSteps,
       clarification,
       generationMode
     };
@@ -312,6 +319,7 @@ const saveFinalMessage = async (task: ChatGenerationTask, options: { isError?: b
       finalSearchStatus,
       task.searchSources,
       task.readSources,
+      task.thinkingSteps,
       clarification,
       task.generationMode
     ),
@@ -581,10 +589,43 @@ const consumeStream = async (task: ChatGenerationTask, res: Response) => {
         continue;
       }
 
-      if (json.type === 'deepchat_search') {
-        task.searchStatus = json.status === 'searching' ? 'searching' : 'completed';
+      if (json.type === 'deepchat_reasoning_state') {
         if (typeof json.hasReasoning === 'boolean') {
           task.searchHasReasoning = json.hasReasoning;
+          emitSnapshot(task, true);
+        }
+        continue;
+      }
+
+      if (json.type === 'deepchat_search') {
+        const nextStatus = json.status === 'searching' ? 'searching' : 'completed';
+        const query = getString(json.query) || undefined;
+        const count = typeof json.sourceCount === 'number' ? json.sourceCount : undefined;
+        task.searchStatus = nextStatus;
+        if (typeof json.hasReasoning === 'boolean') {
+          task.searchHasReasoning = json.hasReasoning;
+        }
+        if (nextStatus === 'searching') {
+          task.thinkingSteps.push({ type: 'search', query, status: 'searching' });
+        } else {
+          const lastSearchIdx = [...task.thinkingSteps].reverse().findIndex(s => s.type === 'search');
+          if (lastSearchIdx !== -1) {
+            const targetIdx = task.thinkingSteps.length - 1 - lastSearchIdx;
+            const prev = task.thinkingSteps[targetIdx];
+            task.thinkingSteps[targetIdx] = {
+              type: 'search',
+              query: query ?? (prev.type === 'search' ? prev.query : undefined),
+              status: 'completed',
+              count: count ?? task.searchSources.length
+            };
+          } else if ((count ?? task.searchSources.length) > 0) {
+            task.thinkingSteps.push({
+              type: 'search',
+              query,
+              status: 'completed',
+              count: count ?? task.searchSources.length
+            });
+          }
         }
         emitSnapshot(task, true);
         continue;
@@ -593,7 +634,17 @@ const consumeStream = async (task: ChatGenerationTask, res: Response) => {
       if (json.type === 'deepchat_sources') {
         task.searchSources = normalizeSearchSources(json.sources);
         if (Array.isArray(json.readSources)) {
-          task.readSources = normalizeSearchSources(json.readSources);
+          const nextRead = normalizeSearchSources(json.readSources);
+          if (nextRead.length > task.readSources.length) {
+            const added = nextRead.slice(task.readSources.length);
+            const lastStep = task.thinkingSteps[task.thinkingSteps.length - 1];
+            if (lastStep && lastStep.type === 'read') {
+              lastStep.sources = [...lastStep.sources, ...added];
+            } else {
+              task.thinkingSteps.push({ type: 'read', sources: added });
+            }
+          }
+          task.readSources = nextRead;
         }
         emitSnapshot(task, true);
         continue;
@@ -615,6 +666,12 @@ const consumeStream = async (task: ChatGenerationTask, res: Response) => {
           if (task.searchStatus === 'searching') task.searchStatus = 'completed';
           task.fullReasoning += delta.reasoning;
           task.reasoningEndTime = Date.now();
+          const lastStep = task.thinkingSteps[task.thinkingSteps.length - 1];
+          if (lastStep && lastStep.type === 'thought') {
+            lastStep.text += delta.reasoning;
+          } else {
+            task.thinkingSteps.push({ type: 'thought', text: delta.reasoning });
+          }
         }
         if (delta.content) {
           if (task.searchStatus === 'searching') task.searchStatus = 'completed';
@@ -640,13 +697,7 @@ const runTask = async (task: ChatGenerationTask) => {
   try {
     const latestUserMessage = getLatestUserMessage(task.apiMessages);
     const isImageTask = task.generationMode === 'image' || Boolean(task.imageEdit);
-    const toolDecision = isImageTask
-      ? { useSearch: false, source: 'heuristic' as const }
-      : await decideBackendTools(task.apiMessages, latestUserMessage, task.connection, task.controller.signal);
-    if (toolDecision.useSearch && task.searchStatus !== 'searching') {
-      task.searchStatus = 'searching';
-      emitSnapshot(task, true);
-    }
+    const manualSearch = !isImageTask && latestUserMessage?.webSearchEnabled === true;
     const formattedMessages = formatMessages(task.apiMessages);
     const injectedPrompt = await getInjectedSystemPrompt('', latestUserMessage?.content || '');
     const res = await fetch('/api/chat', {
@@ -659,7 +710,8 @@ const runTask = async (task: ChatGenerationTask) => {
         injectedPrompt,
         imageAspectRatio: normalizeImageAspectRatio(latestUserMessage?.imageAspectRatio),
         imageEdit: task.imageEdit,
-        tools: getEnabledToolRuntimeItems(toolDecision.useSearch)
+        manualSearch,
+        tools: isImageTask ? [] : getEnabledToolRuntimeItems(true)
       }),
       signal: task.controller.signal
     });
@@ -696,7 +748,6 @@ export const startChatGeneration = (
   const selectedConnection = getSelectedConnection();
   const latestUser = getLatestUserMessage(apiMessages);
   const isImageTask = Boolean(imageEdit) || shouldRequestImageGeneration(latestUser);
-  const manualSearch = !isImageTask && latestUser?.webSearchEnabled === true;
 
   const task: ChatGenerationTask = {
     chatId,
@@ -705,10 +756,11 @@ export const startChatGeneration = (
     controller: new AbortController(),
     fullContent: '',
     fullReasoning: '',
-    searchStatus: manualSearch ? 'searching' : 'idle',
+    searchStatus: 'idle',
     searchHasReasoning: false,
     searchSources: [],
     readSources: [],
+    thinkingSteps: [],
     clarification: undefined,
     startedAt: Date.now(),
     reasoningEndTime: Date.now(),
