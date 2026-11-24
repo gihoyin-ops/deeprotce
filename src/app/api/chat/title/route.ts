@@ -7,7 +7,7 @@ import { checkUsageBudget, recordTokens } from '@/lib/security/usage';
 import { getClientIp } from '@/lib/security/rate-limit';
 
 export const runtime = 'nodejs';
-export const maxDuration = 15;
+export const maxDuration = 30;
 
 const normalizeForCompare = (text: string) =>
   text
@@ -109,10 +109,10 @@ async function requestAiTitle(
           { role: 'user', content: `Summarize into a 3-6 word topic title (do not copy verbatim):\n"""\n${prompt}\n"""` }
         ],
         stream: false,
-        max_tokens: 60,
+        max_tokens: 512,
         temperature
       }),
-      signal: AbortSignal.timeout(7000)
+      signal: AbortSignal.timeout(12000)
     });
 
     if (!res.ok) {
