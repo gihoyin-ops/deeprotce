@@ -7,9 +7,11 @@ import { prefersReducedMotion } from '@/components/mobile/gesture-utils';
 import {
   extractCitedSourceIndices,
   normalizeSourceUrl,
+  tokenizeTextWithCitations,
   type SearchSource,
   type SearchStatus
 } from '@/lib/search/source-display';
+import { CitationPill } from './CitationPill';
 import { StackedFavicons } from './StackedFavicons';
 
 interface ThinkingSectionProps {
@@ -367,6 +369,7 @@ export function ThinkingSection({
 
           {thoughtParagraphs.map((paragraph, index) => {
             const hasNext = index < thoughtParagraphs.length - 1 || showReadNode;
+            const tokens = tokenizeTextWithCitations(paragraph, searchSources);
             return (
               <div key={`thought-${index}`} data-timeline-node className="flex items-stretch gap-2.5">
                 <div className="flex w-5 shrink-0 flex-col items-center">
@@ -380,7 +383,13 @@ export function ThinkingSection({
                     hasNext ? 'pb-3' : 'pb-1'
                   }`}
                 >
-                  {paragraph}
+                  {tokens.map((token, tokenIdx) =>
+                    token.type === 'citation' ? (
+                      <CitationPill key={`cite-${tokenIdx}`} sources={token.sources} />
+                    ) : (
+                      <React.Fragment key={`txt-${tokenIdx}`}>{token.text}</React.Fragment>
+                    )
+                  )}
                 </p>
               </div>
             );

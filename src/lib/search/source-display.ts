@@ -205,3 +205,90 @@ export const extractCitedSourceIndices = (markdown: string, sources: SearchSourc
 
   return ordered;
 };
+
+export type CitationToken =
+  | { type: 'text'; text: string }
+  | { type: 'citation'; sources: SearchSource[] };
+
+export const tokenizeTextWithCitations = (text: string, sources: SearchSource[]): CitationToken[] => {
+  if (!text || sources.length === 0) {
+    return text ? [{ type: 'text', text }] : [];
+  }
+
+  const adjacentCitationsPattern = /(\[[^\[\]\n]{1,64}\](?!\())(?:\s*,?\s*\[[^\[\]\n]{1,64}\](?!\())*/g;
+  const singleBracketPattern = /\[([^\[\]\n]{1,64})\](?!\()/g;
+  const tokens: CitationToken[] = [];
+  let cursor = 0;
+
+  const pushText = (chunk: string) => {
+    if (!chunk) return;
+    const prev = tokens[tokens.length - 1];
+    if (prev && prev.type === 'text') {
+      prev.text += chunk;
+    } else {
+      tokens.push({ type: 'text', text: chunk });
+    }
+  };
+
+  for (const runMatch of text.matchAll(adjacentCitationsPattern)) {
+    const runStart = runMatch.index ?? 0;
+    const runText = runMatch[0];
+    if (runStart > cursor) {
+      pushText(text.slice(cursor, runStart));
+    }
+
+    const bracketMatches = [...runText.matchAll(singleBracketPattern)];
+    const resolvedPerBracket = bracketMatches.map(match => ({
+      raw: match[0],
+      index: match.index ?? 0,
+      indices: getSourceReferences(match[1], sources)
+    }));
+
+    if (resolvedPerBracket.length > 0 && resolvedPerBracket.every(item => item.indices.length > 0)) {
+      const seen = new Set<number>();
+      const group: SearchSource[] = [];
+      for (const item of resolvedPerBracket) {
+        for (const sourceIndex of item.indices) {
+          if (!seen.has(sourceIndex) && sources[sourceIndex]) {
+            seen.add(sourceIndex);
+            group.push(sources[sourceIndex]);
+          }
+        }
+      }
+      if (group.length > 0) {
+        tokens.push({ type: 'citation', sources: group });
+      } else {
+        pushText(runText);
+      }
+    } else {
+      let innerCursor = 0;
+      for (const item of resolvedPerBracket) {
+        if (item.index > innerCursor) {
+          pushText(runText.slice(innerCursor, item.index));
+        }
+        if (item.indices.length > 0) {
+          const group = item.indices.map(idx => sources[idx]).filter(Boolean);
+          if (group.length > 0) {
+            tokens.push({ type: 'citation', sources: group });
+          } else {
+            pushText(item.raw);
+          }
+        } else {
+          pushText(item.raw);
+        }
+        innerCursor = item.index + item.raw.length;
+      }
+      if (innerCursor < runText.length) {
+        pushText(runText.slice(innerCursor));
+      }
+    }
+
+    cursor = runStart + runText.length;
+  }
+
+  if (cursor < text.length) {
+    pushText(text.slice(cursor));
+  }
+
+  return tokens;
+};
