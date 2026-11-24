@@ -74,7 +74,7 @@ export const resolveMaxEffortIndex = (
 };
 
 const splitRawEntries = (val: string | readonly string[]): string[] => {
-  if (Array.isArray(val)) {
+  if (typeof val !== 'string') {
     return val.map(item => item.trim()).filter(Boolean);
   }
   const merged: string[] = [];
