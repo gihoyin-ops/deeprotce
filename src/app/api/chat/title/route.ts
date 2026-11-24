@@ -109,7 +109,7 @@ async function requestAiTitle(
           { role: 'user', content: `Summarize into a 3-6 word topic title (do not copy verbatim):\n"""\n${prompt}\n"""` }
         ],
         stream: false,
-        max_tokens: 512,
+        max_tokens: 2000,
         temperature
       }),
       signal: AbortSignal.timeout(12000)
