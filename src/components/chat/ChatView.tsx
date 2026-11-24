@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { gsap } from 'gsap';
 import { getChat, saveMessage, uploadFile } from '@/app/actions';
 import MarkdownRenderer from '@/components/ui/MarkdownRenderer';
@@ -1351,14 +1351,107 @@ function CopyActionIcon({ copied, className = 'h-4 w-4' }: { copied: boolean; cl
   return <Copy className={className} strokeWidth={2} />;
 }
 
+function UserMessageEditor({
+  value,
+  isSaving,
+  onChange,
+  onCancel,
+  onSave,
+}: {
+  value: string;
+  isSaving: boolean;
+  onChange: (next: string) => void;
+  onCancel: () => void;
+  onSave: () => void;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const canSend = value.trim().length > 0 && !isSaving;
+
+  useLayoutEffect(() => {
+    const el = containerRef.current;
+    if (!el || prefersReducedMotion()) return;
+    gsap.fromTo(
+      el,
+      { opacity: 0, scale: 0.985, y: 3 },
+      { opacity: 1, scale: 1, y: 0, duration: 0.2, ease: 'power3.out', clearProps: 'transform,opacity' }
+    );
+  }, []);
+
+  useEffect(() => {
+    const node = textareaRef.current;
+    if (!node) return;
+    node.focus();
+    node.setSelectionRange(node.value.length, node.value.length);
+  }, []);
+
+  useLayoutEffect(() => {
+    const node = textareaRef.current;
+    if (!node) return;
+    node.style.height = 'auto';
+    node.style.height = `${Math.min(Math.max(node.scrollHeight, 26), 220)}px`;
+  }, [value]);
+
+  return (
+    <div
+      ref={containerRef}
+      className="w-full min-w-0 rounded-[20px] border border-[var(--dc-border)] bg-[var(--dc-surface)] p-3 shadow-md shadow-slate-900/5 ring-1 ring-black/[0.03] transition-colors focus-within:border-[var(--dc-border-strong)] dark:border-slate-700/80 dark:bg-slate-900 dark:shadow-black/30 dark:ring-white/[0.04] sm:rounded-[24px] sm:p-3.5"
+    >
+      <textarea
+        ref={textareaRef}
+        value={value}
+        rows={1}
+        disabled={isSaving}
+        onChange={(event) => onChange(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            onCancel();
+          }
+          if ((event.ctrlKey || event.metaKey) && event.key === 'Enter' && canSend) {
+            event.preventDefault();
+            onSave();
+          }
+        }}
+        placeholder="Edit your message..."
+        aria-label="Edit message"
+        className="custom-scrollbar block max-h-[220px] w-full resize-none overflow-y-auto bg-transparent px-1 py-0.5 text-[15.5px] font-medium leading-[1.55] text-[var(--dc-text-strong)] outline-none placeholder:text-[var(--dc-text-placeholder)] sm:text-[16px] sm:leading-relaxed"
+      />
+      <div className="mt-2.5 flex items-center justify-end gap-2 sm:justify-between">
+        <span className="hidden pl-1 text-[11px] font-medium text-[var(--dc-text-faint)] sm:inline">
+          Esc to cancel · Ctrl/⌘ + Enter to send
+        </span>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            disabled={isSaving}
+            onClick={onCancel}
+            className="inline-flex min-h-[38px] cursor-pointer items-center justify-center rounded-full border border-[var(--dc-border)] bg-[var(--dc-fill)] px-4 text-[13.5px] font-medium leading-none text-[var(--dc-text-strong)] transition-colors hover:bg-[var(--dc-fill-hover)] active:scale-[0.97] disabled:opacity-50 sm:min-h-[32px] sm:px-3.5 sm:text-[13px]"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            disabled={!canSend}
+            onClick={onSave}
+            className="inline-flex min-h-[38px] cursor-pointer items-center justify-center rounded-full bg-[var(--dc-invert)] px-4 text-[13.5px] font-medium leading-none text-[var(--dc-text-on-invert)] transition-colors hover:bg-[var(--dc-invert-hover)] active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 sm:min-h-[32px] sm:px-3.5 sm:text-[13px]"
+          >
+            Send
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const MessageBubble = React.memo(function MessageBubble({ message, deferOffscreen = false, requestedAspectRatio, onOpenGeneratedImagePreview, onRegenerate, onSwitchVersion, canEditUserMessage = false, onEditUserMessage, isMobileActionsOpen = false, onActivateMobileActions, feedbackRating = null, onLike, onDislike, isSearchSidebarOpen = false, onOpenSearchResults }: MessageBubbleProps) {
   const isUser = message.role === 'user';
   const [copied, setCopied] = useState(false);
   const [isEditingUserMessage, setIsEditingUserMessage] = useState(false);
+  const [isSavingUserEdit, setIsSavingUserEdit] = useState(false);
   const [userDraft, setUserDraft] = useState(message.content || '');
   const [previewAttachment, setPreviewAttachment] = useState<AttachedFile | null>(null);
   const [isAttachmentPreviewOpen, setIsAttachmentPreviewOpen] = useState(false);
-  const userEditRef = useRef<HTMLTextAreaElement | null>(null);
 
   const handlePreviewGeneratedImage = useCallback(
     (image: ExtractedGeneratedImage, index: number, initialMode: ImageStudioMode = 'view') => {
@@ -1384,14 +1477,6 @@ const MessageBubble = React.memo(function MessageBubble({ message, deferOffscree
     [onOpenGeneratedImagePreview]
   );
 
-  useEffect(() => {
-    if (!isEditingUserMessage) return;
-    const node = userEditRef.current;
-    if (!node) return;
-    node.focus();
-    node.setSelectionRange(node.value.length, node.value.length);
-  }, [isEditingUserMessage]);
-
   const handleCopy = () => {
     navigator.clipboard.writeText(message.content || '');
     setCopied(true);
@@ -1410,9 +1495,14 @@ const MessageBubble = React.memo(function MessageBubble({ message, deferOffscree
   };
 
   const saveUserEdit = async () => {
-    if (!onEditUserMessage) return;
-    const saved = await onEditUserMessage(userDraft);
-    if (saved) setIsEditingUserMessage(false);
+    if (!onEditUserMessage || isSavingUserEdit) return;
+    setIsSavingUserEdit(true);
+    try {
+      const saved = await onEditUserMessage(userDraft);
+      if (saved) setIsEditingUserMessage(false);
+    } finally {
+      setIsSavingUserEdit(false);
+    }
   };
 
   const hasVersions = message.versions && message.versions.length > 1;
@@ -1451,7 +1541,7 @@ const MessageBubble = React.memo(function MessageBubble({ message, deferOffscree
       onClick={onActivateMobileActions}
       className={`group/message flex w-full items-start ${isUser ? 'justify-end message-user' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 ${deferOffscreen ? 'dc-mob-msg-deferred' : ''}`}
     >
-      <div className={`relative flex min-w-0 flex-col ${isUser ? 'max-w-[78%] items-end sm:max-w-[52%]' : 'w-full max-w-[44rem] items-start sm:max-w-[48rem]'}`}>
+      <div className={`relative flex min-w-0 flex-col ${isUser ? (isEditingUserMessage ? 'w-full max-w-[94%] items-end sm:max-w-[min(85%,560px)]' : 'max-w-[78%] items-end sm:max-w-[52%]') : 'w-full max-w-[44rem] items-start sm:max-w-[48rem]'}`}>
         {hasReasoningBlock && (
           <ThinkingSection
             content={message.reasoning || ''}
@@ -1531,88 +1621,25 @@ const MessageBubble = React.memo(function MessageBubble({ message, deferOffscree
               </div>
             )}
           </div>
-        ) : mainAssistantContent ? (
-          <div className={`max-w-full ${isUser
-            ? 'rounded-[20px] rounded-br-[6px] border border-[var(--dc-border-subtle)] bg-[var(--dc-fill)] px-4 py-2.5 text-[var(--dc-text-strong)] shadow-none sm:rounded-[1.65rem] sm:border-0 sm:bg-[#aeeefa] sm:px-5 sm:py-3.5 dark:text-slate-100'
-            : message.isError
-              ? 'px-1 py-1 text-red-600'
-              : 'px-0 py-0 text-black dark:text-slate-100'
-            }`}>
-            {isUser && isEditingUserMessage ? (
-              <div className="w-[min(72vw,520px)]">
-                <textarea
-                  ref={userEditRef}
-                  value={userDraft}
-                  onChange={(event) => setUserDraft(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Escape') cancelUserEdit();
-                    if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') void saveUserEdit();
-                  }}
-                  rows={Math.min(8, Math.max(3, userDraft.split('\n').length))}
-                  className="w-full resize-none bg-transparent px-1 pb-3 pt-0 text-[17px] font-medium leading-relaxed text-black outline-none placeholder:text-black/40 sm:text-[16px] dark:text-slate-100 dark:placeholder:text-slate-500"
-                />
-                <div className="-mt-0.5 flex justify-end gap-2 pr-0.5">
-                  <button
-                    type="button"
-                    onClick={cancelUserEdit}
-                    className="inline-flex h-7 items-center rounded-full border border-[#cfbfc0] bg-white/95 px-3 text-[14px] font-medium leading-none text-black transition hover:bg-white dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void saveUserEdit()}
-                    className="inline-flex h-7 items-center rounded-full bg-black px-3.5 text-[14px] font-medium leading-none text-white transition hover:bg-black/80"
-                  >
-                    Send
-                  </button>
-                </div>
-              </div>
-            ) : isUser ? (
-              <div className="whitespace-pre-wrap break-words text-[15.5px] font-medium leading-[1.55] sm:text-[17px] sm:leading-relaxed">
-                {message.content}
-              </div>
-            ) : (
-              <MarkdownRenderer content={mainAssistantContent} isStreaming={message.isStreaming} searchSources={message.searchSources} />
-            )}
-          </div>
         ) : isUser ? (
-          <div className="max-w-full rounded-[20px] rounded-br-[6px] border border-[var(--dc-border-subtle)] bg-[var(--dc-fill)] px-4 py-2.5 text-[var(--dc-text-strong)] shadow-none sm:rounded-[1.65rem] sm:border-0 sm:bg-[#aeeefa] sm:px-5 sm:py-3.5 dark:text-slate-100">
-            {isEditingUserMessage ? (
-              <div className="w-[min(72vw,520px)]">
-                <textarea
-                  ref={userEditRef}
-                  value={userDraft}
-                  onChange={(event) => setUserDraft(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Escape') cancelUserEdit();
-                    if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') void saveUserEdit();
-                  }}
-                  rows={Math.min(8, Math.max(3, userDraft.split('\n').length))}
-                  className="w-full resize-none bg-transparent px-1 pb-3 pt-0 text-[17px] font-medium leading-relaxed text-black outline-none placeholder:text-black/40 sm:text-[16px] dark:text-slate-100 dark:placeholder:text-slate-500"
-                />
-                <div className="-mt-0.5 flex justify-end gap-2 pr-0.5">
-                  <button
-                    type="button"
-                    onClick={cancelUserEdit}
-                    className="inline-flex h-7 items-center rounded-full border border-[#cfbfc0] bg-white/95 px-3 text-[14px] font-medium leading-none text-black transition hover:bg-white dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void saveUserEdit()}
-                    className="inline-flex h-7 items-center rounded-full bg-black px-3.5 text-[14px] font-medium leading-none text-white transition hover:bg-black/80"
-                  >
-                    Send
-                  </button>
-                </div>
-              </div>
-            ) : (
+          isEditingUserMessage ? (
+            <UserMessageEditor
+              value={userDraft}
+              isSaving={isSavingUserEdit}
+              onChange={setUserDraft}
+              onCancel={cancelUserEdit}
+              onSave={() => void saveUserEdit()}
+            />
+          ) : (
+            <div className="max-w-full rounded-[20px] rounded-br-[6px] border border-[var(--dc-border-subtle)] bg-[var(--dc-fill)] px-4 py-2.5 text-[var(--dc-text-strong)] shadow-none sm:rounded-[1.65rem] sm:border-0 sm:bg-[#aeeefa] sm:px-5 sm:py-3.5 dark:text-slate-100">
               <div className="whitespace-pre-wrap break-words text-[15.5px] font-medium leading-[1.55] sm:text-[17px] sm:leading-relaxed">
                 {message.content}
               </div>
-            )}
+            </div>
+          )
+        ) : mainAssistantContent ? (
+          <div className={`max-w-full ${message.isError ? 'px-1 py-1 text-red-600' : 'px-0 py-0 text-black dark:text-slate-100'}`}>
+            <MarkdownRenderer content={mainAssistantContent} isStreaming={message.isStreaming} searchSources={message.searchSources} />
           </div>
         ) : message.isStreaming && !hasReasoningBlock && !hasStandaloneSearch && (
           <div className="flex min-h-8 w-fit items-center px-1 py-2">
