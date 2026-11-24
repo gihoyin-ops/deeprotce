@@ -381,6 +381,6 @@ export async function exportData() {
     profile: await getUserProfile(),
     persona: { instructions: '' },
     memories: { saved: [], chatHistory: [] },
-    connections: getLiveConnections()
+    connections: []
   };
 }
