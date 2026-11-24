@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { gsap } from 'gsap';
 import { ChevronDown, FileText, Search } from '@/components/ui/icons';
 import { prefersReducedMotion } from '@/components/mobile/gesture-utils';
@@ -26,22 +26,162 @@ interface ThinkingSectionProps {
   onOpenSearchResults?: () => void;
 }
 
-function OrbitalThinkingIcon({ active }: { active: boolean }) {
+function KineticThinkingDotIcon({
+  active,
+  hovered,
+}: {
+  active: boolean;
+  hovered: boolean;
+}) {
+  const uid = useId().replace(/:/g, '');
+  const gradId = `dc-dot-grad-${uid}`;
+  const gooId = `dc-dot-goo-${uid}`;
+
+  const svgRef = useRef<SVGSVGElement>(null);
+  const coreRef = useRef<SVGCircleElement>(null);
+  const dropARef = useRef<SVGCircleElement>(null);
+  const dropBRef = useRef<SVGCircleElement>(null);
+  const haloRef = useRef<SVGCircleElement>(null);
+
+  useLayoutEffect(() => {
+    const reduce = prefersReducedMotion();
+    const core = coreRef.current;
+    const dropA = dropARef.current;
+    const dropB = dropBRef.current;
+    const halo = haloRef.current;
+    if (!core || !dropA || !dropB || !halo) return;
+
+    const ctx = gsap.context(() => {
+      gsap.killTweensOf([core, dropA, dropB, halo]);
+
+      if (reduce) {
+        gsap.set(core, { x: 0, y: 0, scale: 1, scaleX: 1, scaleY: 1, transformOrigin: '50% 50%' });
+        gsap.set([dropA, dropB], { x: 0, y: 0, scale: 0, opacity: 0, transformOrigin: '50% 50%' });
+        gsap.set(halo, { scale: 1, opacity: active ? 0.36 : 0.2, transformOrigin: '50% 50%' });
+        return;
+      }
+
+      if (active) {
+        // Core organic liquid breathing + subtle squash/stretch
+        gsap.fromTo(
+          core,
+          { scaleX: 1.06, scaleY: 0.94, transformOrigin: '50% 50%' },
+          {
+            scaleX: 0.94,
+            scaleY: 1.07,
+            duration: 1.15,
+            ease: 'sine.inOut',
+            repeat: -1,
+            yoyo: true,
+          }
+        );
+
+        // Droplet A: fluid figure-8 / Lissajous budding out & merging back
+        gsap.set(dropA, { opacity: 0.96, scale: 1, transformOrigin: '50% 50%' });
+        gsap
+          .timeline({ repeat: -1 })
+          .to(dropA, { x: 5.2, y: -2.4, scale: 1.05, duration: 0.65, ease: 'sine.inOut' })
+          .to(dropA, { x: 1.8, y: 4.8, scale: 0.86, duration: 0.72, ease: 'sine.inOut' })
+          .to(dropA, { x: -4.8, y: 1.6, scale: 1.02, duration: 0.68, ease: 'sine.inOut' })
+          .to(dropA, { x: 0, y: 0, scale: 0.72, duration: 0.55, ease: 'sine.inOut' });
+
+        // Droplet B: counter-phase harmonic orbit
+        gsap.set(dropB, { opacity: 0.88, scale: 0.9, transformOrigin: '50% 50%' });
+        gsap
+          .timeline({ repeat: -1 })
+          .to(dropB, { x: -4.6, y: -3.6, scale: 0.96, duration: 0.8, ease: 'sine.inOut' })
+          .to(dropB, { x: 0.8, y: -5.2, scale: 0.78, duration: 0.75, ease: 'sine.inOut' })
+          .to(dropB, { x: 4.2, y: 2.6, scale: 0.92, duration: 0.82, ease: 'sine.inOut' })
+          .to(dropB, { x: 0, y: 0, scale: 0.65, duration: 0.6, ease: 'sine.inOut' });
+
+        // Outer soft aura pulse
+        gsap.fromTo(
+          halo,
+          { scale: 0.9, opacity: 0.16, transformOrigin: '50% 50%' },
+          {
+            scale: 1.14,
+            opacity: 0.42,
+            duration: 1.4,
+            ease: 'sine.inOut',
+            repeat: -1,
+            yoyo: true,
+          }
+        );
+      } else {
+        // Coalesce smoothly into the signature settled DeepChat blue dot
+        gsap.to([dropA, dropB], {
+          x: 0,
+          y: 0,
+          scale: 0,
+          opacity: 0,
+          duration: 0.35,
+          ease: 'power3.out',
+          transformOrigin: '50% 50%',
+        });
+        gsap.to(core, {
+          x: 0,
+          y: 0,
+          scale: hovered ? 1.12 : 1,
+          scaleX: 1,
+          scaleY: 1,
+          duration: 0.32,
+          ease: 'back.out(1.7)',
+          transformOrigin: '50% 50%',
+        });
+        gsap.to(halo, {
+          scale: hovered ? 1.18 : 1,
+          opacity: hovered ? 0.45 : 0.2,
+          duration: 0.3,
+          ease: 'power2.out',
+          transformOrigin: '50% 50%',
+        });
+      }
+    }, svgRef);
+
+    return () => ctx.revert();
+  }, [active, hovered]);
+
   return (
     <svg
+      ref={svgRef}
       viewBox="0 0 24 24"
       fill="none"
-      className={`h-[18px] w-[18px] shrink-0 transition-colors ${
-        active
-          ? 'text-indigo-500 dark:text-indigo-400'
-          : 'text-indigo-500/85 dark:text-indigo-400/85'
-      }`}
+      className="h-[19px] w-[19px] shrink-0 overflow-visible"
       aria-hidden="true"
     >
-      <ellipse cx="12" cy="12" rx="9" ry="3.8" transform="rotate(35 12 12)" stroke="currentColor" strokeWidth="1.65" />
-      <ellipse cx="12" cy="12" rx="9" ry="3.8" transform="rotate(-35 12 12)" stroke="currentColor" strokeWidth="1.65" />
-      <ellipse cx="12" cy="12" rx="9" ry="3.8" transform="rotate(90 12 12)" stroke="currentColor" strokeWidth="1.4" opacity="0.55" />
-      <circle cx="12" cy="12" r="1.75" fill="currentColor" />
+      <defs>
+        <radialGradient id={gradId} cx="35%" cy="35%" r="68%">
+          <stop offset="0%" stopColor="#93c5fd" />
+          <stop offset="55%" stopColor="#3b82f6" />
+          <stop offset="100%" stopColor="#1d4ed8" />
+        </radialGradient>
+        <filter id={gooId} x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="1.25" result="blur" />
+          <feColorMatrix
+            in="blur"
+            mode="matrix"
+            values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7"
+            result="goo"
+          />
+          <feComposite in="SourceGraphic" in2="goo" operator="atop" />
+        </filter>
+      </defs>
+
+      <circle
+        ref={haloRef}
+        cx="12"
+        cy="12"
+        r="8.4"
+        stroke="#3b82f6"
+        strokeWidth="1.15"
+        opacity="0.2"
+      />
+
+      <g filter={active ? `url(#${gooId})` : undefined}>
+        <circle ref={dropARef} cx="12" cy="12" r="2.15" fill={`url(#${gradId})`} />
+        <circle ref={dropBRef} cx="12" cy="12" r="1.7" fill={`url(#${gradId})`} />
+        <circle ref={coreRef} cx="12" cy="12" r="4.5" fill={`url(#${gradId})`} />
+      </g>
     </svg>
   );
 }
@@ -80,6 +220,7 @@ export function ThinkingSection({
   const isActive = Boolean(isStreaming || isSearching);
 
   const [isExpanded, setIsExpanded] = useState<boolean>(() => isActive);
+  const [isHeaderHovered, setIsHeaderHovered] = useState(false);
   const [liveSeconds, setLiveSeconds] = useState(0);
 
   const userToggledRef = useRef(false);
@@ -87,7 +228,6 @@ export function ThinkingSection({
   const firstBodyEffectRef = useRef(true);
 
   const rootRef = useRef<HTMLDivElement>(null);
-  const atomRef = useRef<HTMLSpanElement>(null);
   const shimmerHeaderRef = useRef<HTMLSpanElement>(null);
   const shimmerStepRef = useRef<HTMLSpanElement>(null);
   const chevronRef = useRef<HTMLSpanElement>(null);
@@ -122,21 +262,12 @@ export function ThinkingSection({
     }
   }, [isActive]);
 
-  // Active shimmer & atom rotation
+  // Active shimmer glow
   useLayoutEffect(() => {
     const reduce = prefersReducedMotion();
     const ctx = gsap.context(() => {
       if (!isActive || reduce) return;
 
-      if (atomRef.current) {
-        gsap.to(atomRef.current, {
-          rotation: 360,
-          duration: 8,
-          ease: 'none',
-          repeat: -1,
-          transformOrigin: '50% 50%'
-        });
-      }
       if (shimmerHeaderRef.current) {
         gsap.fromTo(
           shimmerHeaderRef.current,
@@ -303,12 +434,12 @@ export function ThinkingSection({
       <button
         type="button"
         onClick={handleToggle}
+        onMouseEnter={() => setIsHeaderHovered(true)}
+        onMouseLeave={() => setIsHeaderHovered(false)}
         aria-expanded={isExpanded}
         className="group inline-flex cursor-pointer items-center gap-2 rounded-lg py-1 pr-2 text-[14px] font-medium text-slate-600 transition-colors hover:text-slate-900 dark:text-slate-300 dark:hover:text-slate-100"
       >
-        <span ref={atomRef} className="inline-flex items-center justify-center">
-          <OrbitalThinkingIcon active={isActive} />
-        </span>
+        <KineticThinkingDotIcon active={isActive} hovered={isHeaderHovered} />
         {isActive ? (
           <span
             ref={shimmerHeaderRef}
