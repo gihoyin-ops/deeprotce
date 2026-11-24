@@ -1644,7 +1644,7 @@ const MessageBubble = React.memo(function MessageBubble({ message, deferOffscree
               onSave={() => void saveUserEdit()}
             />
           ) : (
-            <div className="max-w-full rounded-[20px] rounded-br-[6px] border border-[var(--dc-border-subtle)] bg-[var(--dc-fill)] px-4 py-2.5 text-[var(--dc-text-strong)] shadow-none sm:rounded-[1.65rem] sm:border-0 sm:bg-[#aeeefa] sm:px-5 sm:py-3.5 dark:text-slate-100">
+            <div className="max-w-full rounded-[20px] rounded-br-[6px] border border-[var(--dc-border-subtle)] bg-[var(--dc-fill)] px-4 py-2.5 text-[var(--dc-text-strong)] shadow-none sm:rounded-[1.65rem] sm:border-0 sm:bg-[#aeeefa] dark:sm:!bg-[var(--dc-user-bubble-sm)] sm:px-5 sm:py-3.5 dark:text-slate-100">
               <div className="whitespace-pre-wrap break-words text-[15.5px] font-medium leading-[1.55] sm:text-[17px] sm:leading-relaxed">
                 {message.content}
               </div>
