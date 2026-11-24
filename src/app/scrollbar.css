@@ -121,6 +121,43 @@ html[data-appearance="dark"] .code-preview-code ::selection {
   animation: deepchat-panel-shell-in 360ms cubic-bezier(0.16, 1, 0.36, 1) both;
 }
 
+.dc-sse-block-in,
+.dc-sse-streaming > p,
+.dc-sse-streaming > ul,
+.dc-sse-streaming > ol,
+.dc-sse-streaming > h1,
+.dc-sse-streaming > h2,
+.dc-sse-streaming > h3,
+.dc-sse-streaming > blockquote,
+.dc-sse-streaming li {
+  animation: dc-sse-block-in 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes dc-sse-block-in {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dc-sse-block-in,
+  .dc-sse-streaming > p,
+  .dc-sse-streaming > ul,
+  .dc-sse-streaming > ol,
+  .dc-sse-streaming > h1,
+  .dc-sse-streaming > h2,
+  .dc-sse-streaming > h3,
+  .dc-sse-streaming > blockquote,
+  .dc-sse-streaming li {
+    animation: none;
+  }
+}
+
 @keyframes deepchat-code-spin {
   from {
     transform: rotate(0deg);

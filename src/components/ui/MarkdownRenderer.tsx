@@ -12,6 +12,7 @@ import { createHighlighter, createJavaScriptRegexEngine, type Highlighter } from
 import 'katex/dist/katex.min.css';
 import { ClientOnly } from '@/lib/utils';
 import CodePreview from '@/components/ui/CodePreview';
+import KineticDot from '@/components/ui/KineticDot';
 import { CitationPill } from '@/components/chat/search/CitationPill';
 import {
   getSourceByUrl,
@@ -250,7 +251,7 @@ const MarkdownRenderer = React.memo(function MarkdownRenderer({ content, isStrea
   return (
     <ClientOnly>
       <MarkdownRenderContext.Provider value={contextValue}>
-        <div className="prose prose-slate max-w-none break-words dark:prose-invert prose-pre:bg-transparent prose-pre:p-0 prose-p:leading-relaxed prose-a:text-indigo-600 hover:prose-a:text-indigo-700 prose-strong:text-slate-800 dark:prose-strong:text-slate-200 [&>*:last-child]:mb-0">
+        <div className={`prose prose-slate max-w-none break-words dark:prose-invert prose-pre:bg-transparent prose-pre:p-0 prose-p:leading-relaxed prose-a:text-indigo-600 hover:prose-a:text-indigo-700 prose-strong:text-slate-800 dark:prose-strong:text-slate-200 [&>*:last-child]:mb-0 ${isStreaming ? 'dc-sse-streaming' : ''}`}>
           <ReactMarkdown
             remarkPlugins={[remarkGfm, remarkMath]}
             rehypePlugins={[rehypeKatex]}
@@ -259,6 +260,11 @@ const MarkdownRenderer = React.memo(function MarkdownRenderer({ content, isStrea
           >
             {processedContent}
           </ReactMarkdown>
+          {isStreaming && !streamingCodeFence && processedContent.trim().length > 0 && (
+            <span className="mt-1 inline-flex items-center">
+              <KineticDot mode="streaming" size="sm" className="ml-0.5" />
+            </span>
+          )}
         </div>
       </MarkdownRenderContext.Provider>
     </ClientOnly>

@@ -106,6 +106,8 @@ interface ChatGenerationTask {
   controller: AbortController;
   fullContent: string;
   fullReasoning: string;
+  displayedContent: string;
+  displayedReasoning: string;
   searchStatus: SearchStatus;
   searchHasReasoning: boolean;
   searchSources: SearchSource[];
@@ -122,11 +124,11 @@ interface ChatGenerationTask {
   promise?: Promise<void>;
   lastEmittedAt: number;
   pendingEmit: ReturnType<typeof setTimeout> | null;
+  rafId: number | null;
 }
 
 const tasks = new Map<string, ChatGenerationTask>();
 const listeners = new Map<string, Set<(snapshot: ChatGenerationSnapshot) => void>>();
-const STREAM_EMIT_INTERVAL_MS = 80;
 
 const getResponseError = async (res: Response) => {
   try {
@@ -161,56 +163,123 @@ const getDuration = (task: ChatGenerationTask) => {
   return task.fullReasoning ? durationSec : undefined;
 };
 
-const getSnapshot = (task: ChatGenerationTask): ChatGenerationSnapshot => ({
-  chatId: task.chatId,
-  assistantMsgId: task.assistantMsgId,
-  content: task.fullContent,
-  reasoning: task.fullReasoning,
-  searchStatus: task.searchStatus,
-  searchHasReasoning: task.searchHasReasoning,
-  searchSources: task.searchSources,
-  readSources: task.readSources,
-  thinkingSteps: [...task.thinkingSteps],
-  clarification: task.clarification,
-  isStreaming: task.status === 'running',
-  isError: task.status === 'error',
-  isStopped: task.status === 'stopped',
-  reasoningDuration: getDuration(task),
-  generationMode: task.generationMode,
-  status: task.status
-});
+const getPacedThinkingSteps = (steps: ThinkingStep[], charBudget: number, isRunning: boolean): ThinkingStep[] => {
+  if (!isRunning) return [...steps];
+  let remaining = charBudget;
+  const paced: ThinkingStep[] = [];
+  for (const step of steps) {
+    if (step.type !== 'thought') {
+      paced.push(step);
+      continue;
+    }
+    if (remaining <= 0) continue;
+    if (step.text.length <= remaining) {
+      paced.push(step);
+      remaining -= step.text.length;
+    } else {
+      paced.push({ type: 'thought', text: step.text.slice(0, remaining) });
+      remaining = 0;
+    }
+  }
+  return paced;
+};
+
+const getSnapshot = (task: ChatGenerationTask): ChatGenerationSnapshot => {
+  const isRunning = task.status === 'running';
+  return {
+    chatId: task.chatId,
+    assistantMsgId: task.assistantMsgId,
+    content: isRunning ? task.displayedContent : task.fullContent,
+    reasoning: isRunning ? task.displayedReasoning : task.fullReasoning,
+    searchStatus: task.searchStatus,
+    searchHasReasoning: task.searchHasReasoning,
+    searchSources: task.searchSources,
+    readSources: task.readSources,
+    thinkingSteps: getPacedThinkingSteps(task.thinkingSteps, task.displayedReasoning.length, isRunning),
+    clarification: task.clarification,
+    isStreaming: isRunning,
+    isError: task.status === 'error',
+    isStopped: task.status === 'stopped',
+    reasoningDuration: getDuration(task),
+    generationMode: task.generationMode,
+    status: task.status
+  };
+};
 
 const dispatchSnapshot = (task: ChatGenerationTask) => {
   const snapshot = getSnapshot(task);
   listeners.get(task.chatId)?.forEach(listener => listener(snapshot));
 };
 
+const stopSmoothRaf = (task: ChatGenerationTask) => {
+  if (task.rafId !== null && typeof window !== 'undefined') {
+    window.cancelAnimationFrame(task.rafId);
+    task.rafId = null;
+  }
+};
+
+const stepSmoothEmit = (task: ChatGenerationTask) => {
+  task.rafId = null;
+  if (task.status !== 'running') {
+    task.displayedContent = task.fullContent;
+    task.displayedReasoning = task.fullReasoning;
+    dispatchSnapshot(task);
+    return;
+  }
+
+  let advanced = false;
+  const rDiff = task.fullReasoning.length - task.displayedReasoning.length;
+  if (rDiff > 0) {
+    const step = Math.max(3, Math.ceil(rDiff * 0.28));
+    task.displayedReasoning = task.fullReasoning.slice(0, task.displayedReasoning.length + step);
+    advanced = true;
+  }
+
+  const cDiff = task.fullContent.length - task.displayedContent.length;
+  if (cDiff > 0) {
+    const step = Math.max(2, Math.ceil(cDiff * 0.25));
+    task.displayedContent = task.fullContent.slice(0, task.displayedContent.length + step);
+    advanced = true;
+  }
+
+  if (advanced) {
+    task.lastEmittedAt = Date.now();
+    dispatchSnapshot(task);
+  }
+
+  if (
+    task.displayedContent.length < task.fullContent.length ||
+    task.displayedReasoning.length < task.fullReasoning.length
+  ) {
+    if (typeof window !== 'undefined') {
+      task.rafId = window.requestAnimationFrame(() => stepSmoothEmit(task));
+    }
+  }
+};
+
 const emitSnapshot = (task: ChatGenerationTask, immediate = false) => {
-  if (task.pendingEmit && (immediate || task.status !== 'running')) {
+  if (task.pendingEmit) {
     clearTimeout(task.pendingEmit);
     task.pendingEmit = null;
   }
 
-  if (immediate || task.status !== 'running') {
+  if (task.status !== 'running') {
+    stopSmoothRaf(task);
+    task.displayedContent = task.fullContent;
+    task.displayedReasoning = task.fullReasoning;
     task.lastEmittedAt = Date.now();
     dispatchSnapshot(task);
     return;
   }
 
-  const now = Date.now();
-  const elapsed = now - task.lastEmittedAt;
-  if (elapsed >= STREAM_EMIT_INTERVAL_MS) {
-    task.lastEmittedAt = now;
+  if (immediate) {
+    task.lastEmittedAt = Date.now();
     dispatchSnapshot(task);
     return;
   }
 
-  if (!task.pendingEmit) {
-    task.pendingEmit = setTimeout(() => {
-      task.pendingEmit = null;
-      task.lastEmittedAt = Date.now();
-      dispatchSnapshot(task);
-    }, STREAM_EMIT_INTERVAL_MS - elapsed);
+  if (task.rafId === null && typeof window !== 'undefined') {
+    task.rafId = window.requestAnimationFrame(() => stepSmoothEmit(task));
   }
 };
 
@@ -756,6 +825,8 @@ export const startChatGeneration = (
     controller: new AbortController(),
     fullContent: '',
     fullReasoning: '',
+    displayedContent: '',
+    displayedReasoning: '',
     searchStatus: 'idle',
     searchHasReasoning: false,
     searchSources: [],
@@ -772,7 +843,8 @@ export const startChatGeneration = (
       : getGenerationMode(selectedConnection?.id),
     imageEdit,
     lastEmittedAt: 0,
-    pendingEmit: null
+    pendingEmit: null,
+    rafId: null
   };
 
   tasks.set(chatId, task);
