@@ -6,7 +6,7 @@ export const THEME_SCRIPT = "(function(){try{var r=document.documentElement;var 
 export const GLOBAL_CSS = `
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #0f172a;
   --deepchat-accent: #4f46e5;
   --deepchat-accent-hover: #4338ca;
   --deepchat-accent-soft: #eef2ff;
@@ -15,20 +15,20 @@ export const GLOBAL_CSS = `
 }
 
 html.dark {
-  --background: #000000;
-  --foreground: #ededed;
+  --background: #0b0d11;
+  --foreground: #eceef2;
 }
 
 html[data-appearance="light"] {
   color-scheme: light;
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #0f172a;
 }
 
 html[data-appearance="dark"] {
   color-scheme: dark;
-  --background: #000000;
-  --foreground: #ededed;
+  --background: #0b0d11;
+  --foreground: #eceef2;
 }
 
 html[data-contrast="increased"] {
@@ -99,9 +99,10 @@ html[data-accent-color="black"] {
 html, body {
   min-height: 100%;
   margin: 0;
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   background: var(--background);
   color: var(--foreground);
+  -webkit-font-smoothing: antialiased;
 }
 `;
 
