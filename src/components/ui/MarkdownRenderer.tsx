@@ -12,7 +12,6 @@ import { createHighlighter, createJavaScriptRegexEngine, type Highlighter } from
 import 'katex/dist/katex.min.css';
 import { ClientOnly } from '@/lib/utils';
 import CodePreview from '@/components/ui/CodePreview';
-import KineticDot from '@/components/ui/KineticDot';
 import { CitationPill } from '@/components/chat/search/CitationPill';
 import {
   getSourceByUrl,
@@ -260,11 +259,6 @@ const MarkdownRenderer = React.memo(function MarkdownRenderer({ content, isStrea
           >
             {processedContent}
           </ReactMarkdown>
-          {isStreaming && !streamingCodeFence && processedContent.trim().length > 0 && (
-            <span className="mt-1 inline-flex items-center">
-              <KineticDot mode="streaming" size="sm" className="ml-0.5" />
-            </span>
-          )}
         </div>
       </MarkdownRenderContext.Provider>
     </ClientOnly>

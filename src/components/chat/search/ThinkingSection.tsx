@@ -28,7 +28,7 @@ interface ThinkingSectionProps {
   onOpenSearchResults?: () => void;
 }
 
-function KineticThinkingDotIcon({
+export function KineticThinkingDotIcon({
   active,
   hovered,
 }: {

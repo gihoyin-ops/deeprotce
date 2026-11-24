@@ -25,7 +25,7 @@ import { extractGeneratedImagesFromMarkdown, getGenerationMode, type ExtractedGe
 import { normalizeImageAspectRatio, type ImageAspectRatio } from '@/lib/images/image-aspect-ratio';
 import { defaultComposerToolState, loadComposerToolState, saveComposerToolState } from '@/lib/agent/composer-tool-state';
 import type { SearchSource, SearchStatus, ThinkingStep } from '@/lib/search/source-display';
-import { ThinkingSection } from '@/components/chat/search/ThinkingSection';
+import { KineticThinkingDotIcon, ThinkingSection } from '@/components/chat/search/ThinkingSection';
 import { SearchStatusIndicator } from '@/components/chat/search/SearchStatusIndicator';
 import { SearchResultsSidebar } from '@/components/chat/search/SearchResultsSidebar';
 import { StackedFavicons } from '@/components/chat/search/StackedFavicons';
@@ -1655,12 +1655,8 @@ const MessageBubble = React.memo(function MessageBubble({ message, deferOffscree
             <MarkdownRenderer content={mainAssistantContent} isStreaming={message.isStreaming} searchSources={message.searchSources} />
           </div>
         ) : message.isStreaming && !hasReasoningBlock && !hasStandaloneSearch && (
-          <div className="flex min-h-8 w-fit items-center px-1 py-2">
-            <div className="flex space-x-1.5">
-              <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-              <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-              <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
-            </div>
+          <div className="flex min-h-8 w-fit items-center px-0.5 py-1.5" role="status" aria-label="Generating response">
+            <KineticThinkingDotIcon active hovered={false} />
           </div>
         )}
 
