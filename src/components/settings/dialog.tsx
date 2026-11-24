@@ -15,7 +15,7 @@ export function Dialog({ open, closing, zIndex, width = 'max-w-4xl', onClose, ch
   if (!open) return null;
   return (
     <div
-      className={`fixed inset-0 flex items-center justify-center bg-slate-900/80 p-4`}
+      className={`fixed inset-0 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-[2px] dark:bg-black/75`}
       style={{ zIndex, animation: `${closing ? 'settingsBackdropOut' : 'settingsBackdropIn'} 150ms ease-out both` }}
       onClick={event => {
         event.stopPropagation();
@@ -25,8 +25,8 @@ export function Dialog({ open, closing, zIndex, width = 'max-w-4xl', onClose, ch
       <div
         role="dialog"
         aria-modal="true"
-        className={`flex max-h-[88dvh] w-full ${width} flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700/60 dark:bg-slate-900 dark:shadow-black/40`}
-        style={{ animation: `${closing ? 'settingsPanelOut' : 'settingsPanelIn'} 180ms ease-out both` }}
+        className={`flex max-h-[88dvh] w-full ${width} flex-col overflow-hidden rounded-3xl border border-slate-200 bg-[var(--dc-panel)] shadow-2xl dark:border-slate-700/70 dark:shadow-black/60`}
+        style={{ backgroundColor: 'var(--dc-panel)', animation: `${closing ? 'settingsPanelOut' : 'settingsPanelIn'} 180ms ease-out both` }}
         onClick={event => event.stopPropagation()}
       >
         {children}

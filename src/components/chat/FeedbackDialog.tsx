@@ -85,10 +85,10 @@ export function FeedbackDialog({ open, closing, messageKind, reasons, rating, in
     : (messageKind === 'error' ? 'What happened?' : 'What went wrong?');
 
   const chipClass = (active: boolean) =>
-    `min-h-[44px] rounded-full border px-4 py-2 text-left text-[13px] font-semibold leading-snug transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--deepchat-accent)] dark:focus-visible:outline-[var(--deepchat-accent-text)] sm:text-sm ${
+    `min-h-[44px] cursor-pointer rounded-full border px-4 py-2 text-left text-[13px] font-semibold leading-snug transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--deepchat-accent)] dark:focus-visible:outline-[var(--deepchat-accent-text)] sm:text-sm ${
       active
-        ? 'border-[var(--deepchat-accent)] bg-[var(--deepchat-accent-soft)] text-[var(--deepchat-accent-text)] dark:border-[var(--deepchat-accent-text)] dark:bg-slate-950'
-        : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800'
+        ? 'border-[var(--deepchat-accent)] bg-[var(--deepchat-accent-soft)] text-[var(--deepchat-accent-text)] dark:border-[var(--deepchat-accent-text)] dark:bg-indigo-500/20 dark:text-slate-100'
+        : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700/80 dark:bg-[var(--dc-surface)] dark:text-slate-200 dark:hover:bg-[var(--dc-surface-hover)]'
     }`;
 
   return (
@@ -131,7 +131,7 @@ export function FeedbackDialog({ open, closing, messageKind, reasons, rating, in
               onChange={event => setDetails(event.target.value)}
               rows={3}
               placeholder="Share details (optional)"
-              className="w-full resize-none rounded-2xl border border-slate-300 bg-white p-3.5 text-[15px] font-medium leading-relaxed text-slate-800 outline-none transition-colors placeholder:text-slate-400 focus:border-[var(--deepchat-accent)] focus:ring-2 focus:ring-[var(--deepchat-accent-soft)] dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-[var(--deepchat-accent-text)] dark:focus:ring-slate-800"
+              className="w-full resize-none rounded-2xl border border-slate-300 bg-white p-3.5 text-[15px] font-medium leading-relaxed text-slate-800 outline-none transition-colors placeholder:text-slate-400 focus:border-[var(--deepchat-accent)] focus:ring-2 focus:ring-[var(--deepchat-accent-soft)] dark:border-slate-700/80 dark:bg-[var(--dc-surface-input)] dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-[var(--deepchat-accent-text)] dark:focus:ring-slate-800"
             />
           </div>
 
@@ -144,7 +144,7 @@ export function FeedbackDialog({ open, closing, messageKind, reasons, rating, in
             type="button"
             onClick={() => void handleSubmit()}
             disabled={submitState === 'saving'}
-            className="flex min-h-[44px] items-center justify-center gap-2 rounded-full bg-slate-900 px-8 text-sm font-bold text-white transition-colors hover:bg-slate-700 active:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white dark:active:bg-slate-300"
+            className="flex min-h-[44px] cursor-pointer items-center justify-center gap-2 rounded-full bg-slate-900 px-8 text-sm font-bold text-white transition-colors hover:bg-slate-700 active:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-[var(--dc-invert)] dark:!text-[var(--dc-text-on-invert)] dark:hover:bg-[var(--dc-invert-hover)] dark:active:bg-slate-300"
           >
             {submitState === 'saving' && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
             {submitState === 'saved' ? 'Saved' : 'Submit'}

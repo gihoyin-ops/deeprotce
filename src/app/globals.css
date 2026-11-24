@@ -455,8 +455,8 @@ html[data-appearance="dark"] .text-slate-300 {
   color: var(--dc-text-body) !important;
 }
 
-html.dark .text-white,
-html[data-appearance="dark"] .text-white {
+html.dark .text-white:not([class*="dark:text-"]),
+html[data-appearance="dark"] .text-white:not([class*="dark:text-"]) {
   color: #ffffff !important;
 }
 
