@@ -27,7 +27,6 @@ import {
   type LLMSettings,
   type ConnectionData
 } from '@/lib/storage/client-storage';
-import { getLiveConnections } from '@/lib/ai/live';
 import { clearChatHistory, deleteChatReferences } from './memory';
 
 export type UploadFileResult = {
@@ -344,23 +343,10 @@ export async function saveLLMSettings(settings: Partial<LLMSettings>): Promise<L
 }
 
 export async function getConnections(): Promise<ConnectionData[]> {
-  const live = getLiveConnections().map(conn => ({
-    id: conn.id,
-    provider: conn.provider,
-    name: conn.name || conn.provider,
-    apiKey: conn.apiKey || '',
-    baseUrl: conn.baseUrl || '',
-    projectId: conn.projectId || '',
-    location: conn.location || '',
-    model: conn.model || ''
-  }));
   if (typeof window !== 'undefined') {
-    const clientConns = await getConnectionsClient();
-    const liveIds = new Set(live.map(l => l.id));
-    const customOnly = clientConns.filter(c => c.id && !liveIds.has(c.id));
-    return [...live, ...customOnly];
+    return getConnectionsClient();
   }
-  return live;
+  return [];
 }
 
 export async function saveConnection(connection: ConnectionData) {

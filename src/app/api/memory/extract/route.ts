@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
 import { getPersona } from '@/app/persona';
-import { getLiveLiteConnection } from '@/lib/ai/live';
+import {
+  buildRelayHeaders,
+  getLiveLiteConnection,
+  relayErrorResponse,
+  resolveRelayClientId,
+} from '@/lib/ai/live';
 import { isAiLogEnabled } from '@/lib/ai/ai-logs';
 import { MAX_EXTRACT_MESSAGE_CHARS } from '@/lib/security/limits';
 import { estimateTokens } from '@/lib/security/usage-meter';
@@ -112,20 +117,22 @@ const extractExplicitMemoryFallback = (userMessage: string) => {
 };
 
 // upstream body text must never reach the client; map status classes like the chat route
-const extractErrorResponse = (status: number) => {
-  if (status === 401 || status === 403) return NextResponse.json({ error: 'extraction failed' }, { status: 400 });
-  if (status === 408 || status === 429) return NextResponse.json({ error: 'extraction failed' }, { status: 503 });
-  return NextResponse.json({ error: 'extraction failed' }, { status: 502 });
-};
+const extractErrorResponse = (status: number, headers?: Headers) => relayErrorResponse(status, headers);
 
-const callMemoryModel = async (conn: { baseUrl: string; apiKey: string; model?: string }, model: string, prompt: string) => {
+const callMemoryModel = async (
+  conn: { baseUrl: string; apiKey: string; model?: string },
+  model: string,
+  prompt: string,
+  clientId?: string
+) => {
   const url = `${conn.baseUrl}/v1/chat/completions`;
   const res = await fetch(url, {
     method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      Authorization: `Bearer ${conn.apiKey}`
-    },
+    headers: buildRelayHeaders({
+      clientSecret: conn.apiKey,
+      clientId,
+      contentType: 'application/json',
+    }),
     body: JSON.stringify({
       model,
       temperature: 0,
@@ -195,8 +202,9 @@ export async function POST(req: Request) {
       const boundedUserMessage = userMessage.slice(0, MAX_EXTRACT_MESSAGE_CHARS);
       const boundedAssistantMessage = (assistantMessage || '').slice(0, MAX_EXTRACT_MESSAGE_CHARS);
       const extractPrompt = buildPrompt(boundedUserMessage, boundedAssistantMessage);
+      const clientId = resolveRelayClientId(req);
       try {
-        const raw = await callMemoryModel(conn, model, extractPrompt);
+        const raw = await callMemoryModel(conn, model, extractPrompt, clientId);
         // LITE model, same budget, output is uncapped so it is billed
         recordTokens(getClientIp(req).slice(0, 128), estimateTokens(systemPrompt) + estimateTokens(extractPrompt) + estimateTokens(raw));
         extracted = parseJsonArray(raw)
@@ -214,10 +222,11 @@ export async function POST(req: Request) {
           .filter(item => isUsefulMemoryCandidate(item, boundedUserMessage));
       } catch (error) {
         const status = error instanceof Response && typeof error.status === 'number' ? error.status : 502;
+        const headers = error instanceof Response ? error.headers : undefined;
         if (isAiLogEnabled()) {
           console.error(`[memory-extract] extraction failed: ${error instanceof Error ? error.message : 'unknown error'}`);
         }
-        return extractErrorResponse(status);
+        return extractErrorResponse(status, headers);
       }
 
       if (extracted.length === 0) {

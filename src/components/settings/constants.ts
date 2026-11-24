@@ -56,11 +56,6 @@ export const REASONING_LEVEL_OPTIONS: DropdownOption[] = [
   { label: 'Heavy', value: 'heavy', description: 'Maximum thinking preference when supported.' }
 ];
 
-export const DEFAULT_BASE_URL_BY_PROVIDER: Record<string, string> = {
-  Mistral: 'https://api.mistral.ai',
-  'NVIDIA NIM': 'https://integrate.api.nvidia.com'
-};
-
 export const NOTIFICATION_EVENT_KEYS = Object.keys(defaultNotificationSettings.events) as NotificationEventKey[];
 export const TOOL_CATEGORY_OPTIONS = ['All', ...Array.from(new Set(TOOL_CATALOG.map(tool => tool.category)))] as Array<'All' | ToolCategory>;
 

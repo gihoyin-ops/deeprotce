@@ -1,11 +1,9 @@
 import { NextResponse } from 'next/server';
-import { getConnections } from '@/app/actions';
 import { getPersona } from '@/app/persona';
 import {
   getChatCompletionsUrl,
   getCleanBaseUrl,
   normalizeProvider,
-  selectLlmConnection,
   type LlmConnection
 } from '@/lib/ai/llm';
 import {
@@ -14,13 +12,18 @@ import {
 } from '@/lib/settings/llm-settings';
 import { isAiLogEnabled, logAiExchange, streamWithAiLog } from '@/lib/ai/ai-logs';
 import {
+  buildRelayHeaders,
+  fetchRelayModels,
+  formatRelayError,
   getEnvModelIds,
   getLiveChatConnection,
   getLiveLiteConnection,
   getLiveImageConfig,
   getLiveModels,
   LIVE_CHAT_CONNECTION_ID,
-  LIVE_LITE_CONNECTION_ID
+  LIVE_LITE_CONNECTION_ID,
+  relayErrorResponse,
+  resolveRelayClientId
 } from '@/lib/ai/live';
 import {
   buildDynamicSearchSystemPrompt,
@@ -699,21 +702,9 @@ const getRouteResponseError = async (response: Response) => {
 };
 
 // upstream body text must never reach the client; map status classes to sanitized constants
-const upstreamSseError = (status: number) => {
-  if (status === 401 || status === 403) return 'The chat server went missing on us. Not your fault, hang tight and try again.';
-  if (status === 408 || status === 429) return 'The server is catching its breath. Give it a sec and try again.';
-  return 'Could not reach the chat server just now. Try again in a bit.';
-};
+const upstreamSseError = (status: number, headers?: Headers) => formatRelayError(status, headers).message;
 
-const upstreamErrorResponse = (status: number) => {
-  if (status === 401 || status === 403) {
-    return NextResponse.json({ error: 'The chat server went missing on us. Not your fault, hang tight and try again.' }, { status: 400 });
-  }
-  if (status === 408 || status === 429) {
-    return NextResponse.json({ error: 'The server is catching its breath. Give it a sec and try again.' }, { status: 503 });
-  }
-  return NextResponse.json({ error: `Could not reach the chat server just now (status ${status}). Try again in a bit.` }, { status: 502 });
-};
+const upstreamErrorResponse = (status: number, headers?: Headers) => relayErrorResponse(status, headers);
 
 const logUpstreamFailure = (status: number, detail: string) => {
   if (isAiLogEnabled()) {
@@ -772,20 +763,19 @@ export async function POST(req: Request) {
     // fallback estimate for image turns, fallback list only
     const imagePromptTokens = estimateChatPromptTokens(messages as { role?: string; content?: unknown }[]);
 
+    const clientId = resolveRelayClientId(req);
+
     let conn: LlmConnection | null = null;
     if (connectionId === LIVE_LITE_CONNECTION_ID) {
       conn = getLiveLiteConnection();
     } else if (connectionId === LIVE_CHAT_CONNECTION_ID || !connectionId) {
       conn = getLiveChatConnection();
+    } else {
+      conn = getLiveChatConnection();
     }
 
     if (!conn) {
-      const connections = await getConnections() as LlmConnection[];
-      conn = selectLlmConnection(connections, connectionId, modelId);
-    }
-
-    if (!conn) {
-      return NextResponse.json({ error: 'No active API connection yet. Check your settings first, then retry.' }, { status: 400 });
+      return NextResponse.json({ error: 'AI relay is not configured on the server.' }, { status: 503 });
     }
 
     const p = normalizeProvider(conn.provider);
@@ -794,11 +784,19 @@ export async function POST(req: Request) {
     const requestedImageGeneration = latestUser?.imageGenerationEnabled === true;
     const requestedAspectRatio = normalizeImageAspectRatio(imageAspectRatio || latestUser?.imageAspectRatio);
 
-    // client modelId is untrusted; only env-provisioned live models may reach the provider
+    // client modelId is untrusted; only env-provisioned or relay-listed models may reach the relay
     const allowedModels = new Set(getLiveModels().map(m => m.id));
     for (const id of getEnvModelIds()) allowedModels.add(id);
     const requestedModel = typeof modelId === 'string' ? modelId.trim() : '';
-    const selectedRequestModel = requestedModel && allowedModels.has(requestedModel) ? requestedModel : conn.model;
+    if (requestedModel && !allowedModels.has(requestedModel)) {
+      const relayModels = await fetchRelayModels(clientId).catch(() => null);
+      if (relayModels?.ok) {
+        for (const m of relayModels.models) allowedModels.add(m.id);
+      }
+    }
+    const selectedRequestModel = requestedModel && allowedModels.has(requestedModel)
+      ? requestedModel
+      : (conn.model || requestedModel);
 
     const liveImageConfig = getLiveImageConfig();
     const defaultImageModel = liveImageConfig?.model || '';
@@ -849,10 +847,11 @@ export async function POST(req: Request) {
 
     if (hasSearchTools && isStream && !isImageRequest) {
       const url = getChatCompletionsUrl(p, cleanBase);
-      const headers: Record<string, string> = {
-        'content-type': 'application/json',
-        Authorization: `Bearer ${conn.apiKey}`
-      };
+      const headers = buildRelayHeaders({
+        clientSecret: conn.apiKey,
+        clientId,
+        contentType: 'application/json',
+      });
       const mistralTarget = isMistralChatCompletionsTarget(conn, cleanBase, p);
       const providerName = conn.provider;
       const modelToUse = selectedModel || conn.model;
@@ -971,7 +970,7 @@ export async function POST(req: Request) {
                 if (!fbRes.ok || !fbRes.body) {
                   const fbErr = await getRouteResponseError(fbRes);
                   logUpstreamFailure(fbRes.status, fbErr);
-                  controller.enqueue(encoder.encode(sse({ error: upstreamSseError(fbRes.status) })));
+                  controller.enqueue(encoder.encode(sse({ error: upstreamSseError(fbRes.status, fbRes.headers) })));
                   controller.enqueue(DONE_BYTES);
                   controller.close();
                   return;
@@ -993,7 +992,7 @@ export async function POST(req: Request) {
               if (!res.ok || !res.body) {
                 const upstreamBody = await getRouteResponseError(res);
                 logUpstreamFailure(res.status, upstreamBody);
-                controller.enqueue(encoder.encode(sse({ error: upstreamSseError(res.status) })));
+                controller.enqueue(encoder.encode(sse({ error: upstreamSseError(res.status, res.headers) })));
                 controller.enqueue(DONE_BYTES);
                 controller.close();
                 return;
@@ -1199,7 +1198,8 @@ export async function POST(req: Request) {
             controller.enqueue(DONE_BYTES);
             controller.close();
           } catch (error) {
-            controller.enqueue(encoder.encode(sse({ error: getErrorMessage(error) || 'Could not reach the chat server just now. Try again in a bit.' })));
+            logUpstreamFailure(502, getErrorMessage(error));
+            controller.enqueue(encoder.encode(sse({ error: 'Could not reach the AI service right now. Please try again in a bit.' })));
             controller.enqueue(DONE_BYTES);
             controller.close();
           }
@@ -1250,9 +1250,10 @@ export async function POST(req: Request) {
 
           const editRes = await fetch(`${liveImage.baseUrl}/v1/images/edits`, {
             method: 'POST',
-            headers: {
-              Authorization: `Bearer ${liveImage.apiKey}`
-            },
+            headers: buildRelayHeaders({
+              clientSecret: liveImage.apiKey,
+              clientId,
+            }),
             body: formData
           });
 
@@ -1271,10 +1272,11 @@ export async function POST(req: Request) {
         const body = getOpenAIImageRequestBody(imageModel, prompt, requestedAspectRatio);
         res = await fetch(`${liveImage.baseUrl}/v1/images/generations`, {
           method: 'POST',
-          headers: {
-            'content-type': 'application/json',
-            Authorization: `Bearer ${liveImage.apiKey}`
-          },
+          headers: buildRelayHeaders({
+            clientSecret: liveImage.apiKey,
+            clientId,
+            contentType: 'application/json',
+          }),
           body: JSON.stringify(body)
         });
       }
@@ -1282,7 +1284,7 @@ export async function POST(req: Request) {
       if (!res.ok) {
         const upstreamBody = await getRouteResponseError(res);
         logUpstreamFailure(res.status, upstreamBody);
-        throw new Error(upstreamSseError(res.status));
+        return upstreamErrorResponse(res.status, res.headers);
       }
       const data = await res.json();
       const images = await inlineRemoteGeneratedImages(getOpenAIGeneratedImages(data));
@@ -1300,10 +1302,11 @@ export async function POST(req: Request) {
     const openAICompatibleMessages = await buildOpenAICompatibleMessages(messages, conn.provider, isMistralChatCompletionsTarget(conn, cleanBase, p));
     // estimate from the final list, system, persona, and images are included
     const promptTokens = estimateChatPromptTokens(openAICompatibleMessages);
-    const headers: Record<string, string> = {
-      'content-type': 'application/json',
-      Authorization: `Bearer ${conn.apiKey}`
-    };
+    const headers = buildRelayHeaders({
+      clientSecret: conn.apiKey,
+      clientId,
+      contentType: 'application/json',
+    });
     const body = applyOpenAICompatibleReasoning({
       model: selectedModel || conn.model,
       messages: openAICompatibleMessages,
@@ -1319,7 +1322,7 @@ export async function POST(req: Request) {
     if (!res.ok) {
       const upstreamBody = await getRouteResponseError(res);
       logUpstreamFailure(res.status, upstreamBody);
-      return upstreamErrorResponse(res.status);
+      return upstreamErrorResponse(res.status, res.headers);
     }
 
     if (!isStream) {
@@ -1344,6 +1347,9 @@ export async function POST(req: Request) {
     });
 
   } catch (err: unknown) {
-    return NextResponse.json({ error: getErrorMessage(err) }, { status: 500 });
+    if (isAiLogEnabled()) {
+      console.error(`[chat] unexpected error: ${getErrorMessage(err)}`);
+    }
+    return NextResponse.json({ error: 'Could not complete the request right now. Please try again.' }, { status: 500 });
   }
 }

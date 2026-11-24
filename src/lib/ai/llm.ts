@@ -64,41 +64,12 @@ export const getVertexModelPath = (model: string) => (
   model.startsWith('publishers/') ? model : `publishers/google/models/${model}`
 );
 
-export const getChatCompletionsUrl = (provider: unknown, cleanBaseUrl: string) => {
-  const p = normalizeProvider(provider);
-  if (cleanBaseUrl) return `${cleanBaseUrl}/v1/chat/completions`;
-  if (p === 'deepseek') return 'https://api.deepseek.com/v1/chat/completions';
-  if (p === 'mistral') return 'https://api.mistral.ai/v1/chat/completions';
-  if (p === 'nvidia nim') return 'https://integrate.api.nvidia.com/v1/chat/completions';
-  return 'https://api.openai.com/v1/chat/completions';
-};
-
-export const getModelListUrl = (provider: unknown, cleanBaseUrl: string) => {
-  const p = normalizeProvider(provider);
-  if (cleanBaseUrl) return `${cleanBaseUrl}/v1/models`;
-  if (p === 'deepseek') return 'https://api.deepseek.com/v1/models';
-  if (p === 'mistral') return 'https://api.mistral.ai/v1/models';
-  if (p === 'nvidia nim') return 'https://integrate.api.nvidia.com/v1/models';
-  return 'https://api.openai.com/v1/models';
-};
-
-export const getAnthropicMessagesUrl = (cleanBaseUrl: string) => (
-  cleanBaseUrl ? `${cleanBaseUrl}/v1/messages` : 'https://api.anthropic.com/v1/messages'
+export const getChatCompletionsUrl = (_provider: unknown, cleanBaseUrl: string) => (
+  cleanBaseUrl ? `${cleanBaseUrl}/v1/chat/completions` : ''
 );
 
-export const getAnthropicModelsUrl = (cleanBaseUrl: string) => (
-  cleanBaseUrl ? `${cleanBaseUrl}/v1/models` : 'https://api.anthropic.com/v1/models'
-);
-
-export const getVertexGenerateContentUrl = (
-  projectId: string | undefined,
-  location: string | undefined,
-  model: string,
-  endpoint: string
-) => `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/${getVertexModelPath(model)}:${endpoint}`;
-
-export const getVertexPublisherModelsUrl = (projectId: string, location: string) => (
-  `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models`
+export const getModelListUrl = (_provider: unknown, cleanBaseUrl: string) => (
+  cleanBaseUrl ? `${cleanBaseUrl}/v1/models` : ''
 );
 
 export const extractGeminiText = (response: GeminiTextResponse) => {

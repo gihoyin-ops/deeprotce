@@ -1,5 +1,11 @@
 import { NextResponse } from 'next/server';
-import { getLiveLiteConnection, getLiveChatConnection } from '@/lib/ai/live';
+import {
+  buildRelayHeaders,
+  getLiveChatConnection,
+  getLiveLiteConnection,
+  relayErrorResponse,
+  resolveRelayClientId,
+} from '@/lib/ai/live';
 import { isAiLogEnabled } from '@/lib/ai/ai-logs';
 import { MAX_TITLE_PROMPT_CHARS } from '@/lib/security/limits';
 import { estimateTokens } from '@/lib/security/usage-meter';
@@ -68,15 +74,7 @@ const cleanTitle = (raw: string) => raw
   .join(' ');
 
 // upstream body text must never reach the client; map status classes to sanitized constants
-const upstreamTitleError = (status: number) => {
-  if (status === 401 || status === 403) {
-    return NextResponse.json({ error: 'upstream auth error' }, { status: 400 });
-  }
-  if (status === 408 || status === 429) {
-    return NextResponse.json({ error: 'upstream busy' }, { status: 503 });
-  }
-  return NextResponse.json({ error: 'upstream error', status }, { status: 502 });
-};
+const upstreamTitleError = (status: number, headers?: Headers) => relayErrorResponse(status, headers);
 
 type TitleModelResponse = {
   choices?: { message?: { content?: string } }[];
@@ -92,16 +90,18 @@ async function requestAiTitle(
   conn: { baseUrl: string; apiKey: string; model: string },
   prompt: string,
   temperature: number,
-  clientIp: string
-): Promise<{ title?: string; status?: number }> {
+  clientIp: string,
+  clientId?: string
+): Promise<{ title?: string; status?: number; headers?: Headers }> {
   try {
     const url = `${conn.baseUrl}/v1/chat/completions`;
     const res = await fetch(url, {
       method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        Authorization: `Bearer ${conn.apiKey}`
-      },
+      headers: buildRelayHeaders({
+        clientSecret: conn.apiKey,
+        clientId,
+        contentType: 'application/json',
+      }),
       body: JSON.stringify({
         model: conn.model,
         messages: [
@@ -124,7 +124,7 @@ async function requestAiTitle(
       if (isAiLogEnabled()) {
         console.error(`[chat-title] upstream ${res.status}: ${upstreamBody.slice(0, 2000)}`);
       }
-      return { status: res.status };
+      return { status: res.status, headers: res.headers };
     }
 
     const data = await res.json() as TitleModelResponse;
@@ -170,7 +170,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ title: buildFallbackTitle(promptForFallback) });
     }
 
-    const first = await requestAiTitle(primaryConn, prompt, 0.4, clientIp);
+    const clientId = resolveRelayClientId(req);
+    const first = await requestAiTitle(primaryConn, prompt, 0.4, clientIp, clientId);
     if (first.title && !isGenericTitle(first.title, prompt)) {
       return NextResponse.json({ title: first.title });
     }
@@ -180,13 +181,13 @@ export async function POST(req: Request) {
       chatConn?.model && (chatConn.baseUrl !== primaryConn.baseUrl || chatConn.model !== primaryConn.model)
         ? chatConn
         : primaryConn;
-    const second = await requestAiTitle(secondaryConn, prompt, 0.7, clientIp);
+    const second = await requestAiTitle(secondaryConn, prompt, 0.7, clientIp, clientId);
     if (second.title && !isGenericTitle(second.title, prompt)) {
       return NextResponse.json({ title: second.title });
     }
 
     if (first.status && (!second.status || second.status >= 400)) {
-      return upstreamTitleError(second.status || first.status);
+      return upstreamTitleError(second.status || first.status, second.headers || first.headers);
     }
 
     return NextResponse.json({ title: buildFallbackTitle(promptForFallback) });
