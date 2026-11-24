@@ -700,18 +700,54 @@ const consumeStream = async (task: ChatGenerationTask, res: Response) => {
         continue;
       }
 
+      if (json.type === 'deepchat_read') {
+        const nextStatus = json.status === 'reading' ? 'reading' : 'completed';
+        const count = typeof json.count === 'number' ? json.count : undefined;
+        if (typeof json.hasReasoning === 'boolean') {
+          task.searchHasReasoning = json.hasReasoning;
+        }
+        if (nextStatus === 'reading') {
+          task.thinkingSteps.push({ type: 'read', status: 'reading', count, sources: [] });
+        } else {
+          const readSourcesList = Array.isArray(json.sources) ? normalizeSearchSources(json.sources) : [];
+          const lastReadIdx = [...task.thinkingSteps].reverse().findIndex(s => s.type === 'read');
+          if (lastReadIdx !== -1) {
+            const targetIdx = task.thinkingSteps.length - 1 - lastReadIdx;
+            if (readSourcesList.length > 0) {
+              task.thinkingSteps[targetIdx] = {
+                type: 'read',
+                status: 'completed',
+                count: readSourcesList.length,
+                sources: readSourcesList
+              };
+            } else {
+              task.thinkingSteps.splice(targetIdx, 1);
+            }
+          } else if (readSourcesList.length > 0) {
+            task.thinkingSteps.push({
+              type: 'read',
+              status: 'completed',
+              count: readSourcesList.length,
+              sources: readSourcesList
+            });
+          }
+        }
+        emitSnapshot(task, true);
+        continue;
+      }
+
       if (json.type === 'deepchat_sources') {
         task.searchSources = normalizeSearchSources(json.sources);
         if (Array.isArray(json.readSources)) {
           const nextRead = normalizeSearchSources(json.readSources);
-          if (nextRead.length > task.readSources.length) {
+          if (json.fromUrlContext === true && nextRead.length > task.readSources.length) {
             const added = nextRead.slice(task.readSources.length);
-            const lastStep = task.thinkingSteps[task.thinkingSteps.length - 1];
-            if (lastStep && lastStep.type === 'read') {
-              lastStep.sources = [...lastStep.sources, ...added];
-            } else {
-              task.thinkingSteps.push({ type: 'read', sources: added });
-            }
+            task.thinkingSteps.push({
+              type: 'read',
+              status: 'completed',
+              count: added.length,
+              sources: added
+            });
           }
           task.readSources = nextRead;
         }

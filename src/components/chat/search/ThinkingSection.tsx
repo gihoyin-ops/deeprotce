@@ -408,11 +408,10 @@ export function ThinkingSection({
     type TimelineNode =
       | { kind: 'thought'; text: string }
       | { kind: 'search'; status: 'searching' | 'completed'; count: number }
-      | { kind: 'read'; sources: SearchSource[] };
+      | { kind: 'read'; status: 'reading' | 'completed'; count: number; sources: SearchSource[] };
 
     if (thinkingSteps && thinkingSteps.length > 0) {
       const nodes: TimelineNode[] = [];
-      let hasExplicitRead = false;
       for (const step of thinkingSteps) {
         if (step.type === 'thought') {
           const parts = step.text.split(/\n{2,}/).map(p => p.trim()).filter(Boolean);
@@ -425,13 +424,23 @@ export function ThinkingSection({
             status: step.status,
             count: step.count ?? searchSources.length
           });
-        } else if (step.type === 'read' && step.sources.length > 0) {
-          hasExplicitRead = true;
-          nodes.push({ kind: 'read', sources: step.sources.slice(0, 5) });
+        } else if (step.type === 'read') {
+          if (step.status === 'reading') {
+            nodes.push({
+              kind: 'read',
+              status: 'reading',
+              count: step.count ?? 1,
+              sources: []
+            });
+          } else if (step.sources.length > 0) {
+            nodes.push({
+              kind: 'read',
+              status: 'completed',
+              count: step.sources.length,
+              sources: step.sources.slice(0, 5)
+            });
+          }
         }
-      }
-      if (!hasExplicitRead && effectiveReadSources.length > 0) {
-        nodes.push({ kind: 'read', sources: effectiveReadSources });
       }
       return nodes;
     }
@@ -448,7 +457,12 @@ export function ThinkingSection({
       legacy.push({ kind: 'thought', text: part });
     }
     if (effectiveReadSources.length > 0) {
-      legacy.push({ kind: 'read', sources: effectiveReadSources });
+      legacy.push({
+        kind: 'read',
+        status: 'completed',
+        count: effectiveReadSources.length,
+        sources: effectiveReadSources
+      });
     }
     return legacy;
   }, [effectiveReadSources, isSearching, searchSources.length, thinkingSteps, thoughtParagraphs]);
@@ -577,13 +591,33 @@ export function ThinkingSection({
               );
             }
 
+            if (node.status === 'reading') {
+              return (
+                <div key={`read-${index}`} data-timeline-node className="flex items-stretch gap-2.5">
+                  <div className="flex w-5 shrink-0 flex-col items-center">
+                    <span className="mt-[3px] flex h-4 w-4 shrink-0 items-center justify-center text-slate-400 dark:text-slate-500">
+                      <FileText className="h-3.5 w-3.5" />
+                    </span>
+                    {hasNext && (
+                      <span className="my-1.5 w-px flex-1 bg-slate-200 dark:bg-slate-700/75" />
+                    )}
+                  </div>
+                  <div className={`min-w-0 flex-1 ${hasNext ? 'pb-3' : 'pb-1'}`}>
+                    <span className="inline-block animate-pulse text-[13.5px] font-normal leading-[1.6] text-slate-500 dark:text-slate-400">
+                      Reading {node.count} page{node.count === 1 ? '' : 's'}...
+                    </span>
+                  </div>
+                </div>
+              );
+            }
+
             return (
               <div key={`read-${index}`} data-timeline-node className="flex items-stretch gap-2.5">
                 <div className="flex w-5 shrink-0 flex-col items-center">
                   <span className="mt-[3px] flex h-4 w-4 shrink-0 items-center justify-center text-slate-400 dark:text-slate-500">
                     <FileText className="h-3.5 w-3.5" />
                   </span>
-                  <span className="mt-1.5 w-px flex-1 bg-slate-200/80 dark:bg-slate-700/60" />
+                  <span className={`mt-1.5 w-px flex-1 ${hasNext ? 'my-1.5 bg-slate-200 dark:bg-slate-700/75' : 'bg-slate-200/80 dark:bg-slate-700/60'}`} />
                 </div>
                 <div className={`min-w-0 flex-1 text-[13.5px] leading-[1.65] text-slate-500 dark:text-slate-400 ${hasNext ? 'pb-3' : 'pb-1'}`}>
                   <div className="flex flex-col items-start gap-1">

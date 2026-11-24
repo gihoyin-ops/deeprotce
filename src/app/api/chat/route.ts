@@ -115,7 +115,7 @@ const OPENAI_SEARCH_TOOLS = [
   }
 ];
 
-const MAX_TOOL_ROUNDS = 4;
+const MAX_TOOL_ROUNDS = 6;
 
 type AttachmentPayload =
   | {
@@ -905,7 +905,8 @@ export async function POST(req: Request) {
               controller.enqueue(encoder.encode(sse({
                 type: 'deepchat_sources',
                 sources: allSources,
-                readSources: allReadSources
+                readSources: allReadSources,
+                fromUrlContext: true
               })));
             }
 
@@ -1090,6 +1091,7 @@ export async function POST(req: Request) {
               });
 
               const searchCalls = toolCalls.filter(tc => tc.name === 'web_search');
+              const readCalls = toolCalls.filter(tc => tc.name === 'read_page');
               let primaryQuery = '';
               if (searchCalls.length > 0) {
                 try {
@@ -1103,7 +1105,16 @@ export async function POST(req: Request) {
                   hasReasoning: llmSettings.reasoning
                 })));
               }
+              if (readCalls.length > 0) {
+                controller.enqueue(encoder.encode(sse({
+                  type: 'deepchat_read',
+                  status: 'reading',
+                  count: readCalls.length,
+                  hasReasoning: llmSettings.reasoning
+                })));
+              }
 
+              const roundReadSources: SearchSource[] = [];
               const toolOutputs = await Promise.all(
                 toolCalls.map(async tc => {
                   let args: Record<string, unknown> = {};
@@ -1137,7 +1148,10 @@ export async function POST(req: Request) {
                   if (tc.name === 'read_page') {
                     const pageUrl = typeof args.url === 'string' ? args.url.trim() : '';
                     const extracted = await executeDynamicReadPage(pageUrl, allSources);
-                    addReadSource(extracted.source);
+                    if (extracted.source) {
+                      addReadSource(extracted.source);
+                      roundReadSources.push(extracted.source);
+                    }
                     return {
                       id: tc.id,
                       content: extracted.text || 'Could not extract readable text from this URL.'
@@ -1161,6 +1175,14 @@ export async function POST(req: Request) {
                   status: 'completed',
                   sourceCount: allSources.length,
                   query: primaryQuery || undefined,
+                  hasReasoning: llmSettings.reasoning
+                })));
+              }
+              if (readCalls.length > 0) {
+                controller.enqueue(encoder.encode(sse({
+                  type: 'deepchat_read',
+                  status: 'completed',
+                  sources: roundReadSources,
                   hasReasoning: llmSettings.reasoning
                 })));
               }

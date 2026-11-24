@@ -175,11 +175,11 @@ export const buildDynamicSearchSystemPrompt = (
   manualSearch: boolean,
   urlContext = ''
 ): string => [
-  'You have access to two web tools: `web_search` and `read_page`.',
+  'You are an autonomous, thorough research agent with two web tools: `web_search` and `read_page`.',
   manualSearch
     ? 'The user enabled Web Search for this turn. Think briefly about what the user actually means (correct any typos in your query), call `web_search` with a clean query, and use the results to answer.'
     : 'Think carefully first before deciding whether to search. If the request can be answered accurately from conversation history or stable general knowledge, answer directly without calling `web_search`. If you need fresh facts, current events, prices, verification, or specific sources, call `web_search` with a clean, typo-corrected query.',
-  'After searching, you may call `read_page` on specific promising URLs if you need deeper details, or call `web_search` again with a refined query.',
+  'Be genuinely iterative when needed: if the first search has weak, ambiguous, or incomplete results, refine your query and call `web_search` again (for example trying Indonesian or English keywords). When snippets are truncated (`...`) or you need exact details, dates, or quotes on an important claim, call `read_page` on 1-3 of the most promising URLs rather than guessing from snippets.',
   'Cite factual claims inline using source numbers like [1] or [1, 2] matching the numbered sources returned by `web_search`. Never invent URLs or titles, never mention search engines or rate limits, and never write filler like "Searching for...".',
   urlContext
 ].filter(Boolean).join('\n\n');
