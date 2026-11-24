@@ -1,28 +1,19 @@
 'use client';
 
-import { use } from 'react';
 import { useRouter } from 'next/navigation';
 import ErrorPage from '@/components/ErrorPage';
 
-const NaughtyPage = ({
-  searchParams,
-}: {
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
-}) => {
+const NaughtyPage = () => {
   const router = useRouter();
-  const { from } = use(searchParams);
-  const poked = typeof from === 'string' && from.trim() ? from.trim() : '/api';
 
   return (
     <ErrorPage
       kind="naughty"
-      title="Hey, you naughty."
+      title="Restricted endpoint"
       lines={[
-        'Nice try poking the backend directly, but that door only opens to the app, not to your address bar.',
-        `poked: ${poked}`,
-        'Head back to the chat, we will still be here.',
+        'This route is reserved for internal application requests and cannot be opened directly in the browser.',
       ]}
-      primary={{ label: 'Back to the homepage', action: () => router.push('/') }}
+      primary={{ label: 'Back to DeepChat', action: () => router.push('/') }}
     />
   );
 };
