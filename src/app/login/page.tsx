@@ -4,7 +4,6 @@ import React, { useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
-import { ArrowLeft, ChevronDown } from '@/components/ui/icons';
 import LoginShowcaseMedia from './LoginShowcaseMedia';
 import PlanetFaqSection from './PlanetFaqSection';
 
@@ -71,83 +70,58 @@ export default function LoginPage() {
     }, 550);
   };
 
-  const scrollToFaq = () => {
-    const container = scrollContainerRef.current;
-    if (!container) return;
-    container.scrollTo({
-      top: container.clientHeight * 1.15,
-      behavior: 'smooth',
-    });
-  };
-
-  const scrollToTop = () => {
-    scrollContainerRef.current?.scrollTo({
-      top: 0,
-      behavior: 'smooth',
-    });
-  };
-
   return (
     <div
       ref={scrollContainerRef}
       className="custom-scrollbar h-dvh w-full overflow-x-hidden overflow-y-auto bg-[var(--dc-canvas)] text-[var(--dc-text)]"
     >
-      {/* Top navigation bar */}
-      <header className="sticky top-0 z-30 border-b border-[var(--dc-border-subtle)] bg-[var(--dc-panel)]/80 backdrop-blur-md">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-          <Link href="/" aria-label="DeepChat" className="inline-flex items-center">
-            <span
-              role="img"
-              aria-label="DeepChat"
-              className="inline-block h-8 w-[148px] bg-[var(--dc-text-strong)]"
-              style={{
-                WebkitMaskImage: 'url("/brand/brand_with_name.svg")',
-                maskImage: 'url("/brand/brand_with_name.svg")',
-                WebkitMaskRepeat: 'no-repeat',
-                maskRepeat: 'no-repeat',
-                WebkitMaskPosition: 'left center',
-                maskPosition: 'left center',
-                WebkitMaskSize: 'contain',
-                maskSize: 'contain',
-              }}
-            />
-          </Link>
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 rounded-full border border-[var(--dc-border)] bg-[var(--dc-surface)] px-4 py-1.5 text-sm font-medium text-[var(--dc-text-strong)] transition-colors hover:bg-[var(--dc-surface-hover)]"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            <span>Back to DeepChat</span>
-          </Link>
-        </div>
+      {/* Clean minimal header — no divider line, no extra buttons */}
+      <header className="mx-auto flex h-16 max-w-6xl items-center px-6">
+        <Link href="/" aria-label="DeepChat" className="inline-flex items-center">
+          <span
+            role="img"
+            aria-label="DeepChat"
+            className="inline-block h-7 w-[136px] bg-[var(--dc-text-strong)]"
+            style={{
+              WebkitMaskImage: 'url("/brand/brand_with_name.svg")',
+              maskImage: 'url("/brand/brand_with_name.svg")',
+              WebkitMaskRepeat: 'no-repeat',
+              maskRepeat: 'no-repeat',
+              WebkitMaskPosition: 'left center',
+              maskPosition: 'left center',
+              WebkitMaskSize: 'contain',
+              maskSize: 'contain',
+            }}
+          />
+        </Link>
       </header>
 
-      {/* Main Login Hero (Video on Left, Auth Card on Right) */}
+      {/* Main Login Hero (Clean Video Loop on Left, Auth Card on Right) */}
       <main>
-        <section className="mx-auto flex min-h-[calc(100dvh-4rem)] max-w-6xl flex-col justify-between px-6 py-8 sm:py-12">
-          <div className="my-auto grid grid-cols-1 items-center gap-10 lg:grid-cols-12 lg:gap-14">
-            {/* Left: Video / Animated Showcase */}
+        <section className="mx-auto flex min-h-[calc(100dvh-4rem)] max-w-6xl items-center px-6 py-8 sm:py-12">
+          <div className="grid w-full grid-cols-1 items-center gap-12 lg:grid-cols-12 lg:gap-16">
+            {/* Left: Pure looping video showcase */}
             <div className="lg:col-span-6">
               <LoginShowcaseMedia />
             </div>
 
             {/* Right: Headline + Login Card */}
-            <div className="mx-auto w-full max-w-[420px] lg:col-span-6">
+            <div className="mx-auto w-full max-w-[400px] lg:col-span-6">
               <div className="mb-7 text-center">
-                <h1 className="text-3xl font-bold tracking-tight text-[var(--dc-text-strong)] sm:text-4xl">
+                <h1 className="text-3xl font-semibold tracking-tight text-[var(--dc-text-strong)] sm:text-[40px] sm:leading-[1.12]">
                   Think deeper, build faster
                 </h1>
-                <p className="mt-2.5 text-sm leading-relaxed text-[var(--dc-text-muted)] sm:text-base">
+                <p className="mt-2.5 text-sm leading-relaxed text-[var(--dc-text-muted)] sm:text-[15px]">
                   Your intelligent workspace for reasoning, code, and creation
                 </p>
               </div>
 
-              <div className="rounded-[28px] border border-[var(--dc-border)] bg-[var(--dc-panel)] p-6 shadow-xl shadow-[var(--dc-shadow-color)] sm:p-7">
-                <div className="space-y-3">
+              <div className="rounded-[24px] border border-[var(--dc-border-subtle)] bg-[var(--dc-panel)] p-6 shadow-lg shadow-[var(--dc-shadow-color)] sm:p-7">
+                <div className="space-y-2.5">
                   <button
                     type="button"
                     onClick={() => handleOAuthClick('Google')}
-                    className="flex h-11 w-full items-center justify-center gap-2.5 rounded-xl border border-[var(--dc-border-subtle)] bg-[var(--dc-surface-muted)] px-4 text-sm font-medium text-[var(--dc-text-strong)] transition-colors hover:bg-[var(--dc-surface-hover)]"
+                    className="flex h-11 w-full items-center justify-center gap-2.5 rounded-xl bg-[var(--dc-surface-muted)] px-4 text-sm font-medium text-[var(--dc-text-strong)] transition-colors hover:bg-[var(--dc-surface-hover)]"
                   >
                     <GoogleIcon />
                     <span>Continue with Google</span>
@@ -156,7 +130,7 @@ export default function LoginPage() {
                   <button
                     type="button"
                     onClick={() => handleOAuthClick('Apple')}
-                    className="flex h-11 w-full items-center justify-center gap-2.5 rounded-xl border border-[var(--dc-border-subtle)] bg-[var(--dc-surface-muted)] px-4 text-sm font-medium text-[var(--dc-text-strong)] transition-colors hover:bg-[var(--dc-surface-hover)]"
+                    className="flex h-11 w-full items-center justify-center gap-2.5 rounded-xl bg-[var(--dc-surface-muted)] px-4 text-sm font-medium text-[var(--dc-text-strong)] transition-colors hover:bg-[var(--dc-surface-hover)]"
                   >
                     <AppleIcon />
                     <span>Continue with Apple</span>
@@ -165,13 +139,13 @@ export default function LoginPage() {
 
                 <div className="my-5 flex items-center gap-3">
                   <div className="h-px flex-1 bg-[var(--dc-border-subtle)]" />
-                  <span className="text-[11px] font-semibold tracking-wider text-[var(--dc-text-faint)] uppercase">
+                  <span className="text-[11px] font-medium tracking-wider text-[var(--dc-text-faint)] uppercase">
                     OR
                   </span>
                   <div className="h-px flex-1 bg-[var(--dc-border-subtle)]" />
                 </div>
 
-                <form onSubmit={handleEmailSubmit} className="space-y-3" noValidate>
+                <form onSubmit={handleEmailSubmit} className="space-y-2.5" noValidate>
                   <div>
                     <label htmlFor="login-email" className="sr-only">
                       Email address
@@ -184,14 +158,14 @@ export default function LoginPage() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="Enter your email"
-                      className="h-11 w-full rounded-xl border border-[var(--dc-border)] bg-[var(--dc-surface-input)] px-3.5 text-sm text-[var(--dc-text-strong)] placeholder:text-[var(--dc-text-placeholder)] transition-colors focus:border-[var(--deepchat-accent)] focus:ring-2 focus:ring-[var(--deepchat-accent)]/20 focus:outline-none"
+                      className="h-11 w-full rounded-xl border border-[var(--dc-border-subtle)] bg-[var(--dc-surface-input)] px-3.5 text-sm text-[var(--dc-text-strong)] placeholder:text-[var(--dc-text-placeholder)] transition-colors focus:border-[var(--deepchat-accent)] focus:ring-2 focus:ring-[var(--deepchat-accent)]/20 focus:outline-none"
                     />
                   </div>
 
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="flex h-11 w-full items-center justify-center rounded-xl bg-[var(--dc-invert)] px-4 text-sm font-semibold text-[var(--dc-text-on-invert)] transition-colors hover:bg-[var(--dc-invert-hover)] disabled:cursor-not-allowed disabled:opacity-60"
+                    className="flex h-11 w-full items-center justify-center rounded-xl bg-[var(--dc-invert)] px-4 text-sm font-medium text-[var(--dc-text-on-invert)] transition-colors hover:bg-[var(--dc-invert-hover)] disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {isSubmitting ? 'Signing in...' : 'Continue with email'}
                   </button>
@@ -207,45 +181,25 @@ export default function LoginPage() {
                   </p>
                 )}
 
-                <p className="mt-5 text-center text-xs leading-relaxed text-[var(--dc-text-muted)]">
+                <p className="mt-5 text-center text-[11px] leading-relaxed text-[var(--dc-text-muted)]">
                   By continuing, you acknowledge DeepChat&apos;s{' '}
-                  <Link
-                    href="/pricing"
+                  <a
+                    href="https://www.deepsia.my.id/policy"
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="underline decoration-[var(--dc-border-strong)] underline-offset-2 transition-colors hover:text-[var(--dc-text-strong)]"
                   >
                     Privacy Policy
-                  </Link>{' '}
-                  and{' '}
-                  <Link
-                    href="/pricing"
-                    className="underline decoration-[var(--dc-border-strong)] underline-offset-2 transition-colors hover:text-[var(--dc-text-strong)]"
-                  >
-                    Terms
-                  </Link>
+                  </a>
                   .
                 </p>
               </div>
             </div>
           </div>
-
-          {/* Subtle scroll cue */}
-          <div className="mt-6 flex justify-center">
-            <button
-              type="button"
-              onClick={scrollToFaq}
-              className="group inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium text-[var(--dc-text-muted)] transition-colors hover:text-[var(--dc-text-strong)]"
-            >
-              <span>Scroll to explore FAQ</span>
-              <ChevronDown className="h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-y-0.5" />
-            </button>
-          </div>
         </section>
 
-        {/* Empty scroll space -> Planet/Atmosphere emergence -> 4-Question FAQ */}
-        <PlanetFaqSection
-          scrollContainerRef={scrollContainerRef}
-          onScrollToTop={scrollToTop}
-        />
+        {/* Empty scroll space -> Bottom circle expanding to full screen -> 4-Question FAQ */}
+        <PlanetFaqSection scrollContainerRef={scrollContainerRef} />
       </main>
     </div>
   );
