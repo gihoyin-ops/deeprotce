@@ -37,7 +37,6 @@ import { type ImageAspectRatio } from '@/lib/images/image-aspect-ratio';
 import { deepchatQueryKeys } from '@/lib/query-keys';
 import { useGuestStatus } from '@/lib/auth/guest';
 import { formatRemainingTime, useActiveLimit } from '@/lib/security/client-limit';
-import { prefersReducedMotion } from '@/components/mobile/gesture-utils';
 
 export interface ComposerFile {
   name: string;
