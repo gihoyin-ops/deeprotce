@@ -172,6 +172,19 @@ export default function UserProfilePage() {
     return () => ctx.revert();
   }, [isLoading, data?.profile?.id]);
 
+  useEffect(() => {
+    const el = editCardRef.current;
+    if (!isEditing || !el || prefersReducedMotion()) return;
+    const ctx = gsap.context(() => {
+      gsap.fromTo(
+        el,
+        { opacity: 0, scale: 0.95, y: 12 },
+        { opacity: 1, scale: 1, y: 0, duration: 0.3, ease: 'expo.out', clearProps: 'transform' }
+      );
+    }, editCardRef);
+    return () => ctx.revert();
+  }, [isEditing]);
+
   const handleTogglePrivacy = async () => {
     if (!data?.profile || !data.isOwner || isTogglingPrivacy) return;
     const nextPublic = !data.profile.isPublic;
@@ -460,19 +473,6 @@ export default function UserProfilePage() {
 
           <p className="mt-1 text-sm text-[var(--dc-text-muted)]">@{profile.username}</p>
         </header>
-
-  useEffect(() => {
-    const el = editCardRef.current;
-    if (!isEditing || !el || prefersReducedMotion()) return;
-    const ctx = gsap.context(() => {
-      gsap.fromTo(
-        el,
-        { opacity: 0, scale: 0.95, y: 12 },
-        { opacity: 1, scale: 1, y: 0, duration: 0.3, ease: 'expo.out', clearProps: 'transform' }
-      );
-    }, editCardRef);
-    return () => ctx.revert();
-  }, [isEditing]);
 
         {/* Instagram-style Centered Edit Profile Modal (Owner only) */}
         {isOwner && isEditing && typeof document !== 'undefined' && createPortal(
