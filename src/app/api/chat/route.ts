@@ -38,6 +38,7 @@ import { normalizeSourceUrl } from '@/lib/search/source-display';
 import { assertEgressUrl } from '@/lib/security/url-guard';
 import { MAX_ATTACHMENT_BYTES, MAX_MESSAGE_CHARS, validateChatBody } from '@/lib/security/limits';
 import { checkUsageBudget, recordTokens } from '@/lib/security/usage';
+import { checkAccountUsageBudget } from '@/backend/meter/turso-usage';
 import { recordAccountModelUsage } from '@/backend/profile/stats';
 import { completeChatTokens, estimateChatPromptTokens, meterSseBody } from '@/lib/security/usage-meter';
 import { getClientIp } from '@/lib/security/rate-limit';
@@ -751,7 +752,9 @@ export async function POST(req: Request) {
 
     // budget gate, identity is account_id when signed in, or client IP
     const identityKey = verifiedAccount ? `acc:${verifiedAccount.sub}` : clientIp;
-    const gate = checkUsageBudget(identityKey);
+    const gate = verifiedAccount
+      ? await checkAccountUsageBudget(verifiedAccount.sub)
+      : checkUsageBudget(identityKey);
     if (!gate.allowed) {
       const headers: Record<string, string> = { 'x-usage-expiry': gate.exhaustedWindow as string };
       if (gate.retryAfterMs !== undefined) headers['retry-after'] = String(Math.ceil(gate.retryAfterMs / 1000));

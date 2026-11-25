@@ -2,20 +2,15 @@ import { NextResponse } from 'next/server';
 import { PLAN_ORDER, PLANS, formatTokens, parsePlan } from '@/lib/security/plans';
 import { USAGE_LEDGER_ENABLED, getUsageSnapshot, setIdentityPlan } from '@/lib/security/usage';
 import { getClientIp } from '@/lib/security/rate-limit';
-import { isGuestRequest } from '@/lib/security/auth';
+import { getVerifiedAccount, isGuestRequest } from '@/lib/security/auth';
+import { getAccountUsageSnapshot, setAccountPlanInDb } from '@/backend/meter/turso-usage';
 
 export const runtime = 'nodejs';
 
-// usage status and plan management for one identity (client IP)
-// identity is the same key the rate limiter and chat meter use
-// GET is read-only, POST needs DEEPCHAT_USAGE_ADMIN on the server
-// chat gate stays in /api/chat, this route only reflects and manages
-
-// the ledger is auto-off on serverless (shared identity, ephemeral
-// storage) and can never be enabled there, so routes report that too
-
 export async function GET(req: Request) {
-  if (isGuestRequest(req.headers)) {
+  const verified = getVerifiedAccount(req.headers);
+
+  if (!verified && isGuestRequest(req.headers)) {
     return NextResponse.json({
       ok: true,
       guest: true,
@@ -25,8 +20,11 @@ export async function GET(req: Request) {
     });
   }
 
-  const identityKey = getClientIp(req).slice(0, 128);
-  const snapshot = getUsageSnapshot(identityKey);
+  let snapshot = verified ? await getAccountUsageSnapshot(verified.sub) : null;
+  if (!snapshot) {
+    const identityKey = verified ? `acc:${verified.sub}` : getClientIp(req).slice(0, 128);
+    snapshot = getUsageSnapshot(identityKey);
+  }
 
   if (!snapshot) {
     if (!USAGE_LEDGER_ENABLED) {
@@ -34,10 +32,9 @@ export async function GET(req: Request) {
         ok: true,
         available: false,
         enforced: false,
-        error: 'usage ledger is off on serverless; limits not enforced'
+        error: 'usage store unavailable; configure Turso to track usage'
       });
     }
-    // store offline, fail open and say so
     return NextResponse.json({
       ok: true,
       available: false,
@@ -74,19 +71,11 @@ const planChangesEnabled = () => {
 };
 
 export async function POST(req: Request) {
-  if (isGuestRequest(req.headers)) {
+  const verified = getVerifiedAccount(req.headers);
+  if (!verified && isGuestRequest(req.headers)) {
     return NextResponse.json(
       { error: 'guest_not_allowed', message: 'Sign in required to manage plan' },
       { status: 401 }
-    );
-  }
-
-  const identityKey = getClientIp(req).slice(0, 128);
-
-  if (!USAGE_LEDGER_ENABLED) {
-    return NextResponse.json(
-      { error: 'usage ledger is off on serverless; plan changes have no effect there', enforced: false },
-      { status: 403 }
     );
   }
 
@@ -108,8 +97,23 @@ export async function POST(req: Request) {
       );
     }
 
-    setIdentityPlan(identityKey, planId);
-    const snapshot = getUsageSnapshot(identityKey);
+    let snapshot = null;
+    if (verified) {
+      await setAccountPlanInDb(verified.sub, planId);
+      snapshot = await getAccountUsageSnapshot(verified.sub);
+    }
+
+    if (!snapshot) {
+      if (!USAGE_LEDGER_ENABLED) {
+        return NextResponse.json(
+          { error: 'usage store unavailable on serverless without Turso', enforced: false },
+          { status: 503 }
+        );
+      }
+      const identityKey = verified ? `acc:${verified.sub}` : getClientIp(req).slice(0, 128);
+      setIdentityPlan(identityKey, planId);
+      snapshot = getUsageSnapshot(identityKey);
+    }
 
     return NextResponse.json({
       ok: true,
