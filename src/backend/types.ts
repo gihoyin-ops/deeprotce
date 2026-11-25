@@ -6,7 +6,7 @@
 // a 5-hour burst cap and a 7-day weekly cap at the same plan limit,
 // so a cutover migrates data without changing its meaning
 
-export type BackendPlanId = 'free' | 'supporters' | 'cool' | 'owner';
+export type BackendPlanId = 'free' | 'supporters' | 'cool' | 'staff';
 
 // valid_until is null for recurring grants, set for boxes
 export interface BackendPlanGrant {

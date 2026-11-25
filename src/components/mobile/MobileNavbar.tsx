@@ -13,6 +13,7 @@ import type { MobileRightDrawerTab } from './types';
 interface MobileNavbarProps {
   isChatPage?: boolean;
   hasActiveChat: boolean;
+  isSharedChat?: boolean;
   activeChatId?: string;
   chatTitle?: string;
   unreadNotifications: number;
@@ -28,6 +29,7 @@ interface MobileNavbarProps {
 export default function MobileNavbar({
   isChatPage = true,
   hasActiveChat,
+  isSharedChat = false,
   activeChatId,
   chatTitle,
   unreadNotifications,
@@ -347,25 +349,27 @@ export default function MobileNavbar({
                 <SquarePen className="h-[18px] w-[18px]" strokeWidth={2.1} />
               </button>
 
-              <button
-                type="button"
-                onClick={() => {
-                  triggerSubtleHaptic(6);
-                  onOpenRightDrawer('chat');
-                }}
-                aria-label="Open chat utility hub"
-                aria-expanded={isRightDrawerOpen}
-                aria-controls="mobile-right-drawer"
-                className="relative flex h-11 w-11 items-center justify-center rounded-full text-[var(--dc-text-strong)] transition-transform duration-150 active:scale-90 hover:bg-[var(--dc-fill)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--deepchat-accent)]"
-              >
-                <MoreHorizontal className="h-[20px] w-[20px]" strokeWidth={2.1} />
-                {unreadNotifications > 0 && (
-                  <span
-                    className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-[var(--deepchat-accent)] ring-2 ring-[var(--dc-canvas)]"
-                    aria-hidden="true"
-                  />
-                )}
-              </button>
+              {!isSharedChat && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerSubtleHaptic(6);
+                    onOpenRightDrawer('chat');
+                  }}
+                  aria-label="Open chat utility hub"
+                  aria-expanded={isRightDrawerOpen}
+                  aria-controls="mobile-right-drawer"
+                  className="relative flex h-11 w-11 items-center justify-center rounded-full text-[var(--dc-text-strong)] transition-transform duration-150 active:scale-90 hover:bg-[var(--dc-fill)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--deepchat-accent)]"
+                >
+                  <MoreHorizontal className="h-[20px] w-[20px]" strokeWidth={2.1} />
+                  {unreadNotifications > 0 && (
+                    <span
+                      className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-[var(--deepchat-accent)] ring-2 ring-[var(--dc-canvas)]"
+                      aria-hidden="true"
+                    />
+                  )}
+                </button>
+              )}
             </>
           )}
         </div>

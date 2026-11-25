@@ -708,7 +708,7 @@ export default function UserProfilePage() {
                   {formatPlanLabel(profile.plan)}
                 </p>
               </div>
-              {isOwner && (
+              {isOwner && (profile.plan || '').trim().toLowerCase() !== 'staff' && (
                 <Link
                   href="/pricing"
                   className="rounded-full border border-[var(--dc-border-subtle)] bg-[var(--dc-canvas)] px-3.5 py-1.5 text-xs font-medium text-[var(--dc-text-strong)] transition-colors hover:border-[var(--dc-border-strong)]"

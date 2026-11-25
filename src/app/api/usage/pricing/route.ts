@@ -21,7 +21,7 @@ export function GET(req: Request) {
   const region: RegionCode = VALID_REGIONS.has(rawRegion) ? rawRegion : 'US';
   const priceMap = REGION_PRICES[region];
 
-  const plans = PLAN_ORDER.filter(id => id !== 'owner').map(id => {
+  const plans = PLAN_ORDER.filter(id => id !== 'staff').map(id => {
     const plan = PLANS[id];
     const price =
       id === 'free' || id === 'supporters' || id === 'cool'

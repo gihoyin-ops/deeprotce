@@ -173,6 +173,25 @@ export async function deleteSharedChat(shareId: string) {
   return true;
 }
 
+export async function forkSharedChat(sharedChat: StoredChat): Promise<string> {
+  const title = typeof sharedChat.title === 'string' && sharedChat.title.trim()
+    ? sharedChat.title.trim()
+    : 'Shared Chat';
+  const newChatId = await createChat(title);
+  const messages = Array.isArray(sharedChat.messages) ? sharedChat.messages : [];
+  for (let i = 0; i < messages.length; i += 1) {
+    const msg = messages[i];
+    await saveMessage(newChatId, {
+      ...msg,
+      id: typeof msg.id === 'string' && msg.id ? msg.id : `fork_${Date.now()}_${i}`,
+      chatId: newChatId,
+      chatIndex: i,
+      isStreaming: false,
+    });
+  }
+  return newChatId;
+}
+
 export async function saveMessage(id: string, message: StoredMessage) {
   if (typeof window !== 'undefined') {
     return saveMessageRecord(id, message);

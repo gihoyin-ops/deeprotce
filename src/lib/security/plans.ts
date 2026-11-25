@@ -2,7 +2,7 @@
 // Window budget is a security ceiling, not a billing meter
 // Each window is capped at the plan number below
 
-export type PlanId = 'free' | 'supporters' | 'cool' | 'owner';
+export type PlanId = 'free' | 'supporters' | 'cool' | 'staff';
 
 export interface Plan {
   id: PlanId;
@@ -15,11 +15,11 @@ export const PLANS: Record<PlanId, Plan> = {
   free: { id: 'free', label: 'Free', limitTokens: 40_000_000 },
   supporters: { id: 'supporters', label: 'Supporters', limitTokens: 150_000_000 },
   cool: { id: 'cool', label: 'Cools', limitTokens: 650_000_000 },
-  owner: { id: 'owner', label: 'Owner', limitTokens: Infinity }
+  staff: { id: 'staff', label: 'Staff', limitTokens: Infinity }
 };
 
 /** tier order, low to high */
-export const PLAN_ORDER: PlanId[] = ['free', 'supporters', 'cool', 'owner'];
+export const PLAN_ORDER: PlanId[] = ['free', 'supporters', 'cool', 'staff'];
 
 /** default tier for a new identity */
 export const DEFAULT_PLAN: PlanId = 'free';
@@ -32,8 +32,8 @@ const PLAN_ALIASES: Record<string, PlanId> = {
   support: 'supporters',
   cool: 'cool',
   cools: 'cool',
-  owner: 'owner',
-  owners: 'owner'
+  staff: 'staff',
+  staffs: 'staff'
 };
 
 export const parsePlan = (raw: unknown): PlanId | null => {

@@ -89,6 +89,14 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
     staleTime: 5 * 60 * 1000
   });
 
+  const isStaffPlan = (profile.plan || '').trim().toLowerCase() === 'staff';
+  const formatPlanLabel = (raw?: string) => {
+    const trimmed = (raw || '').trim();
+    if (!trimmed) return 'Free';
+    return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
+  };
+  const displayPlanLabel = formatPlanLabel(profile.plan);
+
   const togglePinned = () => {
     const val = !isPinnedOpen;
     setIsPinnedOpen(val);
@@ -266,7 +274,7 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
                   </p>
                   {!isGuest && (
                     <p className="truncate text-xs font-normal leading-tight text-[var(--dc-text-muted)]">
-                      {profile.plan || 'Free'}
+                      {displayPlanLabel}
                     </p>
                   )}
                 </>
@@ -274,7 +282,7 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
             </div>
           </button>
 
-          {!isGuest && (
+          {!isGuest && !isStaffPlan && (
             <a
               href="/pricing"
               target="_blank"
@@ -305,7 +313,7 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
           )}
           <div className="flex-1 min-w-0">
             <p className="truncate text-sm font-medium text-white">{isGuest ? 'Guest' : profile.name || 'Guest'}</p>
-            {!isGuest && <p className="truncate text-xs text-slate-400">{profile.plan || 'Free'}</p>}
+            {!isGuest && <p className="truncate text-xs text-slate-400">{displayPlanLabel}</p>}
           </div>
           <ChevronDown className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${profileMenuOpen ? 'rotate-180' : ''}`} strokeWidth={1.75} />
         </button>
@@ -349,7 +357,7 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
                       {profile.name || 'Guest'}
                     </p>
                     <p className="truncate text-xs leading-tight text-[var(--dc-text-muted)]">
-                      {profile.plan || 'Free'}
+                      {displayPlanLabel}
                     </p>
                   </div>
                 </div>
@@ -358,16 +366,18 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
 
               <div className="my-1 border-t border-[var(--dc-border-subtle)]" />
 
-              <a
-                href="/pricing"
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => setProfileMenuOpen(false)}
-                className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm font-medium text-[var(--dc-text)] transition-colors hover:bg-[var(--dc-surface-hover)]"
-              >
-                <IconMask icon="/icons/upgrade-plan.svg" className="h-4 w-4 shrink-0" />
-                <span>Upgrade plan</span>
-              </a>
+              {!isStaffPlan && (
+                <a
+                  href="/pricing"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setProfileMenuOpen(false)}
+                  className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm font-medium text-[var(--dc-text)] transition-colors hover:bg-[var(--dc-surface-hover)]"
+                >
+                  <IconMask icon="/icons/upgrade-plan.svg" className="h-4 w-4 shrink-0" />
+                  <span>Upgrade plan</span>
+                </a>
+              )}
 
               <button
                 type="button"

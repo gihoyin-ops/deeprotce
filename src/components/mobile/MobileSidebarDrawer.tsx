@@ -769,7 +769,9 @@ const MobileSidebarDrawer = forwardRef<MobileDrawerHandle, MobileSidebarDrawerPr
                       </p>
                       {!isGuest && (
                         <p className="mt-0.5 truncate text-[11.5px] font-medium leading-tight text-[var(--dc-text-muted)]">
-                          {profile.plan || 'Personal'}
+                          {profile.plan
+                            ? profile.plan.trim().charAt(0).toUpperCase() + profile.plan.trim().slice(1).toLowerCase()
+                            : 'Personal'}
                         </p>
                       )}
                     </>

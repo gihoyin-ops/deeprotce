@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { RefreshCw, Trash2 } from '@/components/ui/icons';
+import { RefreshCw } from '@/components/ui/icons';
 import ToggleSwitch from '@/components/ui/ToggleSwitch';
 import {
   GUEST_STORAGE_LIMIT_BYTES,
@@ -190,7 +190,7 @@ export function StorageTab({ onRefresh }: StorageTabProps) {
               <button
                 type="button"
                 onClick={() => setConfirmDelete(false)}
-                className="h-9 rounded-full px-3.5 text-xs font-medium text-[var(--dc-text-muted)] hover:text-[var(--dc-text-strong)]"
+                className="rounded-full px-3.5 py-1.5 text-sm font-medium text-[var(--dc-text-muted)] transition-colors hover:bg-[var(--dc-fill)] hover:text-[var(--dc-text-strong)]"
               >
                 Cancel
               </button>
@@ -198,9 +198,8 @@ export function StorageTab({ onRefresh }: StorageTabProps) {
                 type="button"
                 disabled={isDeleting}
                 onClick={() => void handleDeleteStorage()}
-                className="inline-flex h-9 items-center gap-1.5 rounded-full bg-red-600 px-4 text-xs font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-red-600 px-4 py-1.5 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-50"
               >
-                <Trash2 className="h-3.5 w-3.5" />
                 <span>{isDeleting ? 'Deleting...' : 'Confirm'}</span>
               </button>
             </div>
@@ -208,10 +207,9 @@ export function StorageTab({ onRefresh }: StorageTabProps) {
             <button
               type="button"
               onClick={() => setConfirmDelete(true)}
-              className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-red-500/30 px-4 text-xs font-medium text-red-500 transition-colors hover:bg-red-500/10"
+              className="shrink-0 rounded-full border border-red-200 bg-red-50 px-4 py-1.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-100 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20"
             >
-              <Trash2 className="h-3.5 w-3.5" />
-              <span>Delete Storage</span>
+              Delete Storage
             </button>
           )}
         </div>

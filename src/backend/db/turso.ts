@@ -1,7 +1,10 @@
+import crypto from 'node:crypto';
 import path from 'path';
 import type { DbPool } from './connection';
 import { TURSO_SCHEMA_STATEMENTS } from './schema';
 import { DATA_DIR, ensureDataDirectoriesSync, isServerless } from '@/lib/data-directories';
+import { buildDefaultAvatarUrl } from '@/lib/avatar';
+import { hashPassword } from '@/lib/security/crypto';
 
 type HranaArg =
   | { type: 'null' }
@@ -226,6 +229,45 @@ export const getDbPool = (): DbPool | null => {
   return cachedPool;
 };
 
+const ensureStaffAccountsAndPlans = async (pool: DbPool): Promise<void> => {
+  await pool.exec(`UPDATE accounts SET plan = 'staff' WHERE LOWER(plan) = 'owner'`);
+  await pool.exec(`UPDATE plan_grants SET plan = 'staff' WHERE LOWER(plan) = 'owner'`);
+
+  const staffEmail = 'revaldo@deepsia.my.id';
+  const existing = await pool.query<{ id: string; plan: string }>(
+    'SELECT id, plan FROM accounts WHERE LOWER(email) = ? LIMIT 1',
+    [staffEmail]
+  );
+
+  const nowIso = new Date().toISOString();
+  if (existing.length === 0) {
+    const accountId = crypto.randomUUID();
+    const passwordHash = await hashPassword('Faldoraja2026');
+    const avatarUrl = buildDefaultAvatarUrl(accountId);
+    await pool.exec(
+      `INSERT OR IGNORE INTO accounts (id, email, username, password_hash, display_name, avatar_url, plan, email_verified, created_at, updated_at)
+       VALUES (?, ?, 'revaldo', ?, 'Revaldo', ?, 'staff', 1, ?, ?)`,
+      [accountId, staffEmail, passwordHash, avatarUrl, nowIso, nowIso]
+    );
+    await pool.exec(
+      `INSERT OR IGNORE INTO plan_grants (id, account_id, plan, granted_by, valid_from, valid_until)
+       VALUES (?, ?, 'staff', 'admin', ?, NULL)`,
+      [crypto.randomUUID(), accountId, nowIso]
+    );
+  } else if (existing[0].plan?.toLowerCase() !== 'staff') {
+    await pool.exec('UPDATE accounts SET plan = ?, updated_at = ? WHERE id = ?', [
+      'staff',
+      nowIso,
+      existing[0].id
+    ]);
+    await pool.exec(
+      `INSERT INTO plan_grants (id, account_id, plan, granted_by, valid_from, valid_until)
+       VALUES (?, ?, 'staff', 'admin', ?, NULL)`,
+      [crypto.randomUUID(), existing[0].id, nowIso]
+    );
+  }
+};
+
 export const ensureTursoSchema = async (): Promise<DbPool | null> => {
   const pool = getDbPool();
   if (!pool) return null;
@@ -239,6 +281,7 @@ export const ensureTursoSchema = async (): Promise<DbPool | null> => {
           await pool.exec(stmt);
         }
       }
+      await ensureStaffAccountsAndPlans(pool);
     })().catch(err => {
       schemaReadyPromise = null;
       throw err;

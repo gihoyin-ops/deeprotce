@@ -22,7 +22,7 @@ import type { MobileDrawerHandle, MobileRightDrawerTab } from './mobile/types';
 import { isShortcutEvent, ShortcutCombo, useShortcutLabels } from './shortcuts';
 import type { SettingsTab } from './SettingsModal';
 import toast, { Toaster } from 'react-hot-toast';
-import { getChat, deleteChat, shareChat, getUserProfile, updateChatTitle, togglePinChat } from '@/app/actions';
+import { getChat, getSharedChat, deleteChat, shareChat, getUserProfile, updateChatTitle, togglePinChat } from '@/app/actions';
 import { deepchatQueryKeys } from '@/lib/query-keys';
 import { DEFAULT_GUEST_AVATAR } from '@/lib/avatar';
 import DesktopGlobalSearchModal from './ui/DesktopGlobalSearchModal';
@@ -436,7 +436,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         lastTime: performance.now(),
         velocityX: 0,
         isEdgeLeft: touch.clientX <= 44,
-        isEdgeRight: touch.clientX >= window.innerWidth - 44,
+        isEdgeRight: !isSharedChat && touch.clientX >= window.innerWidth - 44,
         axis: 'none',
         target: null,
         panelWidth: 320,
@@ -572,7 +572,16 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           return;
         }
 
-        if (id && id !== 'new') {
+        if (isSharedChat && id) {
+          getSharedChat(id).then(c => {
+            if (c) {
+              const chat = c as ChatData;
+              setChatTitle(chat.title || 'Shared Chat');
+              setIsShared(true);
+              setIsActiveChatPinned(false);
+            }
+          });
+        } else if (id && id !== 'new') {
           getChat(id).then(c => {
             if (c) {
               const chat = c as ChatData;
@@ -820,30 +829,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     );
   }
 
-  if (isSharedChat) {
-    return (
-      <div className="flex h-dvh flex-col bg-[#F8FAFC] font-sans">
-        <div className="flex shrink-0 h-[72px] sm:h-[84px] items-center justify-between px-4 sm:px-8 border-b border-slate-100 bg-white/80 backdrop-blur-md sticky top-0 z-50">
-          <div className="flex items-center gap-3 sm:gap-4 cursor-pointer" onClick={() => router.push('/')}>
-            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-indigo-600 rounded-[14px] sm:rounded-2xl flex items-center justify-center shadow-md shadow-indigo-200">
-              <Bot className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-            </div>
-            <span className="text-[20px] sm:text-[22px] font-bold tracking-tight text-slate-800">DeepChat</span>
-          </div>
-          <div className="flex items-center" />
-        </div>
-        <div className="relative min-h-0 flex-1 overflow-y-auto custom-scrollbar">
-          {children}
-        </div>
-        <Toaster
-          position="top-center"
-          containerStyle={{ zIndex: 99999 }}
-          toastOptions={THEME_TOAST_OPTIONS}
-        />
-      </div>
-    );
-  }
-
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-[var(--dc-canvas)] font-sans sm:flex-row">
       <Sidebar
@@ -863,6 +848,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         <MobileNavbar
           isChatPage={isChatPage}
           hasActiveChat={hasActiveChat}
+          isSharedChat={isSharedChat}
           activeChatId={activeChatId}
           chatTitle={chatTitle}
           unreadNotifications={unreadNotifications}

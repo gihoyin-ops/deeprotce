@@ -143,14 +143,16 @@ export function UsageTab() {
                 <p className="text-sm font-semibold text-[var(--dc-text-strong)]">DeepChat {planName}</p>
                 <p className="mt-0.5 text-xs text-[var(--dc-text-muted)]">{planSubtitle}</p>
               </div>
-              <a
-                href="/pricing"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="rounded-full bg-[var(--dc-fill)] px-4 py-2 text-sm font-medium text-[var(--dc-text-strong)] transition-colors hover:bg-[var(--dc-fill-hover)]"
-              >
-                View plans
-              </a>
+              {usage?.planId !== 'staff' && planName.toLowerCase() !== 'staff' && (
+                <a
+                  href="/pricing"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-full bg-[var(--dc-fill)] px-4 py-2 text-sm font-medium text-[var(--dc-text-strong)] transition-colors hover:bg-[var(--dc-fill-hover)]"
+                >
+                  View plans
+                </a>
+              )}
             </div>
           </section>
 
