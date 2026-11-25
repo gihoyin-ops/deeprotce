@@ -88,6 +88,13 @@ export default function ModelSelector({
   const [isHoveringSlider, setIsHoveringSlider] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [dragPos, setDragPos] = useState<number | null>(null);
+  const [desktopPos, setDesktopPos] = useState<{
+    placement: 'top' | 'bottom';
+    top?: number;
+    bottom?: number;
+    left: number;
+    maxHeight: number;
+  } | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -120,13 +127,61 @@ export default function ModelSelector({
   const currentTier = TIERS[effectiveTierIndex] || TIERS[0];
   const isUltra = !isGuest && maxTierIndex >= 4 && effectiveTierIndex === 4;
 
+  const updateDesktopPosition = useCallback(() => {
+    if (typeof window === 'undefined' || isMobileViewport) return;
+    const triggerEl = containerRef.current;
+    if (!triggerEl) return;
+    const rect = triggerEl.getBoundingClientRect();
+    const margin = 12;
+    const gap = 10;
+    const targetWidth = view === 'models' ? 324 : 286;
+    const panelWidth = Math.min(targetWidth, window.innerWidth - margin * 2);
+    const spaceAbove = Math.max(0, rect.top - margin - gap);
+    const spaceBelow = Math.max(0, window.innerHeight - rect.bottom - margin - gap);
+    const placement: 'top' | 'bottom' =
+      spaceBelow >= 340 && spaceBelow >= spaceAbove
+        ? 'bottom'
+        : spaceAbove >= 340
+          ? 'top'
+          : spaceBelow >= spaceAbove
+            ? 'bottom'
+            : 'top';
+    const maxHeight = Math.max(180, Math.min(480, placement === 'bottom' ? spaceBelow : spaceAbove));
+    const left = Math.max(
+      margin,
+      Math.min(rect.right - panelWidth, window.innerWidth - panelWidth - margin)
+    );
+
+    setDesktopPos({
+      placement,
+      top: placement === 'bottom' ? rect.bottom + gap : undefined,
+      bottom: placement === 'top' ? window.innerHeight - rect.top + gap : undefined,
+      left,
+      maxHeight,
+    });
+  }, [isMobileViewport, view]);
+
   const openSelector = useCallback(() => {
+    updateDesktopPosition();
     viewDirectionRef.current = 0;
     setView('menu');
     setIsRendered(true);
     setIsOpen(true);
     window.dispatchEvent(new Event('modelSelectorOpened'));
-  }, []);
+  }, [updateDesktopPosition]);
+
+  useEffect(() => {
+    if (!isOpen || !isRendered || isMobileViewport) return;
+    const frame = window.requestAnimationFrame(updateDesktopPosition);
+    const handleReposition = () => updateDesktopPosition();
+    window.addEventListener('resize', handleReposition);
+    window.addEventListener('scroll', handleReposition, { capture: true, passive: true });
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener('resize', handleReposition);
+      window.removeEventListener('scroll', handleReposition, { capture: true });
+    };
+  }, [isOpen, isRendered, isMobileViewport, updateDesktopPosition]);
 
   const closeSelector = useCallback(() => {
     setIsOpen(false);
@@ -312,9 +367,10 @@ export default function ModelSelector({
           );
         }
       } else if (panelEl) {
+        const yOffset = desktopPos?.placement === 'bottom' ? -8 : 8;
         gsap.fromTo(
           panelEl,
-          { opacity: 0, y: reduceMotion ? 0 : 8, scale: reduceMotion ? 1 : 0.96 },
+          { opacity: 0, y: reduceMotion ? 0 : yOffset, scale: reduceMotion ? 1 : 0.96 },
           {
             opacity: 1,
             y: 0,
@@ -345,9 +401,10 @@ export default function ModelSelector({
         tl.to(backdropEl, { opacity: 0, duration: 0.22, ease: 'power2.in' }, 0);
       }
     } else if (panelEl) {
+      const yExit = desktopPos?.placement === 'bottom' ? -6 : 6;
       tl.to(
         panelEl,
-        { opacity: 0, y: 6, scale: 0.965, duration: 0.16, ease: 'power2.in' },
+        { opacity: 0, y: yExit, scale: 0.965, duration: 0.16, ease: 'power2.in' },
         0
       );
     } else {
@@ -986,13 +1043,23 @@ export default function ModelSelector({
     </div>
   );
 
-  const desktopPanel = (
-    <div className="absolute bottom-[calc(100%+10px)] right-0 z-50 origin-bottom-right">
+  const desktopPanel = desktopPos ? (
+    <div
+      style={{
+        left: desktopPos.left,
+        top: desktopPos.top,
+        bottom: desktopPos.bottom,
+      }}
+      className={`fixed z-[9990] ${
+        desktopPos.placement === 'bottom' ? 'origin-top-right' : 'origin-bottom-right'
+      }`}
+    >
       <div
         ref={popoverRef}
         role="dialog"
         aria-label="Model settings"
-        className={`dc-ms-panel ${isUltra ? 'dc-ms-panel-ultra' : ''} select-none transition-[width] duration-200 ${
+        style={{ maxHeight: desktopPos.maxHeight }}
+        className={`dc-ms-panel ${isUltra ? 'dc-ms-panel-ultra' : ''} custom-scrollbar select-none overflow-y-auto transition-[width] duration-200 ${
           view === 'models'
             ? 'w-[min(324px,calc(100vw-24px))]'
             : 'w-[min(286px,calc(100vw-24px))]'
@@ -1002,7 +1069,7 @@ export default function ModelSelector({
         {panelBody}
       </div>
     </div>
-  );
+  ) : null;
 
   const mobileSheet = (
     <div className="fixed inset-0 z-[9990] flex flex-col justify-end sm:hidden">
@@ -1033,11 +1100,9 @@ export default function ModelSelector({
 
   const menu = !isRendered
     ? null
-    : isMobileViewport
-      ? mounted && typeof document !== 'undefined'
-        ? createPortal(mobileSheet, document.body)
-        : null
-      : desktopPanel;
+    : mounted && typeof document !== 'undefined'
+      ? createPortal(isMobileViewport ? mobileSheet : desktopPanel, document.body)
+      : null;
 
   if (!renderTrigger) return menu;
 
