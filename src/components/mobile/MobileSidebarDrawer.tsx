@@ -41,6 +41,12 @@ import { getCachedUserProfileSync } from '@/lib/storage/client-storage';
 import { safeAvatarSource } from '@/lib/utils';
 import { logoutAccountClient, useGuestStatus } from '@/lib/auth/guest';
 import { IconMask } from '@/components/settings/mobile';
+import {
+  AnimatedImagesSvg,
+  AnimatedLibrarySvg,
+  AnimatedNewChatSvg
+} from '@/components/ui/SidebarAnimatedIcons';
+import MobileGlobalSearch from './MobileGlobalSearch';
 import { loadComposerToolState, saveComposerToolState } from '@/lib/agent/composer-tool-state';
 import type { SettingsTab } from '@/components/SettingsModal';
 import {
@@ -104,7 +110,8 @@ const MobileSidebarDrawer = forwardRef<MobileDrawerHandle, MobileSidebarDrawerPr
       initialDataUpdatedAt: 0,
     });
 
-    const [filterQuery, setFilterQuery] = useState('');
+    const [filterQuery] = useState('');
+    const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false);
     const [recentLimit, setRecentLimit] = useState(INITIAL_RECENT_LIMIT);
     const [isPinnedOpen, setIsPinnedOpen] = useState(true);
     const [isProjectsOpen, setIsProjectsOpen] = useState(true);
@@ -540,66 +547,61 @@ const MobileSidebarDrawer = forwardRef<MobileDrawerHandle, MobileSidebarDrawerPr
               </span>
             </button>
 
-            <button
-              type="button"
-              onClick={() => {
-                triggerSubtleHaptic(8);
-                snapClose();
-                onNewChat();
-              }}
-              className="flex min-h-[40px] items-center gap-1.5 rounded-full bg-[var(--dc-invert)] px-3.5 text-[13px] font-semibold text-[var(--dc-text-on-invert)] shadow-sm transition-transform active:scale-95"
-            >
-              <SquarePen className="h-3.5 w-3.5" strokeWidth={2.2} />
-              <span>New</span>
-            </button>
-          </div>
-
-          {/* Search Filter */}
-          <div className="shrink-0 px-4 pb-3">
-            <div className="relative flex min-h-[42px] items-center rounded-2xl border border-[var(--dc-border)] bg-[var(--dc-surface-subtle)] px-3">
-              <Search className="h-4 w-4 shrink-0 text-[var(--dc-text-muted)]" strokeWidth={2.1} />
-              <input
-                type="search"
-                value={filterQuery}
-                onChange={(e) => {
-                  setFilterQuery(e.target.value);
-                  setRecentLimit(INITIAL_RECENT_LIMIT);
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  triggerSubtleHaptic(8);
+                  snapClose();
+                  onNewChat();
                 }}
-                placeholder="Filter chats..."
-                aria-label="Filter chats"
-                className="min-w-0 flex-1 bg-transparent px-2.5 py-2 text-[14px] font-medium text-[var(--dc-text-strong)] outline-none placeholder:text-[var(--dc-text-placeholder)]"
-              />
-              {filterQuery && (
-                <button
-                  type="button"
-                  onClick={() => setFilterQuery('')}
-                  aria-label="Clear filter"
-                  className="flex h-7 w-7 items-center justify-center rounded-full text-[var(--dc-text-muted)] hover:bg-[var(--dc-fill)]"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              )}
+                className="flex min-h-[40px] items-center gap-1.5 rounded-full bg-[var(--dc-invert)] px-3.5 text-[13px] font-semibold text-[var(--dc-text-on-invert)] shadow-sm transition-transform active:scale-95"
+              >
+                <AnimatedNewChatSvg className="h-3.5 w-3.5" />
+                <span>New</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  triggerSubtleHaptic(6);
+                  snapClose();
+                  setIsGlobalSearchOpen(true);
+                }}
+                aria-label="Global search"
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--dc-surface-subtle)] text-[var(--dc-text-strong)] transition-transform active:scale-90 hover:bg-[var(--dc-fill)]"
+              >
+                <Search className="h-4 w-4" strokeWidth={2.1} />
+              </button>
             </div>
           </div>
 
-          {/* Compact Quick Actions Strip */}
-          <div className="shrink-0 px-4 pb-3">
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={handleOpenImages}
-                className="flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl border border-[var(--dc-border-subtle)] bg-[var(--dc-surface-subtle)] px-2 text-[12.5px] font-semibold text-[var(--dc-text-strong)] transition-transform active:scale-95 hover:bg-[var(--dc-fill)]"
-              >
-                <ImageIcon className="h-4 w-4 shrink-0 text-indigo-500" strokeWidth={2} />
-                <span className="truncate leading-normal">Images</span>
-              </button>
+          {/* Vertical Monochrome Menu Stack (matching PC sidebar, no divider lines) */}
+          <div className="shrink-0 px-3 pb-3">
+            <div className="space-y-0.5">
               <button
                 type="button"
                 onClick={handleOpenLibrary}
-                className="flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl border border-[var(--dc-border-subtle)] bg-[var(--dc-surface-subtle)] px-2 text-[12.5px] font-semibold text-[var(--dc-text-strong)] transition-transform active:scale-95 hover:bg-[var(--dc-fill)]"
+                className="flex h-10 w-full items-center gap-2.5 rounded-xl px-2.5 text-left text-[var(--dc-text)] transition-colors active:scale-[0.99] hover:bg-[var(--dc-fill)] hover:text-[var(--dc-text-strong)]"
               >
-                <Library className="h-4 w-4 shrink-0 text-sky-500" strokeWidth={2} />
-                <span className="truncate leading-normal">Library</span>
+                <span className="flex h-[18px] w-[18px] shrink-0 items-center justify-center text-[var(--dc-text-body)]">
+                  <AnimatedLibrarySvg className="h-[17px] w-[17px]" />
+                </span>
+                <span className="truncate text-[14px] font-medium leading-normal tracking-[-0.01em]">
+                  Library
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={handleOpenImages}
+                className="flex h-10 w-full items-center gap-2.5 rounded-xl px-2.5 text-left text-[var(--dc-text)] transition-colors active:scale-[0.99] hover:bg-[var(--dc-fill)] hover:text-[var(--dc-text-strong)]"
+              >
+                <span className="flex h-[18px] w-[18px] shrink-0 items-center justify-center text-[var(--dc-text-body)]">
+                  <AnimatedImagesSvg className="h-[17px] w-[17px]" />
+                </span>
+                <span className="truncate text-[14px] font-medium leading-normal tracking-[-0.01em]">
+                  Images
+                </span>
               </button>
             </div>
           </div>
@@ -729,7 +731,7 @@ const MobileSidebarDrawer = forwardRef<MobileDrawerHandle, MobileSidebarDrawerPr
           </div>
 
           {/* Sticky Profile & Settings Footer */}
-          <div className="shrink-0 border-t border-[var(--dc-border-subtle)] bg-[var(--dc-surface)] px-3 pb-[max(0.85rem,env(safe-area-inset-bottom))] pt-2.5">
+          <div className="shrink-0 bg-[var(--dc-surface)] px-3 pb-[max(0.85rem,env(safe-area-inset-bottom))] pt-2.5">
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -809,6 +811,11 @@ const MobileSidebarDrawer = forwardRef<MobileDrawerHandle, MobileSidebarDrawerPr
             </div>
           </div>
         </aside>
+
+        <MobileGlobalSearch
+          isOpen={isGlobalSearchOpen}
+          onClose={() => setIsGlobalSearchOpen(false)}
+        />
       </div>
     );
   }

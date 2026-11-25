@@ -13,18 +13,20 @@ const getOptionLabel = (options: DropdownOption[], value: string) => {
   return selected ? (typeof selected === 'string' ? selected : selected.label) : value;
 };
 
+const MONOCHROME_ICON_TONE = 'bg-[var(--dc-fill)] text-[var(--dc-text-strong)]';
+
 const TAB_ICON_TONE: Record<SettingsTab, string> = {
-  account: 'bg-indigo-500/12 text-indigo-600 dark:text-indigo-400',
-  usage: 'bg-cyan-500/12 text-cyan-600 dark:text-cyan-400',
-  general: 'bg-slate-500/12 text-slate-700 dark:text-slate-200',
-  appearance: 'bg-pink-500/12 text-pink-600 dark:text-pink-400',
-  notifications: 'bg-amber-500/12 text-amber-600 dark:text-amber-400',
-  voice: 'bg-sky-500/12 text-sky-600 dark:text-sky-400',
-  personality: 'bg-emerald-500/12 text-emerald-600 dark:text-emerald-400',
-  keyboard: 'bg-violet-500/12 text-violet-600 dark:text-violet-400',
-  archived: 'bg-amber-500/12 text-amber-600 dark:text-amber-400',
-  storage: 'bg-orange-500/12 text-orange-600 dark:text-orange-400',
-  data: 'bg-blue-500/12 text-blue-600 dark:text-blue-400',
+  account: MONOCHROME_ICON_TONE,
+  usage: MONOCHROME_ICON_TONE,
+  general: MONOCHROME_ICON_TONE,
+  appearance: MONOCHROME_ICON_TONE,
+  notifications: MONOCHROME_ICON_TONE,
+  voice: MONOCHROME_ICON_TONE,
+  personality: MONOCHROME_ICON_TONE,
+  keyboard: MONOCHROME_ICON_TONE,
+  archived: MONOCHROME_ICON_TONE,
+  storage: MONOCHROME_ICON_TONE,
+  data: MONOCHROME_ICON_TONE,
 };
 
 function useHasPhysicalKeyboard(): boolean {

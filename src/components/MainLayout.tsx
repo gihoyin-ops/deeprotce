@@ -50,7 +50,7 @@ import { useGuestStatus } from '@/lib/auth/guest';
 
 const SettingsModal = dynamic(() => import('./SettingsModal'), {
   ssr: false,
-  loading: () => <SettingsModalSkeleton />
+  loading: () => null
 });
 
 const MobileSidebarDrawer = dynamic(() => import('./mobile/MobileSidebarDrawer'), {
@@ -64,44 +64,6 @@ const MobileRightDrawer = dynamic(() => import('./mobile/MobileRightDrawer'), {
 const MobileModelSheet = dynamic(() => import('./mobile/MobileModelSheet'), {
   ssr: false
 });
-
-function SettingsModalSkeleton() {
-  return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/20 p-4 backdrop-blur-sm">
-      <div className="flex h-[82vh] w-full max-w-5xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl shadow-slate-900/10">
-        <div className="hidden w-64 shrink-0 border-r border-slate-100 bg-slate-50 p-5 sm:block">
-          <div className="mb-7 h-8 w-36 animate-pulse rounded-xl bg-slate-200" />
-          <div className="space-y-3">
-            {Array.from({ length: 6 }).map((_, index) => (
-              <div key={index} className="h-11 animate-pulse rounded-2xl bg-white" />
-            ))}
-          </div>
-        </div>
-        <div className="flex flex-1 flex-col">
-          <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
-            <div>
-              <div className="h-5 w-40 animate-pulse rounded-lg bg-slate-200" />
-              <div className="mt-2 h-3 w-56 animate-pulse rounded-lg bg-slate-100" />
-            </div>
-            <div className="h-9 w-9 animate-pulse rounded-full bg-slate-100" />
-          </div>
-          <div className="grid flex-1 gap-4 overflow-hidden p-6 sm:grid-cols-2">
-            {Array.from({ length: 6 }).map((_, index) => (
-              <div key={index} className="rounded-2xl border border-slate-100 p-4">
-                <div className="mb-4 h-4 w-32 animate-pulse rounded-lg bg-slate-200" />
-                <div className="space-y-3">
-                  <div className="h-10 animate-pulse rounded-xl bg-slate-100" />
-                  <div className="h-10 animate-pulse rounded-xl bg-slate-100" />
-                  <div className="h-16 animate-pulse rounded-xl bg-slate-100" />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 interface ChatData {
   title?: string;
