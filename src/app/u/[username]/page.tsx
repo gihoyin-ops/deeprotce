@@ -14,6 +14,7 @@ import {
 import { AUTH_SESSION_QUERY_KEY } from '@/lib/auth/guest';
 import { deepchatQueryKeys } from '@/lib/query-keys';
 import { saveUserProfileClient } from '@/lib/storage/client-storage';
+import { convertImageToWebp } from '@/lib/images/client-webp';
 import { prefersReducedMotion } from '@/components/mobile/gesture-utils';
 import { CropDialog } from '@/components/settings/panels/CropDialog';
 import { Check, Edit3, Globe, Loader2, RefreshCw, Share2, X } from '@/components/ui/icons';
@@ -735,9 +736,33 @@ export default function UserProfilePage() {
           image={cropSrc}
           closing={false}
           onClose={() => setCropSrc(null)}
-          onSave={(croppedUrl: string) => {
-            setDraftAvatar(croppedUrl);
+          onSave={async (croppedUrl: string) => {
             setCropSrc(null);
+            try {
+              const { file } = await convertImageToWebp(croppedUrl, {
+                fileName: `${draftUsername || data?.profile?.username || 'avatar'}.webp`,
+                quality: 0.9,
+                maxDimension: 512
+              });
+              const form = new FormData();
+              form.append('file', file);
+              form.append('folder', 'profile');
+              const uploadRes = await fetch('/api/storage/upload', {
+                method: 'POST',
+                credentials: 'same-origin',
+                body: form
+              });
+              if (uploadRes.ok) {
+                const uploaded = (await uploadRes.json()) as { url?: string };
+                if (uploaded.url) {
+                  setDraftAvatar(uploaded.url);
+                  return;
+                }
+              }
+            } catch {
+              // Fallback to cropped data URL if R2 is not configured
+            }
+            setDraftAvatar(croppedUrl);
           }}
         />
       )}

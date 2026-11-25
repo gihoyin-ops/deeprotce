@@ -278,11 +278,11 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
   useEffect(() => {
     const handleOpenFileLibrary = () => {
-      toast('Library panel has been removed from chat view.');
+      router.push('/library');
     };
     window.addEventListener('openFileLibrary', handleOpenFileLibrary);
     return () => window.removeEventListener('openFileLibrary', handleOpenFileLibrary);
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     applyGeneralSettings(loadGeneralSettings());

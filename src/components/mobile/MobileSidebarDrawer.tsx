@@ -430,7 +430,7 @@ const MobileSidebarDrawer = forwardRef<MobileDrawerHandle, MobileSidebarDrawerPr
 
     const handleOpenLibrary = () => {
       snapClose();
-      window.dispatchEvent(new Event('openFileLibrary'));
+      router.push('/library');
     };
 
     // 1:1 swipe left anywhere inside the open drawer or backdrop to dismiss

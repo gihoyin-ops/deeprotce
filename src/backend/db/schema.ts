@@ -192,9 +192,36 @@ export const TURSO_SCHEMA_STATEMENTS: string[] = [
     updated_at TEXT NOT NULL
   )`,
 
+  `CREATE TABLE IF NOT EXISTS library_folders (
+    id TEXT PRIMARY KEY,
+    account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )`,
+
+  `CREATE TABLE IF NOT EXISTS library_items (
+    id TEXT PRIMARY KEY,
+    account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+    folder_id TEXT REFERENCES library_folders(id) ON DELETE SET NULL,
+    r2_key TEXT NOT NULL,
+    url TEXT NOT NULL,
+    file_name TEXT NOT NULL,
+    mime_type TEXT NOT NULL DEFAULT 'image/webp',
+    size_bytes INTEGER NOT NULL DEFAULT 0,
+    source TEXT NOT NULL DEFAULT 'upload',
+    is_favorite INTEGER NOT NULL DEFAULT 0,
+    metadata_json TEXT,
+    trashed_at INTEGER,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )`,
+
   `CREATE INDEX IF NOT EXISTS idx_auth_sessions_account ON auth_sessions(account_id)`,
   `CREATE INDEX IF NOT EXISTS idx_chats_account_updated ON chats(account_id, updated_at)`,
   `CREATE INDEX IF NOT EXISTS idx_messages_chat_idx ON messages(chat_id, chat_index)`,
   `CREATE INDEX IF NOT EXISTS idx_memories_account ON saved_memories(account_id)`,
-  `CREATE INDEX IF NOT EXISTS idx_email_otps_lookup ON email_otps(email, purpose, expires_at)`
+  `CREATE INDEX IF NOT EXISTS idx_email_otps_lookup ON email_otps(email, purpose, expires_at)`,
+  `CREATE INDEX IF NOT EXISTS idx_library_folders_account ON library_folders(account_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_library_items_account ON library_items(account_id, trashed_at, created_at)`
 ];
