@@ -356,21 +356,12 @@ interface MeAccountPayload {
   };
 }
 
-const ME_SYNC_TTL_MS = 5 * 60 * 1000;
 const ME_SYNCED_AT_KEY = 'deepchat-me-synced-at';
 
 let inFlightMeSync: Promise<MeAccountPayload | null> | null = null;
 
-const fetchAuthenticatedAccount = async (force = false): Promise<MeAccountPayload | null> => {
+const fetchAuthenticatedAccount = async (): Promise<MeAccountPayload | null> => {
   if (typeof window === 'undefined') return null;
-  if (!force) {
-    try {
-      const lastSynced = Number(localStorage.getItem(ME_SYNCED_AT_KEY) || '0');
-      if (lastSynced > 0 && Date.now() - lastSynced < ME_SYNC_TTL_MS) {
-        return null;
-      }
-    } catch {}
-  }
   if (!inFlightMeSync) {
     inFlightMeSync = fetch('/api/auth/me', { credentials: 'same-origin' })
       .then(async res => {
@@ -503,10 +494,26 @@ export const getUserProfileClient = async (): Promise<UserProfileData> => {
   }
 
   if (me && me.authenticated === false) {
+    const guestProfile: UserProfileData = {
+      id: 'default',
+      name: 'Guest',
+      username: '',
+      avatar: DEFAULT_GUEST_AVATAR,
+      plan: '',
+      age: '18 or older'
+    };
     try {
       localStorage.setItem('deepchat-auth-hint', '0');
+      localStorage.removeItem('deepchat-user-profile');
+      localStorage.removeItem(ME_SYNCED_AT_KEY);
       window.dispatchEvent(new Event('deepchat:auth-hint'));
     } catch {}
+    if (local.id && local.id !== 'default') {
+      try {
+        await idbSet('settings', { key: 'user_profile', value: guestProfile });
+      } catch {}
+      return guestProfile;
+    }
   }
 
   return local;
