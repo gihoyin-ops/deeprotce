@@ -206,7 +206,6 @@ const OPENAI_COMPATIBLE_IMAGE_MIME_TYPES: Record<string, true> = {
 const streamHeaders = (provider: string) => ({
   'Content-Type': 'text/event-stream; charset=utf-8',
   'Cache-Control': 'no-cache, no-transform',
-  'Connection': 'keep-alive',
   'X-Accel-Buffering': 'no',
   'x-provider': provider
 });
@@ -214,9 +213,6 @@ const streamHeaders = (provider: string) => ({
 const sse = (data: unknown) => `data: ${JSON.stringify(data)}\n\n`;
 
 const prependSseEvents = (body: ReadableStream<Uint8Array> | null, events: unknown[]) => {
-  if (events.length === 0 && body) {
-    return body;
-  }
   return new ReadableStream({
     async start(controller) {
       try {
@@ -710,9 +706,7 @@ const upstreamSseError = (status: number, headers?: Headers) => formatRelayError
 const upstreamErrorResponse = (status: number, headers?: Headers) => relayErrorResponse(status, headers);
 
 const logUpstreamFailure = (status: number, detail: string) => {
-  if (isAiLogEnabled()) {
-    console.error(`[chat] upstream ${status}: ${detail.slice(0, 2000)}`);
-  }
+  console.error(`[chat] upstream ${status}: ${detail.slice(0, 500)}`);
 };
 
 const buildPlatformCapabilityPrompt = () => [
@@ -753,28 +747,6 @@ export async function POST(req: Request) {
     const clientIp = getClientIp(req).slice(0, 128);
     const verifiedAccount = getVerifiedAccount(req.headers);
     const isGuest = verifiedAccount === null;
-
-    if (isGuest) {
-      const guestVerdict = await checkGuestChatRateLimit(clientIp);
-      if (!guestVerdict.allowed) {
-        return NextResponse.json(
-          {
-            error: 'guest_rate_limit_exceeded',
-            code: 'guest_rate_limit_exceeded',
-            message: `Guest mode is limited to ${guestVerdict.limit} requests every 2 hours. Please sign in to continue chatting.`,
-            retryAfterSeconds: guestVerdict.retryAfterSeconds ?? 60
-          },
-          {
-            status: 429,
-            headers: {
-              'retry-after': String(guestVerdict.retryAfterSeconds ?? 60),
-              'x-ratelimit-limit': String(guestVerdict.limit),
-              'x-ratelimit-remaining': '0'
-            }
-          }
-        );
-      }
-    }
 
     // budget gate, identity is account_id when signed in, or client IP
     const identityKey = verifiedAccount ? `acc:${verifiedAccount.sub}` : clientIp;
@@ -842,6 +814,28 @@ export async function POST(req: Request) {
         },
         { status: 403 }
       );
+    }
+
+    if (isGuest) {
+      const guestVerdict = await checkGuestChatRateLimit(clientIp);
+      if (!guestVerdict.allowed) {
+        return NextResponse.json(
+          {
+            error: 'guest_rate_limit_exceeded',
+            code: 'guest_rate_limit_exceeded',
+            message: `Guest mode is limited to ${guestVerdict.limit} requests every 2 hours. Please sign in to continue chatting.`,
+            retryAfterSeconds: guestVerdict.retryAfterSeconds ?? 60
+          },
+          {
+            status: 429,
+            headers: {
+              'retry-after': String(guestVerdict.retryAfterSeconds ?? 60),
+              'x-ratelimit-limit': String(guestVerdict.limit),
+              'x-ratelimit-remaining': '0'
+            }
+          }
+        );
+      }
     }
 
     // Guests cannot pick arbitrary models; lock them to the server-configured guest default
@@ -1416,9 +1410,7 @@ export async function POST(req: Request) {
     });
 
   } catch (err: unknown) {
-    if (isAiLogEnabled()) {
-      console.error(`[chat] unexpected error: ${getErrorMessage(err)}`);
-    }
+    console.error(`[chat] unexpected error: ${getErrorMessage(err)}`);
     return NextResponse.json({ error: 'Could not complete the request right now. Please try again.' }, { status: 500 });
   }
 }
