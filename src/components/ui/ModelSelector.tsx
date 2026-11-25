@@ -12,6 +12,7 @@ import {
   SlidersHorizontal,
 } from '@/components/ui/icons';
 import { useShortcutLabels } from '@/components/shortcuts';
+import { useGuestStatus } from '@/lib/auth/guest';
 import Tooltip from '@/components/ui/Tooltip';
 import { isImageGenerationModel } from '@/lib/images/image-generation';
 import {
@@ -110,6 +111,8 @@ export default function ModelSelector({
 
   const activePointerRef = useRef<number | null>(null);
   const shortcuts = useShortcutLabels();
+  const { isGuest } = useGuestStatus();
+  const displayModelName = isGuest ? 'Auto' : (selectedModel.name || 'No model');
 
   const maxTierIndex = getMaxTierIndexForModel(models, selectedModel.id);
   const effectiveTierIndex = Math.min(tierIndex, maxTierIndex);
@@ -733,7 +736,7 @@ export default function ModelSelector({
             </div>
             <div className="flex shrink-0 items-center gap-1.5 pl-2">
               <span className="max-w-[120px] truncate text-[13px] font-medium text-[var(--dc-text-muted)]">
-                {selectedModel.name || 'No model'}
+                {displayModelName}
               </span>
               <ChevronRight className="dc-ms-row-chevron h-3.5 w-3.5 text-[var(--dc-text-faint)]" />
             </div>
@@ -1056,7 +1059,7 @@ export default function ModelSelector({
 
           <div className="relative z-10 flex min-w-0 items-center gap-1.5">
             <span className="truncate text-[13px] font-semibold tracking-tight">
-              {selectedModel.name || 'No model'}
+              {displayModelName}
             </span>
             <span
               className="h-1 w-1 shrink-0 rounded-full bg-current opacity-25"

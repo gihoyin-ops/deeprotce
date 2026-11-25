@@ -40,6 +40,8 @@ import { MAX_ATTACHMENT_BYTES, MAX_MESSAGE_CHARS, validateChatBody } from '@/lib
 import { checkUsageBudget, recordTokens } from '@/lib/security/usage';
 import { completeChatTokens, estimateChatPromptTokens, meterSseBody } from '@/lib/security/usage-meter';
 import { getClientIp } from '@/lib/security/rate-limit';
+import { getVerifiedAccount } from '@/lib/security/auth';
+import { checkGuestChatRateLimit } from '@/lib/security/guest-rate-limit';
 import { isImageGenerationModel } from '@/lib/images/image-generation';
 import { normalizeImageAspectRatio, type ImageAspectRatio } from '@/lib/images/image-aspect-ratio';
 import { TEMP_FILE_DIR as TEMP_FILE_ROOT } from '@/lib/data-directories';
@@ -747,8 +749,34 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
     }
 
-    // budget gate, identity is the client IP
-    const identityKey = getClientIp(req).slice(0, 128);
+    const clientIp = getClientIp(req).slice(0, 128);
+    const verifiedAccount = getVerifiedAccount(req.headers);
+    const isGuest = verifiedAccount === null;
+
+    if (isGuest) {
+      const guestVerdict = await checkGuestChatRateLimit(clientIp);
+      if (!guestVerdict.allowed) {
+        return NextResponse.json(
+          {
+            error: 'guest_rate_limit_exceeded',
+            code: 'guest_rate_limit_exceeded',
+            message: `Guest mode is limited to ${guestVerdict.limit} requests every 2 hours. Please sign in to continue chatting.`,
+            retryAfterSeconds: guestVerdict.retryAfterSeconds ?? 60
+          },
+          {
+            status: 429,
+            headers: {
+              'retry-after': String(guestVerdict.retryAfterSeconds ?? 60),
+              'x-ratelimit-limit': String(guestVerdict.limit),
+              'x-ratelimit-remaining': '0'
+            }
+          }
+        );
+      }
+    }
+
+    // budget gate, identity is account_id when signed in, or client IP
+    const identityKey = verifiedAccount ? `acc:${verifiedAccount.sub}` : clientIp;
     const gate = checkUsageBudget(identityKey);
     if (!gate.allowed) {
       const headers: Record<string, string> = { 'x-usage-expiry': gate.exhaustedWindow as string };
@@ -781,22 +809,62 @@ export async function POST(req: Request) {
     const p = normalizeProvider(conn.provider);
     const cleanBase = getCleanBaseUrl(p, conn.baseUrl);
     const latestUser = getLatestUserMessage(messages);
+    const latestAttachmentCount =
+      (Array.isArray(latestUser?.attachedFiles) ? latestUser.attachedFiles.length : 0) +
+      (latestUser?.attachedFile ? 1 : 0);
+
+    if (isGuest && latestAttachmentCount > 3) {
+      return NextResponse.json(
+        {
+          error: 'guest_max_attachments_exceeded',
+          code: 'guest_max_attachments_exceeded',
+          message: 'Guest mode is limited to 3 attachments per message. Please sign in for more.'
+        },
+        { status: 400 }
+      );
+    }
+
     const requestedImageGeneration = latestUser?.imageGenerationEnabled === true;
     const requestedAspectRatio = normalizeImageAspectRatio(imageAspectRatio || latestUser?.imageAspectRatio);
 
-    // client modelId is untrusted; only env-provisioned or relay-listed models may reach the relay
-    const allowedModels = new Set(getLiveModels().map(m => m.id));
-    for (const id of getEnvModelIds()) allowedModels.add(id);
+    // Block image generation and image editing for guests before model resolution
     const requestedModel = typeof modelId === 'string' ? modelId.trim() : '';
-    if (requestedModel && !allowedModels.has(requestedModel)) {
-      const relayModels = await fetchRelayModels(clientId).catch(() => null);
-      if (relayModels?.ok) {
-        for (const m of relayModels.models) allowedModels.add(m.id);
-      }
+    if (
+      isGuest &&
+      (requestedImageGeneration || Boolean(validImageEdit) || isImageGenerationModel(requestedModel))
+    ) {
+      return NextResponse.json(
+        {
+          error: 'login_required_for_image',
+          code: 'login_required_for_image',
+          message: 'Image generation and editing require an account. Please sign in to continue.'
+        },
+        { status: 403 }
+      );
     }
-    const selectedRequestModel = requestedModel && allowedModels.has(requestedModel)
-      ? requestedModel
-      : (conn.model || requestedModel);
+
+    // Guests cannot pick arbitrary models; lock them to the server-configured guest default
+    let selectedRequestModel: string;
+    if (isGuest) {
+      const guestDefault =
+        process.env.GUEST_DEFAULT_MODEL?.trim() ||
+        getLiveLiteConnection()?.model ||
+        conn.model;
+      selectedRequestModel = guestDefault;
+    } else {
+      // client modelId is untrusted; only env-provisioned or relay-listed models may reach the relay
+      const allowedModels = new Set(getLiveModels().map(m => m.id));
+      for (const id of getEnvModelIds()) allowedModels.add(id);
+      if (requestedModel && !allowedModels.has(requestedModel)) {
+        const relayModels = await fetchRelayModels(clientId).catch(() => null);
+        if (relayModels?.ok) {
+          for (const m of relayModels.models) allowedModels.add(m.id);
+        }
+      }
+      selectedRequestModel = requestedModel && allowedModels.has(requestedModel)
+        ? requestedModel
+        : (conn.model || requestedModel);
+    }
 
     const liveImageConfig = getLiveImageConfig();
     const defaultImageModel = liveImageConfig?.model || '';

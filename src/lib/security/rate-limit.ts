@@ -70,3 +70,31 @@ export const checkApiRateLimits = (ip: string): RateCheckResult => {
   const retryAfterSeconds = Math.max(1, Math.ceil((1 - entry.tokens) / REFILL_PER_SECOND));
   return { status: 'retry', retryAfterSeconds };
 };
+
+const AUTH_CAPACITY = 10;
+const AUTH_REFILL_PER_SECOND = 0.2;
+
+export const checkAuthRateLimits = (ip: string): RateCheckResult => {
+  const state = getState();
+  if (state.banned.has(ip)) return { status: 'banned' };
+
+  const key = `auth:${ip}`;
+  const now = Date.now();
+  let entry = state.entries[key];
+  if (entry === undefined) {
+    entry = { tokens: AUTH_CAPACITY, updatedAt: now, strikes: [] };
+    state.entries[key] = entry;
+  }
+
+  const elapsedSeconds = Math.max(0, (now - entry.updatedAt) / 1000);
+  entry.tokens = Math.min(AUTH_CAPACITY, entry.tokens + elapsedSeconds * AUTH_REFILL_PER_SECOND);
+  entry.updatedAt = now;
+
+  if (entry.tokens >= 1) {
+    entry.tokens -= 1;
+    return { status: 'ok' };
+  }
+
+  const retryAfterSeconds = Math.max(1, Math.ceil((1 - entry.tokens) / AUTH_REFILL_PER_SECOND));
+  return { status: 'retry', retryAfterSeconds };
+};

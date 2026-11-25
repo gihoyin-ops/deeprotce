@@ -735,21 +735,25 @@ const MobileSidebarDrawer = forwardRef<MobileDrawerHandle, MobileSidebarDrawerPr
                 }}
                 className="flex min-h-[48px] min-w-0 flex-1 items-center gap-2.5 rounded-2xl px-2 py-1.5 text-left transition-colors active:scale-[0.99] hover:bg-[var(--dc-fill)]"
               >
-                <Image
-                  src={safeAvatarSource(profile.avatar)}
-                  alt={profile.name || 'User'}
-                  width={36}
-                  height={36}
-                  unoptimized
-                  className="h-9 w-9 shrink-0 rounded-full border border-[var(--dc-border)] object-cover"
-                />
+                {!isGuest && (
+                  <Image
+                    src={safeAvatarSource(profile.avatar)}
+                    alt={profile.name || 'User'}
+                    width={36}
+                    height={36}
+                    unoptimized
+                    className="h-9 w-9 shrink-0 rounded-full border border-[var(--dc-border)] object-cover"
+                  />
+                )}
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[14px] font-semibold leading-tight text-[var(--dc-text-strong)]">
-                    {profile.name || 'Guest'}
+                    {isGuest ? 'Guest' : profile.name || 'Guest'}
                   </p>
-                  <p className="mt-0.5 truncate text-[11.5px] font-medium leading-tight text-[var(--dc-text-muted)]">
-                    {profile.plan || 'Personal'}
-                  </p>
+                  {!isGuest && (
+                    <p className="mt-0.5 truncate text-[11.5px] font-medium leading-tight text-[var(--dc-text-muted)]">
+                      {profile.plan || 'Personal'}
+                    </p>
+                  )}
                 </div>
               </button>
 

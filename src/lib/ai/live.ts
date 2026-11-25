@@ -25,13 +25,15 @@ const cleanBase = (url: string) => {
   return base;
 };
 
+export const API_PROD_URL = 'https://api.deepsia.my.id';
+
 export interface AiRelayConfig {
   baseUrl: string;
   clientSecret: string;
 }
 
 export const getAiRelayConfig = (): AiRelayConfig | null => {
-  const baseUrl = cleanBase(env('AI_RELAY_BASE_URL'));
+  const baseUrl = cleanBase(API_PROD_URL);
   const clientSecret = env('AI_RELAY_CLIENT_SECRET');
   if (!baseUrl || !clientSecret) {
     return null;

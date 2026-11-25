@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/icons';
 import ToggleSwitch from '@/components/ui/ToggleSwitch';
 import { type ImageAspectRatio } from '@/lib/images/image-aspect-ratio';
+import { useGuestStatus } from '@/lib/auth/guest';
 import { prefersReducedMotion, triggerSubtleHaptic } from './gesture-utils';
 
 interface ComposerFile {
@@ -80,6 +81,7 @@ export default function MobileComposerToolsSheet({
   getFileIcon,
   getDisplayName,
 }: MobileComposerToolsSheetProps) {
+  const { isGuest } = useGuestStatus();
   const [closingPending, setClosingPending] = useState(false);
 
   const backdropRef = useRef<HTMLDivElement>(null);
@@ -375,69 +377,71 @@ export default function MobileComposerToolsSheet({
               />
             </div>
 
-            <div className="px-4 py-2.5">
-              <div className="flex min-h-[44px] items-center justify-between gap-3">
-                <div className="flex min-w-0 items-center gap-3">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-500/12 text-violet-600 dark:text-violet-400">
-                    <ImageIcon className="h-4.5 w-4.5" strokeWidth={2.1} />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-[14px] font-semibold text-[var(--dc-text-strong)]">
-                      Create Image
-                    </p>
-                    <p className="text-[11.5px] font-medium text-[var(--dc-text-muted)]">
-                      Generate artwork with custom ratio
-                    </p>
+            {!isGuest && (
+              <div className="px-4 py-2.5">
+                <div className="flex min-h-[44px] items-center justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-500/12 text-violet-600 dark:text-violet-400">
+                      <ImageIcon className="h-4.5 w-4.5" strokeWidth={2.1} />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-[14px] font-semibold text-[var(--dc-text-strong)]">
+                        Create Image
+                      </p>
+                      <p className="text-[11.5px] font-medium text-[var(--dc-text-muted)]">
+                        Generate artwork with custom ratio
+                      </p>
+                    </div>
                   </div>
+                  <ToggleSwitch
+                    size="mobile"
+                    ariaLabel="Toggle image generation"
+                    checked={imageGenerationEnabled}
+                    onChange={(checked) => {
+                      triggerSubtleHaptic(8);
+                      onToggleImageGeneration?.(checked);
+                    }}
+                  />
                 </div>
-                <ToggleSwitch
-                  size="mobile"
-                  ariaLabel="Toggle image generation"
-                  checked={imageGenerationEnabled}
-                  onChange={(checked) => {
-                    triggerSubtleHaptic(8);
-                    onToggleImageGeneration?.(checked);
-                  }}
-                />
-              </div>
 
-              {imageGenerationEnabled && (
-                <div
-                  ref={ratioRowRef}
-                  data-gesture-ignore="true"
-                  className="no-scrollbar mt-3 flex snap-x snap-mandatory gap-2 overflow-x-auto pb-1"
-                >
-                  {ASPECT_OPTIONS.map((option) => {
-                    const active = imageAspectRatio === option.value;
-                    return (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={(e) => {
-                          triggerSubtleHaptic(6);
-                          if (!prefersReducedMotion()) {
-                            gsap.fromTo(
-                              e.currentTarget,
-                              { scale: 0.94 },
-                              { scale: 1, duration: 0.24, ease: 'back.out(2.2)', clearProps: 'transform' }
-                            );
-                          }
-                          onImageAspectRatioChange?.(option.value);
-                        }}
-                        className={`inline-flex min-h-[38px] shrink-0 snap-start items-center gap-1.5 rounded-full border px-3 text-[12.5px] font-semibold transition-colors ${
-                          active
-                            ? 'border-[var(--deepchat-accent)] bg-[var(--deepchat-accent-soft)] text-[var(--deepchat-accent)]'
-                            : 'border-[var(--dc-border)] bg-[rgb(255_255_255/0.6)] text-[var(--dc-text-strong)] dark:bg-[rgb(255_255_255/0.05)]'
-                        }`}
-                      >
-                        {option.icon}
-                        <span>{option.hint || option.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+                {imageGenerationEnabled && (
+                  <div
+                    ref={ratioRowRef}
+                    data-gesture-ignore="true"
+                    className="no-scrollbar mt-3 flex snap-x snap-mandatory gap-2 overflow-x-auto pb-1"
+                  >
+                    {ASPECT_OPTIONS.map((option) => {
+                      const active = imageAspectRatio === option.value;
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={(e) => {
+                            triggerSubtleHaptic(6);
+                            if (!prefersReducedMotion()) {
+                              gsap.fromTo(
+                                e.currentTarget,
+                                { scale: 0.94 },
+                                { scale: 1, duration: 0.24, ease: 'back.out(2.2)', clearProps: 'transform' }
+                              );
+                            }
+                            onImageAspectRatioChange?.(option.value);
+                          }}
+                          className={`inline-flex min-h-[38px] shrink-0 snap-start items-center gap-1.5 rounded-full border px-3 text-[12.5px] font-semibold transition-colors ${
+                            active
+                              ? 'border-[var(--deepchat-accent)] bg-[var(--deepchat-accent-soft)] text-[var(--deepchat-accent)]'
+                              : 'border-[var(--dc-border)] bg-[rgb(255_255_255/0.6)] text-[var(--dc-text-strong)] dark:bg-[rgb(255_255_255/0.05)]'
+                          }`}
+                        >
+                          {option.icon}
+                          <span>{option.hint || option.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Recent Files + Library */}

@@ -12,6 +12,7 @@ import {
   useSelectedModelState,
   type ModelOption,
 } from '@/lib/ai/model-selection';
+import { useGuestStatus } from '@/lib/auth/guest';
 import { prefersReducedMotion, triggerSubtleHaptic } from './gesture-utils';
 
 interface MobileModelSheetProps {
@@ -40,6 +41,7 @@ interface ConfettiParticle {
 }
 
 export default function MobileModelSheet({ isOpen, onClose }: MobileModelSheetProps) {
+  const { isGuest } = useGuestStatus();
   const {
     selectedModel,
     tierIndex,
@@ -570,7 +572,7 @@ export default function MobileModelSheet({ isOpen, onClose }: MobileModelSheetPr
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0 flex-1">
               <h2 className="truncate text-[17px] font-semibold tracking-tight text-[var(--dc-text-strong)]">
-                {selectedModel.name}
+                {isGuest ? 'Auto' : selectedModel.name}
               </h2>
               <p
                 className={`mt-0.5 text-[12px] ${

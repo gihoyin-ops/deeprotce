@@ -210,21 +210,25 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
             aria-expanded={profileMenuOpen}
             aria-label="Open profile menu"
           >
-            <Image
-              src={avatarSrc}
-              alt="User"
-              width={32}
-              height={32}
-              unoptimized
-              className="h-8 w-8 shrink-0 rounded-full border border-[var(--dc-border)] bg-[var(--dc-surface)] object-cover"
-            />
+            {!isGuest && (
+              <Image
+                src={avatarSrc}
+                alt="User"
+                width={32}
+                height={32}
+                unoptimized
+                className="h-8 w-8 shrink-0 rounded-full border border-[var(--dc-border)] bg-[var(--dc-surface)] object-cover"
+              />
+            )}
             <div className="min-w-0 flex-1">
               <p className="truncate text-[14px] font-medium leading-tight text-[var(--dc-text-strong)]">
-                {profile.name || 'Guest'}
+                {isGuest ? 'Guest' : profile.name || 'Guest'}
               </p>
-              <p className="truncate text-xs font-normal leading-tight text-[var(--dc-text-muted)]">
-                {profile.plan || 'Free'}
-              </p>
+              {!isGuest && (
+                <p className="truncate text-xs font-normal leading-tight text-[var(--dc-text-muted)]">
+                  {profile.plan || 'Free'}
+                </p>
+              )}
             </div>
           </button>
 
@@ -247,17 +251,19 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
           aria-expanded={profileMenuOpen}
           aria-label="Open profile menu"
         >
-          <Image
-            src={avatarSrc}
-            alt="User"
-            width={40}
-            height={40}
-            unoptimized
-            className="h-10 w-10 rounded-full border-2 border-slate-700 object-cover"
-          />
+          {!isGuest && (
+            <Image
+              src={avatarSrc}
+              alt="User"
+              width={40}
+              height={40}
+              unoptimized
+              className="h-10 w-10 rounded-full border-2 border-slate-700 object-cover"
+            />
+          )}
           <div className="flex-1 min-w-0">
-            <p className="truncate text-sm font-medium text-white">{profile.name || 'Guest'}</p>
-            <p className="truncate text-xs text-slate-400">{profile.plan || 'Free'}</p>
+            <p className="truncate text-sm font-medium text-white">{isGuest ? 'Guest' : profile.name || 'Guest'}</p>
+            {!isGuest && <p className="truncate text-xs text-slate-400">{profile.plan || 'Free'}</p>}
           </div>
           <ChevronDown className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${profileMenuOpen ? 'rotate-180' : ''}`} strokeWidth={1.75} />
         </button>
@@ -474,12 +480,20 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                handleOpenSettings('account');
+                if (isGuest) {
+                  router.push('/login');
+                } else {
+                  handleOpenSettings('account');
+                }
               }}
-              className="rail-action flex h-9 w-9 items-center justify-center rounded-full transition-transform hover:scale-105 active:scale-95"
-              aria-label="Profile"
+              className="rail-action flex h-9 min-w-[36px] items-center justify-center rounded-full px-1.5 transition-transform hover:scale-105 active:scale-95"
+              aria-label={isGuest ? 'Guest — Sign in' : 'Profile'}
             >
-              <Image src={safeAvatarSource(profile.avatar)} alt="User" width={28} height={28} unoptimized className="h-7 w-7 rounded-full object-cover" />
+              {isGuest ? (
+                <span className="text-[11px] font-medium text-[var(--dc-text-muted)]">Guest</span>
+              ) : (
+                <Image src={safeAvatarSource(profile.avatar)} alt="User" width={28} height={28} unoptimized className="h-7 w-7 rounded-full object-cover" />
+              )}
             </button>
           </div>
         </div>

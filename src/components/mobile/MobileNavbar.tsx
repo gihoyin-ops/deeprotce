@@ -5,6 +5,7 @@ import { gsap } from 'gsap';
 import { MoreHorizontal, Search, SquarePen } from '@/components/ui/icons';
 import { UltraPrismBorderSvg } from '@/components/ui/ModelSelectorVisuals';
 import { useSelectedModelState } from '@/lib/ai/model-selection';
+import { useGuestStatus } from '@/lib/auth/guest';
 import { getChatGenerationState, subscribeChatGeneration } from '@/lib/ai/chat-generation';
 import { prefersReducedMotion, triggerSubtleHaptic } from './gesture-utils';
 import type { MobileRightDrawerTab } from './types';
@@ -37,6 +38,8 @@ export default function MobileNavbar({
   onNewChat,
 }: MobileNavbarProps) {
   const { selectedModel, currentTier, isUltra } = useSelectedModelState();
+  const { isGuest } = useGuestStatus();
+  const displayModelName = isGuest ? 'Auto' : selectedModel.name;
   const [isStreaming, setIsStreaming] = useState(false);
 
   const barTopRef = useRef<SVGLineElement>(null);
@@ -269,7 +272,7 @@ export default function MobileNavbar({
             onTouchCancel={handleCapsuleTouchEnd}
             aria-haspopup="dialog"
             aria-expanded={isModelSheetOpen}
-            aria-label={`Model: ${selectedModel.name}, ${currentTier.key}. Tap or pull down to change`}
+            aria-label={`Model: ${displayModelName}, ${currentTier.key}. Tap or pull down to change`}
             className={`relative flex min-h-[44px] max-w-full items-center justify-center rounded-full px-1 py-0.5 transition-transform duration-150 active:scale-[0.97] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--deepchat-accent)]`}
           >
             <span
@@ -283,7 +286,7 @@ export default function MobileNavbar({
 
               <span className="relative z-10 flex max-w-full items-center gap-1.5">
                 <span className="truncate text-[13.5px] font-semibold tracking-tight text-[var(--dc-text-strong)]">
-                  {selectedModel.name}
+                  {displayModelName}
                 </span>
                 <span
                   className="h-1 w-1 shrink-0 rounded-full bg-[var(--dc-text-muted)] opacity-50"

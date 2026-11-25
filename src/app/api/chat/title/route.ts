@@ -11,6 +11,7 @@ import { MAX_TITLE_PROMPT_CHARS } from '@/lib/security/limits';
 import { estimateTokens } from '@/lib/security/usage-meter';
 import { checkUsageBudget, recordTokens } from '@/lib/security/usage';
 import { getClientIp } from '@/lib/security/rate-limit';
+import { isGuestRequest } from '@/lib/security/auth';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
@@ -153,6 +154,11 @@ export async function POST(req: Request) {
 
     if (!prompt) {
       return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
+    }
+
+    // Guests get a deterministic local title without burning upstream AI calls
+    if (isGuestRequest(req.headers)) {
+      return NextResponse.json({ title: buildFallbackTitle(promptForFallback) });
     }
 
     const liteConn = getLiveLiteConnection();

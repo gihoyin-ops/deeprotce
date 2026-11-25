@@ -6,11 +6,13 @@
 import type { BackendPlanGrant, BackendUsageLedger, BackendUsageWindow } from '../types';
 
 export interface DbPool {
-  query<T = Record<string, unknown>>(sql: string, params: unknown[]): Promise<T[]>;
-  exec(sql: string): Promise<{ changes: number }>;
+  query<T = Record<string, unknown>>(sql: string, params?: unknown[]): Promise<T[]>;
+  exec(sql: string, params?: unknown[]): Promise<{ changes: number }>;
   ping(): Promise<boolean>;
   close(): Promise<void>;
 }
+
+export { ensureTursoSchema, getDbPool, isTursoConfigured } from './turso';
 
 // thin read shapes for the account, plan, and usage service
 export type PlanGrantQuery = {

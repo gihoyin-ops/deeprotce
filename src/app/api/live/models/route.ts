@@ -5,10 +5,25 @@ import {
   resolveRelayClientId,
 } from '@/lib/ai/live';
 import { isAiLogEnabled } from '@/lib/ai/ai-logs';
+import { isGuestRequest } from '@/lib/security/auth';
 
 export const runtime = 'nodejs';
 
 export async function GET(req: Request) {
+  if (isGuestRequest(req.headers)) {
+    return NextResponse.json({
+      default: 'auto',
+      models: [
+        {
+          id: 'auto',
+          name: 'Auto',
+          description: 'Sign in to choose models',
+          maxTierIndex: 1
+        }
+      ]
+    });
+  }
+
   try {
     const clientId = resolveRelayClientId(req);
     const result = await fetchRelayModels(clientId);

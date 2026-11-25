@@ -22,6 +22,7 @@ import {
   X,
 } from '@/components/ui/icons';
 import { type ImageAspectRatio } from '@/lib/images/image-aspect-ratio';
+import { useGuestStatus } from '@/lib/auth/guest';
 
 export interface ComposerToolsFile {
   name: string;
@@ -174,6 +175,7 @@ export function ComposerToolsMenu({
   getFileIcon,
   getDisplayName,
 }: ComposerToolsMenuProps) {
+  const { isGuest } = useGuestStatus();
   const [view, setView] = useState<'main' | 'recent' | 'more'>('main');
   const panelRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<HTMLDivElement>(null);
@@ -354,47 +356,51 @@ export function ComposerToolsMenu({
 
               <div className="dc-tools-divider dc-tools-stagger" />
 
-              <button
-                type="button"
-                onClick={() => {
-                  onToggleImageGeneration?.(!imageGenerationEnabled);
-                  onClose();
-                }}
-                onPointerEnter={(e) => {
-                  if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, true);
-                }}
-                onPointerLeave={(e) => {
-                  if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, false);
-                }}
-                className={`dc-tools-row dc-tools-stagger min-h-[42px] active:scale-[0.985] sm:min-h-[38px] ${imageGenerationEnabled ? 'dc-tools-row-active' : ''}`}
-              >
-                <span className="dc-tools-icon-well">
-                  <ImageIcon className="dc-tools-icon h-[16px] w-[16px]" strokeWidth={2.05} />
-                </span>
-                <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">
-                  Create image
-                </span>
-                <ToolsAnimatedCheckSvg active={Boolean(imageGenerationEnabled)} />
-              </button>
+              {!isGuest && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onToggleImageGeneration?.(!imageGenerationEnabled);
+                      onClose();
+                    }}
+                    onPointerEnter={(e) => {
+                      if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, true);
+                    }}
+                    onPointerLeave={(e) => {
+                      if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, false);
+                    }}
+                    className={`dc-tools-row dc-tools-stagger min-h-[42px] active:scale-[0.985] sm:min-h-[38px] ${imageGenerationEnabled ? 'dc-tools-row-active' : ''}`}
+                  >
+                    <span className="dc-tools-icon-well">
+                      <ImageIcon className="dc-tools-icon h-[16px] w-[16px]" strokeWidth={2.05} />
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">
+                      Create image
+                    </span>
+                    <ToolsAnimatedCheckSvg active={Boolean(imageGenerationEnabled)} />
+                  </button>
 
-              <button
-                type="button"
-                onClick={onClose}
-                onPointerEnter={(e) => {
-                  if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, true);
-                }}
-                onPointerLeave={(e) => {
-                  if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, false);
-                }}
-                className="dc-tools-row dc-tools-stagger min-h-[42px] active:scale-[0.985] sm:min-h-[38px]"
-              >
-                <span className="dc-tools-icon-well">
-                  <BookOpen className="dc-tools-icon h-[16px] w-[16px]" strokeWidth={2.05} />
-                </span>
-                <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">
-                  Deep research
-                </span>
-              </button>
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    onPointerEnter={(e) => {
+                      if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, true);
+                    }}
+                    onPointerLeave={(e) => {
+                      if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, false);
+                    }}
+                    className="dc-tools-row dc-tools-stagger min-h-[42px] active:scale-[0.985] sm:min-h-[38px]"
+                  >
+                    <span className="dc-tools-icon-well">
+                      <BookOpen className="dc-tools-icon h-[16px] w-[16px]" strokeWidth={2.05} />
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">
+                      Deep research
+                    </span>
+                  </button>
+                </>
+              )}
 
               <button
                 type="button"
@@ -419,25 +425,27 @@ export function ComposerToolsMenu({
                 <ToolsAnimatedCheckSvg active={Boolean(webSearchEnabled)} />
               </button>
 
-              <button
-                type="button"
-                onClick={() => switchView('more')}
-                onPointerEnter={(e) => {
-                  if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, true);
-                }}
-                onPointerLeave={(e) => {
-                  if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, false);
-                }}
-                className="dc-tools-row dc-tools-stagger min-h-[42px] active:scale-[0.985] sm:min-h-[38px]"
-              >
-                <span className="dc-tools-icon-well">
-                  <MoreHorizontal className="dc-tools-icon h-[16px] w-[16px]" strokeWidth={2.05} />
-                </span>
-                <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">
-                  More
-                </span>
-                <ChevronRight className="dc-tools-chevron h-4 w-4 shrink-0 text-[var(--dc-text-muted)]" />
-              </button>
+              {!isGuest && (
+                <button
+                  type="button"
+                  onClick={() => switchView('more')}
+                  onPointerEnter={(e) => {
+                    if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, true);
+                  }}
+                  onPointerLeave={(e) => {
+                    if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, false);
+                  }}
+                  className="dc-tools-row dc-tools-stagger min-h-[42px] active:scale-[0.985] sm:min-h-[38px]"
+                >
+                  <span className="dc-tools-icon-well">
+                    <MoreHorizontal className="dc-tools-icon h-[16px] w-[16px]" strokeWidth={2.05} />
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">
+                    More
+                  </span>
+                  <ChevronRight className="dc-tools-chevron h-4 w-4 shrink-0 text-[var(--dc-text-muted)]" />
+                </button>
+              )}
             </div>
           )}
 

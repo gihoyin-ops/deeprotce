@@ -1,9 +1,11 @@
 'use client';
 
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
+import { AUTH_SESSION_QUERY_KEY } from '@/lib/auth/guest';
 import LoginShowcaseMedia from './LoginShowcaseMedia';
 import PlanetFaqSection from './PlanetFaqSection';
 
@@ -40,34 +42,101 @@ function AppleIcon() {
 
 export default function LoginPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const [email, setEmail] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [step, setStep] = useState<'email' | 'otp'>('email');
+  const [resendCooldown, setResendCooldown] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = window.setTimeout(() => {
+      setResendCooldown((prev) => Math.max(0, prev - 1));
+    }, 1000);
+    return () => window.clearTimeout(timer);
+  }, [resendCooldown]);
+
   const handleOAuthClick = (provider: 'Google' | 'Apple') => {
-    setStatusMessage(`Continuing with ${provider}...`);
-    toast.success(`Signed in with ${provider}`);
-    window.setTimeout(() => {
-      router.push('/');
-    }, 450);
+    toast(`${provider} OAuth is not configured yet. Please continue with email OTP.`);
   };
 
-  const handleEmailSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const requestOtp = async (targetEmail: string) => {
+    setIsSubmitting(true);
+    try {
+      const res = await fetch('/api/auth/otp/send', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ email: targetEmail })
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        resendAfterSeconds?: number;
+        retryAfterSeconds?: number;
+      };
+      if (!res.ok) {
+        if (typeof data.retryAfterSeconds === 'number' && data.retryAfterSeconds > 0) {
+          setResendCooldown(data.retryAfterSeconds);
+        }
+        toast.error(data.error || 'Failed to send verification code.');
+        return;
+      }
+      setStep('otp');
+      setResendCooldown(typeof data.resendAfterSeconds === 'number' ? data.resendAfterSeconds : 45);
+      setStatusMessage(`We sent a 6-digit code to ${targetEmail}`);
+      toast.success('Verification code sent to your email.');
+    } catch {
+      toast.error('Network error while sending verification code.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleEmailSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const trimmed = email.trim();
+    const trimmed = email.trim().toLowerCase();
     if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
       toast.error('Please enter a valid email address.');
       return;
     }
 
+    if (step === 'email') {
+      await requestOtp(trimmed);
+      return;
+    }
+
+    const cleanCode = otpCode.trim();
+    if (!/^\d{6}$/.test(cleanCode)) {
+      toast.error('Please enter the 6-digit code.');
+      return;
+    }
+
     setIsSubmitting(true);
-    setStatusMessage(`Welcome back, ${trimmed}`);
-    toast.success(`Signed in as ${trimmed}`);
-    window.setTimeout(() => {
-      setIsSubmitting(false);
+    try {
+      const res = await fetch('/api/auth/otp/verify', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ email: trimmed, code: cleanCode })
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        toast.error(data.error || 'Invalid or expired code.');
+        return;
+      }
+
+      await queryClient.invalidateQueries({ queryKey: AUTH_SESSION_QUERY_KEY });
+      toast.success(`Signed in as ${trimmed}`);
       router.push('/');
-    }, 550);
+      router.refresh();
+    } catch {
+      toast.error('Network error while verifying code.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -155,20 +224,72 @@ export default function LoginPage() {
                       name="email"
                       type="email"
                       autoComplete="email"
+                      disabled={step === 'otp' || isSubmitting}
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="Enter your email"
-                      className="h-11 w-full rounded-xl border border-[var(--dc-border-subtle)] bg-[var(--dc-surface-input)] px-3.5 text-sm text-[var(--dc-text-strong)] placeholder:text-[var(--dc-text-placeholder)] transition-colors focus:border-[var(--deepchat-accent)] focus:ring-2 focus:ring-[var(--deepchat-accent)]/20 focus:outline-none"
+                      className="h-11 w-full rounded-xl border border-[var(--dc-border-subtle)] bg-[var(--dc-surface-input)] px-3.5 text-sm text-[var(--dc-text-strong)] placeholder:text-[var(--dc-text-placeholder)] transition-colors focus:border-[var(--deepchat-accent)] focus:ring-2 focus:ring-[var(--deepchat-accent)]/20 focus:outline-none disabled:opacity-60"
                     />
                   </div>
+
+                  {step === 'otp' && (
+                    <div>
+                      <label htmlFor="login-otp" className="sr-only">
+                        6-digit verification code
+                      </label>
+                      <input
+                        id="login-otp"
+                        name="otp"
+                        type="text"
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                        maxLength={6}
+                        value={otpCode}
+                        onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        placeholder="Enter 6-digit code"
+                        className="h-11 w-full rounded-xl border border-[var(--dc-border-subtle)] bg-[var(--dc-surface-input)] px-3.5 text-center text-base font-semibold tracking-[0.35em] text-[var(--dc-text-strong)] placeholder:tracking-normal placeholder:font-normal placeholder:text-sm placeholder:text-[var(--dc-text-placeholder)] transition-colors focus:border-[var(--deepchat-accent)] focus:ring-2 focus:ring-[var(--deepchat-accent)]/20 focus:outline-none"
+                      />
+                    </div>
+                  )}
 
                   <button
                     type="submit"
                     disabled={isSubmitting}
                     className="flex h-11 w-full items-center justify-center rounded-xl bg-[var(--dc-invert)] px-4 text-sm font-medium text-[var(--dc-text-on-invert)] transition-colors hover:bg-[var(--dc-invert-hover)] disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {isSubmitting ? 'Signing in...' : 'Continue with email'}
+                    {isSubmitting
+                      ? step === 'otp'
+                        ? 'Verifying...'
+                        : 'Sending code...'
+                      : step === 'otp'
+                        ? 'Verify & Sign in'
+                        : 'Continue with email'}
                   </button>
+
+                  {step === 'otp' && (
+                    <div className="flex items-center justify-between pt-1 text-xs text-[var(--dc-text-muted)]">
+                      <button
+                        type="button"
+                        disabled={isSubmitting}
+                        onClick={() => {
+                          setStep('email');
+                          setOtpCode('');
+                          setStatusMessage(null);
+                        }}
+                        className="underline-offset-2 hover:text-[var(--dc-text-strong)] hover:underline disabled:opacity-50"
+                      >
+                        Change email
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isSubmitting || resendCooldown > 0}
+                        onClick={() => requestOtp(email.trim().toLowerCase())}
+                        className="underline-offset-2 hover:text-[var(--dc-text-strong)] hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {resendCooldown > 0 ? `Resend code (${resendCooldown}s)` : 'Resend code'}
+                      </button>
+                    </div>
+                  )}
                 </form>
 
                 {statusMessage && (
