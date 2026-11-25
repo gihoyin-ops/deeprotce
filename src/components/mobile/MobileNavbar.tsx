@@ -11,6 +11,7 @@ import { prefersReducedMotion, triggerSubtleHaptic } from './gesture-utils';
 import type { MobileRightDrawerTab } from './types';
 
 interface MobileNavbarProps {
+  isChatPage?: boolean;
   hasActiveChat: boolean;
   activeChatId?: string;
   chatTitle?: string;
@@ -25,6 +26,7 @@ interface MobileNavbarProps {
 }
 
 export default function MobileNavbar({
+  isChatPage = true,
   hasActiveChat,
   activeChatId,
   chatTitle,
@@ -257,115 +259,121 @@ export default function MobileNavbar({
           </button>
         </div>
 
-        {/* Center: Unified Model Selector Capsule (stays in Navbar) */}
+        {/* Center: Unified Model Selector Capsule (only on chat pages) */}
         <div className="flex min-w-0 flex-1 items-center justify-center">
-          <button
-            ref={modelPillRef}
-            type="button"
-            onClick={() => {
-              triggerSubtleHaptic(6);
-              onOpenModelSheet();
-            }}
-            onTouchStart={handleCapsuleTouchStart}
-            onTouchMove={handleCapsuleTouchMove}
-            onTouchEnd={handleCapsuleTouchEnd}
-            onTouchCancel={handleCapsuleTouchEnd}
-            aria-haspopup="dialog"
-            aria-expanded={isModelSheetOpen}
-            aria-label={`Model: ${displayModelName}, ${currentTier.key}. Tap or pull down to change`}
-            className={`relative flex min-h-[44px] max-w-full items-center justify-center rounded-full px-1 py-0.5 transition-transform duration-150 active:scale-[0.97] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--deepchat-accent)]`}
-          >
-            <span
-              className={`relative flex min-h-[36px] max-w-[210px] flex-col items-center justify-center rounded-full px-3.5 transition-colors ${
-                isUltra
-                  ? 'dc-ms-trigger-ultra py-1'
-                  : 'border border-[var(--dc-border)] bg-[var(--dc-surface-subtle)] py-1 hover:bg-[var(--dc-fill)]'
-              }`}
-            >
-              <UltraPrismBorderSvg active={isUltra} />
-
-              <span className="relative z-10 flex max-w-full items-center gap-1.5">
-                <span className="truncate text-[13.5px] font-semibold tracking-tight text-[var(--dc-text-strong)]">
-                  {displayModelName}
-                </span>
-                <span
-                  className="h-1 w-1 shrink-0 rounded-full bg-[var(--dc-text-muted)] opacity-50"
-                  aria-hidden="true"
-                />
-                <span
-                  className={`shrink-0 text-[12px] leading-none ${
-                    isUltra
-                      ? 'dc-ms-ultra-text font-semibold'
-                      : 'font-medium text-[var(--dc-text-muted)]'
-                  }`}
-                >
-                  {currentTier.key}
-                </span>
-                <svg
-                  ref={chevronRef}
-                  className="ml-0.5 h-3 w-3 shrink-0 text-[var(--dc-text-muted)]"
-                  viewBox="0 0 12 12"
-                  fill="none"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M2.5 4.25 6 7.75l3.5-3.5"
-                    stroke="currentColor"
-                    strokeWidth="1.7"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </span>
-
-              {showChatSubtitle && (
-                <span className="relative z-10 mt-0.5 max-w-[168px] truncate text-[10.5px] font-medium leading-none text-[var(--dc-text-muted)]">
-                  {chatTitle}
-                </span>
-              )}
-            </span>
-          </button>
-        </div>
-
-        {/* Right: Quick Action Zone (44x44 touch targets) */}
-        <div className="flex w-[88px] shrink-0 items-center justify-end gap-0.5">
-          {hasActiveChat && (
+          {isChatPage && (
             <button
+              ref={modelPillRef}
               type="button"
               onClick={() => {
                 triggerSubtleHaptic(6);
-                onNewChat();
+                onOpenModelSheet();
               }}
-              aria-label="New chat"
-              className="flex h-11 w-11 items-center justify-center rounded-full text-[var(--dc-text-strong)] transition-transform duration-150 active:scale-90 hover:bg-[var(--dc-fill)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--deepchat-accent)]"
+              onTouchStart={handleCapsuleTouchStart}
+              onTouchMove={handleCapsuleTouchMove}
+              onTouchEnd={handleCapsuleTouchEnd}
+              onTouchCancel={handleCapsuleTouchEnd}
+              aria-haspopup="dialog"
+              aria-expanded={isModelSheetOpen}
+              aria-label={`Model: ${displayModelName}, ${currentTier.key}. Tap or pull down to change`}
+              className={`relative flex min-h-[44px] max-w-full items-center justify-center rounded-full px-1 py-0.5 transition-transform duration-150 active:scale-[0.97] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--deepchat-accent)]`}
             >
-              <SquarePen className="h-[18px] w-[18px]" strokeWidth={2.1} />
+              <span
+                className={`relative flex min-h-[36px] max-w-[210px] flex-col items-center justify-center rounded-full px-3.5 transition-colors ${
+                  isUltra
+                    ? 'dc-ms-trigger-ultra py-1'
+                    : 'border border-[var(--dc-border)] bg-[var(--dc-surface-subtle)] py-1 hover:bg-[var(--dc-fill)]'
+                }`}
+              >
+                <UltraPrismBorderSvg active={isUltra} />
+
+                <span className="relative z-10 flex max-w-full items-center gap-1.5">
+                  <span className="truncate text-[13.5px] font-semibold tracking-tight text-[var(--dc-text-strong)]">
+                    {displayModelName}
+                  </span>
+                  <span
+                    className="h-1 w-1 shrink-0 rounded-full bg-[var(--dc-text-muted)] opacity-50"
+                    aria-hidden="true"
+                  />
+                  <span
+                    className={`shrink-0 text-[12px] leading-none ${
+                      isUltra
+                        ? 'dc-ms-ultra-text font-semibold'
+                        : 'font-medium text-[var(--dc-text-muted)]'
+                    }`}
+                  >
+                    {currentTier.key}
+                  </span>
+                  <svg
+                    ref={chevronRef}
+                    className="ml-0.5 h-3 w-3 shrink-0 text-[var(--dc-text-muted)]"
+                    viewBox="0 0 12 12"
+                    fill="none"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M2.5 4.25 6 7.75l3.5-3.5"
+                      stroke="currentColor"
+                      strokeWidth="1.7"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </span>
+
+                {showChatSubtitle && (
+                  <span className="relative z-10 mt-0.5 max-w-[168px] truncate text-[10.5px] font-medium leading-none text-[var(--dc-text-muted)]">
+                    {chatTitle}
+                  </span>
+                )}
+              </span>
             </button>
           )}
+        </div>
 
-          <button
-            type="button"
-            onClick={() => {
-              triggerSubtleHaptic(6);
-              onOpenRightDrawer(hasActiveChat ? 'chat' : 'search');
-            }}
-            aria-label={hasActiveChat ? 'Open chat utility hub' : 'Open search and inbox'}
-            aria-expanded={isRightDrawerOpen}
-            aria-controls="mobile-right-drawer"
-            className="relative flex h-11 w-11 items-center justify-center rounded-full text-[var(--dc-text-strong)] transition-transform duration-150 active:scale-90 hover:bg-[var(--dc-fill)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--deepchat-accent)]"
-          >
-            {hasActiveChat ? (
-              <MoreHorizontal className="h-[20px] w-[20px]" strokeWidth={2.1} />
-            ) : (
-              <Search className="h-[18.5px] w-[18.5px]" strokeWidth={2.1} />
-            )}
-            {unreadNotifications > 0 && (
-              <span
-                className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-[var(--deepchat-accent)] ring-2 ring-[var(--dc-canvas)]"
-                aria-hidden="true"
-              />
-            )}
-          </button>
+        {/* Right: Quick Action Zone (only on chat pages) */}
+        <div className="flex w-[88px] shrink-0 items-center justify-end gap-0.5">
+          {isChatPage && (
+            <>
+              {hasActiveChat && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerSubtleHaptic(6);
+                    onNewChat();
+                  }}
+                  aria-label="New chat"
+                  className="flex h-11 w-11 items-center justify-center rounded-full text-[var(--dc-text-strong)] transition-transform duration-150 active:scale-90 hover:bg-[var(--dc-fill)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--deepchat-accent)]"
+                >
+                  <SquarePen className="h-[18px] w-[18px]" strokeWidth={2.1} />
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => {
+                  triggerSubtleHaptic(6);
+                  onOpenRightDrawer(hasActiveChat ? 'chat' : 'search');
+                }}
+                aria-label={hasActiveChat ? 'Open chat utility hub' : 'Open search and inbox'}
+                aria-expanded={isRightDrawerOpen}
+                aria-controls="mobile-right-drawer"
+                className="relative flex h-11 w-11 items-center justify-center rounded-full text-[var(--dc-text-strong)] transition-transform duration-150 active:scale-90 hover:bg-[var(--dc-fill)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--deepchat-accent)]"
+              >
+                {hasActiveChat ? (
+                  <MoreHorizontal className="h-[20px] w-[20px]" strokeWidth={2.1} />
+                ) : (
+                  <Search className="h-[18.5px] w-[18.5px]" strokeWidth={2.1} />
+                )}
+                {unreadNotifications > 0 && (
+                  <span
+                    className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-[var(--deepchat-accent)] ring-2 ring-[var(--dc-canvas)]"
+                    aria-hidden="true"
+                  />
+                )}
+              </button>
+            </>
+          )}
         </div>
       </div>
 

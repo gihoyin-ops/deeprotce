@@ -142,6 +142,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const queryClient = useQueryClient();
   const hasActiveChat = pathname.startsWith('/chat');
   const isSharedChat = pathname.startsWith('/chat/s/');
+  const isChatPage = pathname === '/' || pathname.startsWith('/chat') || pathname.startsWith('/settings');
   const activeChatId = hasActiveChat && !isSharedChat ? pathname.split('/').pop() : undefined;
   const shortcuts = useShortcutLabels();
   const isMobileViewport = useIsMobileViewport();
@@ -487,6 +488,10 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         }
 
         if (Math.abs(dx) >= minHorizontal && Math.abs(dx) > Math.abs(dy) * 1.35) {
+          if (dx < 0 && !isChatPage) {
+            mobileGestureRef.current = null;
+            return;
+          }
           drag.axis = 'x';
           drag.target = dx > 0 ? 'left' : 'right';
           drag.panelWidth =
@@ -566,6 +571,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     };
   }, [
     hasActiveChat,
+    isChatPage,
     isMobileMenuOpen,
     isMobileViewport,
     isModelSheetOpen,
@@ -902,6 +908,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         className={`relative z-10 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden sm:transition-all sm:duration-500 sm:ease-[cubic-bezier(0.22,1,0.36,1)] ${hasActiveChat ? 'bg-[var(--dc-canvas)] shadow-none sm:m-0 sm:rounded-none sm:border-0' : 'bg-[var(--dc-canvas)] shadow-none sm:m-0 sm:rounded-none sm:border-0'}`}
       >
         <MobileNavbar
+          isChatPage={isChatPage}
           hasActiveChat={hasActiveChat}
           activeChatId={activeChatId}
           chatTitle={chatTitle}
@@ -1029,7 +1036,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         />
       )}
 
-      {isMobileViewport && (mobileDrawersPrimed || isRightDrawerOpen) && (
+      {isMobileViewport && isChatPage && (mobileDrawersPrimed || isRightDrawerOpen) && (
         <MobileRightDrawer
           ref={rightDrawerRef}
           isOpen={isRightDrawerOpen}

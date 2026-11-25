@@ -390,7 +390,7 @@ export default function UserProfilePage() {
 
   return (
     <div className="custom-scrollbar h-full w-full overflow-y-auto bg-[var(--dc-canvas)] text-[var(--dc-text)]">
-      <div ref={pageRef} className="mx-auto max-w-3xl px-4 pb-16 pt-4 sm:px-8 sm:pt-8">
+      <div ref={pageRef} className="mx-auto max-w-3xl px-4 pb-16 pt-[64px] sm:px-8 sm:pt-8">
         {/* Top utility bar: Edit, Private/Public, Share */}
         <div data-up-stagger className="mb-6 flex items-center justify-end gap-1.5 sm:mb-4">
           {isOwner && (

@@ -260,7 +260,6 @@ export default function LibraryPage() {
   const isSelecting = selectedIds.length > 0;
 
   const loadLibrary = useCallback(async () => {
-    setIsLoading(true);
     try {
       const res = await fetch('/api/library', { credentials: 'same-origin' });
       const data = (await res.json()) as LibraryResponse;
@@ -270,6 +269,16 @@ export default function LibraryPage() {
         setItems(guestData.items);
         setTrashedItems(guestData.trashedItems);
         setFolders(guestData.folders);
+        try {
+          localStorage.setItem(
+            'deepchat-library-cache-v1',
+            JSON.stringify({
+              items: guestData.items,
+              trashedItems: guestData.trashedItems,
+              folders: guestData.folders
+            })
+          );
+        } catch {}
         return;
       }
       if (!res.ok) {
@@ -277,9 +286,22 @@ export default function LibraryPage() {
         return;
       }
       setIsGuest(false);
-      setItems(data.items ?? []);
-      setTrashedItems(data.trashedItems ?? []);
-      setFolders(data.folders ?? []);
+      const nextItems = data.items ?? [];
+      const nextTrashed = data.trashedItems ?? [];
+      const nextFolders = data.folders ?? [];
+      setItems(nextItems);
+      setTrashedItems(nextTrashed);
+      setFolders(nextFolders);
+      try {
+        localStorage.setItem(
+          'deepchat-library-cache-v1',
+          JSON.stringify({
+            items: nextItems,
+            trashedItems: nextTrashed,
+            folders: nextFolders
+          })
+        );
+      } catch {}
     } catch {
       toast.error('Network error while loading library.');
     } finally {
@@ -288,22 +310,35 @@ export default function LibraryPage() {
   }, []);
 
   useEffect(() => {
+    try {
+      const cachedRaw = localStorage.getItem('deepchat-library-cache-v1');
+      if (cachedRaw) {
+        const parsed = JSON.parse(cachedRaw) as {
+          items?: LibraryItem[];
+          trashedItems?: LibraryItem[];
+          folders?: LibraryFolder[];
+        };
+        if (Array.isArray(parsed.items)) setItems(parsed.items);
+        if (Array.isArray(parsed.trashedItems)) setTrashedItems(parsed.trashedItems);
+        if (Array.isArray(parsed.folders)) setFolders(parsed.folders);
+        setIsLoading(false);
+      }
+    } catch {}
     void loadLibrary();
   }, [loadLibrary]);
 
-  // Entrance stagger
+  // Subtle entrance without opacity: 0 flicker
   useEffect(() => {
     const el = pageRef.current;
     if (isLoading || !el || prefersReducedMotion()) return;
     const ctx = gsap.context(() => {
       gsap.fromTo(
         el.querySelectorAll('[data-lib-stagger]'),
-        { opacity: 0, y: 10 },
+        { y: 6 },
         {
-          opacity: 1,
           y: 0,
-          duration: 0.42,
-          stagger: 0.045,
+          duration: 0.34,
+          stagger: 0.03,
           ease: 'power3.out',
           clearProps: 'transform'
         }
@@ -810,7 +845,7 @@ export default function LibraryPage() {
       }}
       className="custom-scrollbar relative h-full w-full select-none overflow-y-auto bg-[var(--dc-canvas)] text-[var(--dc-text)]"
     >
-      <div ref={pageRef} className="mx-auto max-w-4xl px-4 pb-28 pt-5 sm:px-8 sm:pt-8">
+      <div ref={pageRef} className="mx-auto max-w-4xl px-4 pb-28 pt-[64px] sm:px-8 sm:pt-8">
         {/* Clean minimal header */}
         <header data-lib-stagger className="flex items-center justify-between gap-3">
           <h1 className="text-2xl font-semibold tracking-tight text-[var(--dc-text-strong)]">
