@@ -120,6 +120,6 @@ export async function logoutAccountClient(queryClient: QueryClient): Promise<voi
     queryClient.invalidateQueries({ queryKey: AUTH_SESSION_QUERY_KEY }),
     queryClient.invalidateQueries({ queryKey: deepchatQueryKeys.profile }),
     queryClient.invalidateQueries({ queryKey: deepchatQueryKeys.chats }),
-    queryClient.invalidateQueries({ queryKey: deepchatQueryKeys.library }),
+    queryClient.invalidateQueries({ queryKey: deepchatQueryKeys.recentFiles }),
   ]);
 }
