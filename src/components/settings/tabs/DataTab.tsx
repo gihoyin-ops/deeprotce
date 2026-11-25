@@ -244,7 +244,7 @@ export function DataTab({
       {/* Cookie Preferences modal */}
       {isCookieModalOpen && typeof document !== 'undefined' && createPortal(
         <div
-          className="fixed inset-0 z-[400] flex items-center justify-center bg-black/50 p-4 backdrop-blur-[2px]"
+          className="fixed inset-0 z-[10050] flex items-center justify-center bg-black/55 p-4 backdrop-blur-[2px]"
           onClick={() => setIsCookieModalOpen(false)}
         >
           <div

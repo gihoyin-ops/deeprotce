@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Check, Edit3, X } from '@/components/ui/icons';
 import { PillDropdown } from '../PillDropdown';
 import type { UserProfile } from '../types';
@@ -238,10 +239,10 @@ export function AccountTab({
         </div>
       </section>
 
-      {/* Delete account confirmation card (matches screenshot 3) */}
-      {isDeleteCardOpen && (
+      {/* Delete account confirmation card (portaled outside SettingsModal for full-screen focus) */}
+      {isDeleteCardOpen && typeof document !== 'undefined' && createPortal(
         <div
-          className="fixed inset-0 z-[260] flex items-center justify-center bg-black/50 p-4 backdrop-blur-[2px]"
+          className="fixed inset-0 z-[10050] flex items-center justify-center bg-black/55 p-4 backdrop-blur-[2px]"
           onClick={() => !isDeletingAccount && setIsDeleteCardOpen(false)}
         >
           <div
@@ -268,9 +269,9 @@ export function AccountTab({
 
             <ul className="mt-4 list-disc space-y-2 pl-5 text-sm leading-relaxed text-[var(--dc-text-muted)]">
               <li>Deleting your account is permanent and cannot be undone</li>
-              <li>You will lose access to your local DeepChat profile, saved memories, and preferences</li>
-              <li>All conversations and attachments stored on this device will be permanently erased</li>
-              <li>Your browser storage for DeepChat will be reset immediately</li>
+              <li>Your profile, saved memories, and preferences will be permanently removed</li>
+              <li>All synced conversations, library images, and attachments will be erased</li>
+              <li>You will be signed out and this browser&apos;s session will be cleared immediately</li>
             </ul>
 
             <div className="mt-6 flex items-center justify-end gap-2.5">
@@ -295,7 +296,8 @@ export function AccountTab({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

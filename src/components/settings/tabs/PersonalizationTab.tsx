@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import NextImage from 'next/image';
 import { HelpCircle, X } from '@/components/ui/icons';
 import ToggleSwitch from '@/components/ui/ToggleSwitch';
@@ -433,10 +434,10 @@ export function PersonalizationTab({
         </div>
       </section>
 
-      {/* Custom Instructions Edit Modal */}
-      {isCustomModalOpen && (
+      {/* Custom Instructions Edit Modal (portaled outside SettingsModal for full-screen focus) */}
+      {isCustomModalOpen && typeof document !== 'undefined' && createPortal(
         <div
-          className="fixed inset-0 z-[260] flex items-center justify-center bg-black/50 p-4 backdrop-blur-[2px]"
+          className="fixed inset-0 z-[10050] flex items-center justify-center bg-black/55 p-4 backdrop-blur-[2px]"
           onClick={() => !isSaving && setIsCustomModalOpen(false)}
         >
           <div
@@ -533,7 +534,8 @@ export function PersonalizationTab({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

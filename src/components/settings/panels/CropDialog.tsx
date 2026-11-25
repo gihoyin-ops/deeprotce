@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useCallback, useState } from 'react';
+import { createPortal } from 'react-dom';
 import dynamic from 'next/dynamic';
 import { ArrowLeft } from '@/components/ui/icons';
 import type { Area as CropArea } from 'react-easy-crop';
@@ -57,9 +58,10 @@ export function CropDialog({ image, closing, onClose, onSave }: CropDialogProps)
     onClose();
   };
 
-  return (
+  if (typeof document === 'undefined') return null;
+  return createPortal(
     <div
-      className="fixed inset-0 z-[200] flex items-center justify-center bg-white p-4 sm:bg-slate-900/80"
+      className="fixed inset-0 z-[10050] flex items-center justify-center bg-white p-4 sm:bg-slate-900/80"
       style={{ animation: `${closing ? 'settingsBackdropOut' : 'settingsBackdropIn'} 150ms ease-out both` }}
       onClick={event => { event.stopPropagation(); onClose(); }}
     >
@@ -130,6 +132,7 @@ export function CropDialog({ image, closing, onClose, onSave }: CropDialogProps)
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

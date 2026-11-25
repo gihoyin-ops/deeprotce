@@ -63,7 +63,10 @@ import type {
   UserProfile
 } from './settings/types';
 import type { SettingsModalProps, SettingsTab } from './settings/types';
-import { useGuestStatus } from '@/lib/auth/guest';
+import { useQueryClient } from '@tanstack/react-query';
+import { AUTH_SESSION_QUERY_KEY, useGuestStatus } from '@/lib/auth/guest';
+import { deepchatQueryKeys } from '@/lib/query-keys';
+import { DEFAULT_GUEST_AVATAR } from '@/lib/avatar';
 
 const GUEST_HIDDEN_TABS = new Set<SettingsTab>(['account', 'usage', 'personality']);
 
@@ -124,6 +127,7 @@ const desktopSections: Array<{
 export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initialTab = 'general' }: SettingsModalProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const queryClient = useQueryClient();
   const { isGuest } = useGuestStatus();
 
   const resolvedInitialTab: SettingsTab =
@@ -599,23 +603,50 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
   const deleteAccount = async () => {
     setIsDeletingAccount(true);
     try {
+      if (!isGuest) {
+        const res = await fetch('/api/auth/me', {
+          method: 'DELETE',
+          credentials: 'same-origin'
+        });
+        if (!res.ok) {
+          const data = (await res.json().catch(() => ({}))) as { error?: string };
+          toast.error(data.error || 'Failed to delete account.');
+          setIsDeletingAccount(false);
+          return;
+        }
+      }
+
       await Promise.all([
         deleteAllChats().catch(() => {}),
         clearSavedMemories().catch(() => {})
       ]);
       if (typeof window !== 'undefined') {
         localStorage.removeItem('deepchat-user-profile');
+        localStorage.removeItem('deepchat-me-synced-at');
+        localStorage.removeItem('deepchat-library-cache-v1');
         localStorage.removeItem('deepchat-general-settings');
         localStorage.removeItem('deepchat-appearance-settings');
+        localStorage.setItem('deepchat-auth-hint', '0');
+        window.dispatchEvent(new Event('deepchat:auth-hint'));
       }
-      const resetProfile: UserProfile = { name: 'Guest', username: '', avatar: '', plan: '', age: '18 or older' };
+      const resetProfile: UserProfile = {
+        id: 'default',
+        name: 'Guest',
+        username: '',
+        avatar: DEFAULT_GUEST_AVATAR,
+        plan: '',
+        age: '18 or older'
+      };
       await saveUserProfile(resetProfile);
       setProfile(resetProfile);
+      queryClient.setQueryData(AUTH_SESSION_QUERY_KEY, { ok: true, authenticated: false, guest: true });
+      queryClient.setQueryData(deepchatQueryKeys.profile, resetProfile);
       window.dispatchEvent(new Event('chatUpdated'));
       window.dispatchEvent(new Event('profileUpdated'));
-      toast.success('Account and local data deleted');
+      toast.success('Account permanently deleted');
       onClose();
-      router.push('/');
+      router.push('/login');
+      router.refresh();
     } catch {
       toast.error('Failed to delete account');
     }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { ensureTursoSchema } from '@/backend/db/connection';
 import { isSessionActiveInDb, requireDbPool, type AccountRow } from '@/backend/auth/turso-auth';
+import { deleteFromR2, isR2Configured } from '@/backend/storage/r2';
 import { buildDefaultAvatarUrl, isLegacyDefaultAvatar, normalizeUsername } from '@/lib/avatar';
 import {
   clearAccountSessionCookie,
@@ -192,6 +193,52 @@ export async function PATCH(req: Request) {
     return res;
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to update profile.';
+    const status = message.includes('Database is not configured') ? 503 : 500;
+    return NextResponse.json({ error: message }, { status });
+  }
+}
+
+export async function DELETE(req: Request) {
+  const verified = getVerifiedAccount(req.headers);
+  if (!verified) {
+    return NextResponse.json({ error: 'Authentication required.' }, { status: 401 });
+  }
+
+  try {
+    const pool = await requireDbPool();
+    const active = await isSessionActiveInDb(pool, verified.sid);
+    if (!active) {
+      const res = NextResponse.json({ error: 'Session expired.' }, { status: 401 });
+      res.headers.append('set-cookie', clearAccountSessionCookie());
+      return res;
+    }
+
+    if (isR2Configured()) {
+      const [itemRows, accRows] = await Promise.all([
+        pool.query<{ r2_key: string }>('SELECT r2_key FROM library_items WHERE account_id = ?', [
+          verified.sub
+        ]),
+        pool.query<{ username: string | null }>('SELECT username FROM accounts WHERE id = ? LIMIT 1', [
+          verified.sub
+        ])
+      ]);
+
+      const keysToDelete = itemRows.map(r => r.r2_key).filter(Boolean);
+      const handle = accRows[0]?.username;
+      if (handle) {
+        keysToDelete.push(`u/profile/${handle}.webp`);
+      }
+
+      await Promise.all(keysToDelete.map(k => deleteFromR2(k).catch(() => undefined)));
+    }
+
+    await pool.exec('DELETE FROM accounts WHERE id = ?', [verified.sub]);
+
+    const res = NextResponse.json({ ok: true });
+    res.headers.append('set-cookie', clearAccountSessionCookie());
+    return res;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to delete account.';
     const status = message.includes('Database is not configured') ? 503 : 500;
     return NextResponse.json({ error: message }, { status });
   }
