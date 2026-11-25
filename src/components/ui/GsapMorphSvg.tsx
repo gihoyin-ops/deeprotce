@@ -6,11 +6,11 @@ import { gsap } from 'gsap';
 interface GsapMorphSvgProps {
   children: React.ReactElement;
   className?: string;
-  /* * Custom morph rotation angle on desktop hover in degrees, default 12 */
+  /** Custom morph rotation angle on desktop hover in degrees, default 12 */
   rotate?: number;
-  /* * Scale on hover, default 1.15 */
+  /** Scale on hover, default 1.15 */
   scale?: number;
-  /* * Whether to apply magnetic fluid cursor tracking on desktop */
+  /** Whether to apply magnetic fluid cursor tracking on desktop */
   magnetic?: boolean;
 }
 

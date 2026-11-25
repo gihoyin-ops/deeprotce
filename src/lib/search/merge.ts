@@ -2,7 +2,7 @@ import { type SearchProviderResult, type SearchSource } from './types';
 
 export const normalizeSearchSource = (source: Partial<SearchSource>): SearchSource | null => {
   const url = typeof source.url === 'string' ? source.url.trim() : '';
-  if (!url || !/^https?:\/\// i.test(url)) return null;
+  if (!url || !/^https?:\/\//i.test(url)) return null;
   const host = getHost(url);
   const title = (typeof source.title === 'string' && source.title.trim() ? source.title : host || url).replace(/\s+/g, ' ').trim().slice(0, 120);
   const snippet = typeof source.snippet === 'string' ? source.snippet.replace(/\s+/g, ' ').trim().slice(0, 420) : '';

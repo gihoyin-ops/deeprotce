@@ -156,7 +156,7 @@ class LocalSqlitePool implements DbPool {
     if (this.db) return this.db;
     const { DatabaseSync } = await import('node:sqlite');
     ensureDataDirectoriesSync();
-    const dbPath = path.join(/* turbopackIgnore: true */ DATA_DIR, 'deepchat.sqlite');
+    const dbPath = path.join(/*turbopackIgnore: true*/ DATA_DIR, 'deepchat.sqlite');
     const instance = new DatabaseSync(dbPath);
     instance.exec('PRAGMA journal_mode = WAL;');
     instance.exec('PRAGMA foreign_keys = ON;');

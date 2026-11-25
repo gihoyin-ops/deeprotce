@@ -68,7 +68,7 @@ export function getExportDimensions(
 export async function loadImageForCanvas(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new window.Image();
-    if (/^https?:\/\// i.test(src)) {
+    if (/^https?:\/\//i.test(src)) {
       img.crossOrigin = 'anonymous';
     }
     img.decoding = 'async';

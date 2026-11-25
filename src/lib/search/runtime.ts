@@ -148,7 +148,7 @@ export const executeDynamicReadPage = async (
   knownSources: SearchSource[] = []
 ): Promise<{ source: SearchSource | null; text: string }> => {
   const cleanUrl = rawUrl.trim();
-  if (!/^https?:\/\// i.test(cleanUrl)) {
+  if (!/^https?:\/\//i.test(cleanUrl)) {
     return { source: null, text: '' };
   }
   try {

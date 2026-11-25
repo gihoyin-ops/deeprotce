@@ -7,7 +7,7 @@ export type PlanId = 'free' | 'supporters' | 'cool' | 'owner';
 export interface Plan {
   id: PlanId;
   label: string;
-  /* * per-window budget, Infinity is unlimited */
+  /** per-window budget, Infinity is unlimited */
   limitTokens: number;
 }
 
@@ -18,10 +18,10 @@ export const PLANS: Record<PlanId, Plan> = {
   owner: { id: 'owner', label: 'Owner', limitTokens: Infinity }
 };
 
-/* * tier order, low to high */
+/** tier order, low to high */
 export const PLAN_ORDER: PlanId[] = ['free', 'supporters', 'cool', 'owner'];
 
-/* * default tier for a new identity */
+/** default tier for a new identity */
 export const DEFAULT_PLAN: PlanId = 'free';
 
 // aliases accepted, singular and plural, case-insensitive, unknown never maps
@@ -46,7 +46,7 @@ export const getPlan = (id: PlanId): Plan => PLANS[id];
 export const isUnlimitedPlan = (id: PlanId): boolean =>
   !Number.isFinite(PLANS[id].limitTokens);
 
-/* * token count like 40M, 150M, 650M, or ∞ */
+/** token count like 40M, 150M, 650M, or ∞ */
 export const formatTokens = (tokens: number): string => {
   if (!Number.isFinite(tokens)) return '∞';
   const n = Math.round(tokens);
