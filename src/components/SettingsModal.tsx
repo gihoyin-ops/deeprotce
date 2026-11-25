@@ -336,31 +336,48 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
   useEffect(() => {
     if (!isOpen) return;
     setActiveTab(initialTab);
-    const openDetailOnMobile = initialTab !== 'general';
+
+    const pathnameNow = typeof window !== 'undefined' ? window.location.pathname : '';
+    const isDirectSettingsPath = pathnameNow === '/settings' || pathnameNow.startsWith('/settings/');
+    const pathTabSegment = isDirectSettingsPath
+      ? pathnameNow.replace(/^\/settings\/?/, '').split('/').filter(Boolean)[0]
+      : undefined;
+    const openDetailOnMobile = isDirectSettingsPath
+      ? Boolean(pathTabSegment)
+      : initialTab !== 'general';
+
     setIsMobileDetailOpen(openDetailOnMobile);
     void loadProfile();
 
     if (typeof window !== 'undefined') {
       const currentPath = window.location.pathname + window.location.search + window.location.hash;
-      if (!window.location.pathname.startsWith('/settings')) {
-        returnUrlRef.current = currentPath || '/';
-      }
       const isMobile = window.innerWidth < 640;
-      if (isMobile) {
-        window.history.pushState({ deepchatSettings: true, mobileDetail: false }, '', '/settings');
-        if (openDetailOnMobile) {
-          window.history.pushState({ deepchatSettings: true, mobileDetail: true, tab: initialTab }, '', `/settings/${initialTab}`);
+
+      if (!isDirectSettingsPath) {
+        returnUrlRef.current = currentPath || '/';
+        if (isMobile) {
+          window.history.pushState({ deepchatSettings: true, mobileDetail: false }, '', '/settings');
+          if (openDetailOnMobile) {
+            window.history.pushState({ deepchatSettings: true, mobileDetail: true, tab: initialTab }, '', `/settings/${initialTab}`);
+          }
+        } else {
+          window.history.pushState({ deepchatSettings: true, tab: initialTab }, '', `/settings/${initialTab}`);
         }
       } else {
-        window.history.pushState({ deepchatSettings: true, tab: initialTab }, '', `/settings/${initialTab}`);
+        if (!returnUrlRef.current) {
+          returnUrlRef.current = '/';
+        }
+        if (!isMobile && !pathTabSegment) {
+          window.history.replaceState({ deepchatSettings: true, tab: initialTab }, '', `/settings/${initialTab}`);
+        }
       }
     }
   }, [initialTab, isOpen, loadProfile]);
 
   const restoreReturnUrl = useCallback(() => {
     if (typeof window === 'undefined') return;
-    if (window.location.pathname.startsWith('/settings') && returnUrlRef.current) {
-      window.history.replaceState(null, '', returnUrlRef.current);
+    if (window.location.pathname.startsWith('/settings')) {
+      window.history.replaceState(null, '', returnUrlRef.current || '/');
     }
     returnUrlRef.current = null;
   }, []);

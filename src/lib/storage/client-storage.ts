@@ -472,6 +472,10 @@ export const getUserProfileClient = async (): Promise<UserProfileData> => {
       synced.username !== local.username ||
       synced.avatar !== local.avatar ||
       synced.plan !== local.plan;
+    try {
+      localStorage.setItem('deepchat-auth-hint', '1');
+      window.dispatchEvent(new Event('deepchat:auth-hint'));
+    } catch {}
     if (changed) {
       try {
         await idbSet('settings', { key: 'user_profile', value: synced });
@@ -479,6 +483,13 @@ export const getUserProfileClient = async (): Promise<UserProfileData> => {
       } catch {}
     }
     return synced;
+  }
+
+  if (me && me.authenticated === false) {
+    try {
+      localStorage.setItem('deepchat-auth-hint', '0');
+      window.dispatchEvent(new Event('deepchat:auth-hint'));
+    } catch {}
   }
 
   return local;

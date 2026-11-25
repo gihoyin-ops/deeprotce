@@ -39,7 +39,8 @@ import { deepchatQueryKeys } from '@/lib/query-keys';
 import { DEFAULT_GUEST_AVATAR } from '@/lib/avatar';
 import { getCachedUserProfileSync } from '@/lib/storage/client-storage';
 import { safeAvatarSource } from '@/lib/utils';
-import { useGuestStatus } from '@/lib/auth/guest';
+import { logoutAccountClient, useGuestStatus } from '@/lib/auth/guest';
+import { IconMask } from '@/components/settings/mobile';
 import { loadComposerToolState, saveComposerToolState } from '@/lib/agent/composer-tool-state';
 import type { SettingsTab } from '@/components/SettingsModal';
 import {
@@ -56,7 +57,9 @@ interface ChatItem {
 }
 
 interface UserProfileData {
+  id?: string;
   name: string;
+  username?: string;
   avatar: string;
   plan?: string;
 }
@@ -80,7 +83,7 @@ const MobileSidebarDrawer = forwardRef<MobileDrawerHandle, MobileSidebarDrawerPr
     const router = useRouter();
     const pathname = usePathname();
     const queryClient = useQueryClient();
-    const { isGuest } = useGuestStatus();
+    const { isGuest, isAuthLoading } = useGuestStatus();
 
     const { data: chats = [] } = useQuery({
       queryKey: deepchatQueryKeys.chats,
@@ -93,10 +96,12 @@ const MobileSidebarDrawer = forwardRef<MobileDrawerHandle, MobileSidebarDrawerPr
         avatar: DEFAULT_GUEST_AVATAR,
         plan: '',
       },
+      isPending: isProfilePending,
     } = useQuery({
       queryKey: deepchatQueryKeys.profile,
       queryFn: async () => getUserProfile() as Promise<UserProfileData>,
       initialData: () => getCachedUserProfileSync() ?? undefined,
+      initialDataUpdatedAt: 0,
     });
 
     const [filterQuery, setFilterQuery] = useState('');
@@ -729,33 +734,43 @@ const MobileSidebarDrawer = forwardRef<MobileDrawerHandle, MobileSidebarDrawerPr
               <button
                 type="button"
                 onClick={() => {
+                  if (isAuthLoading) return;
                   snapClose();
                   if (isGuest) {
                     router.push('/login');
                   } else {
-                    onOpenSettings('account');
+                    router.push(profile.username ? `/u/${encodeURIComponent(profile.username)}` : '/profile');
                   }
                 }}
                 className="flex min-h-[48px] min-w-0 flex-1 items-center gap-2.5 rounded-2xl px-2 py-1.5 text-left transition-colors active:scale-[0.99] hover:bg-[var(--dc-fill)]"
               >
-                {!isGuest && (
+                {isAuthLoading || (!isGuest && isProfilePending) ? (
+                  <div className="h-9 w-9 shrink-0 animate-pulse rounded-full border border-[var(--dc-border)] bg-[var(--dc-fill)]" />
+                ) : !isGuest ? (
                   <Image
                     src={safeAvatarSource(profile.avatar)}
                     alt={profile.name || 'User'}
                     width={36}
                     height={36}
                     unoptimized
+                    loading="lazy"
                     className="h-9 w-9 shrink-0 rounded-full border border-[var(--dc-border)] object-cover"
                   />
-                )}
+                ) : null}
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[14px] font-semibold leading-tight text-[var(--dc-text-strong)]">
-                    {isGuest ? 'Guest' : profile.name || 'Guest'}
-                  </p>
-                  {!isGuest && (
-                    <p className="mt-0.5 truncate text-[11.5px] font-medium leading-tight text-[var(--dc-text-muted)]">
-                      {profile.plan || 'Personal'}
-                    </p>
+                  {isAuthLoading ? (
+                    <div className="h-4 w-24 animate-pulse rounded bg-[var(--dc-fill)]" />
+                  ) : (
+                    <>
+                      <p className="truncate text-[14px] font-semibold leading-tight text-[var(--dc-text-strong)]">
+                        {isGuest ? 'Guest' : profile.name || 'Guest'}
+                      </p>
+                      {!isGuest && (
+                        <p className="mt-0.5 truncate text-[11.5px] font-medium leading-tight text-[var(--dc-text-muted)]">
+                          {profile.plan || 'Personal'}
+                        </p>
+                      )}
+                    </>
                   )}
                 </div>
               </button>
@@ -771,6 +786,26 @@ const MobileSidebarDrawer = forwardRef<MobileDrawerHandle, MobileSidebarDrawerPr
               >
                 <Settings className="h-[18px] w-[18px]" strokeWidth={2} />
               </button>
+
+              {!isAuthLoading && !isGuest && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    snapClose();
+                    void (async () => {
+                      await logoutAccountClient(queryClient);
+                      toast.success('Signed out');
+                      router.push('/login');
+                      router.refresh();
+                    })();
+                  }}
+                  aria-label="Log out"
+                  title="Log out"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[var(--dc-border-subtle)] bg-[var(--dc-surface-subtle)] text-[var(--dc-text-strong)] transition-transform active:scale-90 hover:bg-red-500/10 hover:text-red-500"
+                >
+                  <IconMask icon="/icons/log-out.svg" className="h-[18px] w-[18px]" />
+                </button>
+              )}
             </div>
           </div>
         </aside>

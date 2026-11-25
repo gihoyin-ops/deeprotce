@@ -20,7 +20,7 @@ import type { SettingsTab } from './SettingsModal';
 import { IconMask } from './settings/mobile';
 import { deepchatQueryKeys } from '@/lib/query-keys';
 import { safeAvatarSource } from '@/lib/utils';
-import { useGuestStatus } from '@/lib/auth/guest';
+import { logoutAccountClient, useGuestStatus } from '@/lib/auth/guest';
 import ContactSupportModal from './ui/ContactSupportModal';
 
 type SidebarSettingsTab = Extract<SettingsTab, 'general' | 'account' | 'personality' | 'keyboard'>;
@@ -36,7 +36,9 @@ interface SidebarProps {
 }
 
 interface UserProfileData {
+  id?: string;
   name: string;
+  username?: string;
   avatar: string;
   plan?: string;
 }
@@ -55,7 +57,7 @@ const loadStoredBoolean = (key: string, fallback: boolean) => {
 
 export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettings, onOpenSearch, onOpenActions }: SidebarProps) {
   const shortcuts = useShortcutLabels();
-  const { isGuest } = useGuestStatus();
+  const { isGuest, isAuthLoading } = useGuestStatus();
   const [showAllRecent, setShowAllRecent] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [helpMenuOpen, setHelpMenuOpen] = useState(false);
@@ -76,7 +78,8 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
   } = useQuery({
     queryKey: deepchatQueryKeys.profile,
     queryFn: async () => getUserProfile() as Promise<UserProfileData>,
-    initialData: () => getCachedUserProfileSync() ?? undefined
+    initialData: () => getCachedUserProfileSync() ?? undefined,
+    initialDataUpdatedAt: 0
   });
 
   const togglePinned = () => {
@@ -105,6 +108,16 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
     window.dispatchEvent(new Event('deepchat:new-home-prompt'));
     router.push('/');
     setMobileOpen(false);
+  };
+
+  const handleLogout = async () => {
+    setProfileMenuOpen(false);
+    setHelpMenuOpen(false);
+    setMobileOpen(false);
+    await logoutAccountClient(queryClient);
+    toast.success('Signed out');
+    router.push('/login');
+    router.refresh();
   };
 
   const handleAction = async (action: string, id: string, value?: string) => {
@@ -219,7 +232,9 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
             aria-expanded={profileMenuOpen}
             aria-label="Open profile menu"
           >
-            {!isGuest && (
+            {isAuthLoading ? (
+              <div className="h-8 w-8 shrink-0 animate-pulse rounded-full border border-[var(--dc-border)] bg-[var(--dc-surface)]" />
+            ) : !isGuest ? (
               isProfilePending ? (
                 <div className="h-8 w-8 shrink-0 animate-pulse rounded-full border border-[var(--dc-border)] bg-[var(--dc-surface)]" />
               ) : (
@@ -233,15 +248,21 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
                   className="h-8 w-8 shrink-0 rounded-full border border-[var(--dc-border)] bg-[var(--dc-surface)] object-cover"
                 />
               )
-            )}
+            ) : null}
             <div className="min-w-0 flex-1">
-              <p className="truncate text-[14px] font-medium leading-tight text-[var(--dc-text-strong)]">
-                {isGuest ? 'Guest' : profile.name || 'Guest'}
-              </p>
-              {!isGuest && (
-                <p className="truncate text-xs font-normal leading-tight text-[var(--dc-text-muted)]">
-                  {profile.plan || 'Free'}
-                </p>
+              {isAuthLoading ? (
+                <div className="h-4 w-20 animate-pulse rounded bg-[var(--dc-surface)]" />
+              ) : (
+                <>
+                  <p className="truncate text-[14px] font-medium leading-tight text-[var(--dc-text-strong)]">
+                    {isGuest ? 'Guest' : profile.name || 'Guest'}
+                  </p>
+                  {!isGuest && (
+                    <p className="truncate text-xs font-normal leading-tight text-[var(--dc-text-muted)]">
+                      {profile.plan || 'Free'}
+                    </p>
+                  )}
+                </>
               )}
             </div>
           </button>
@@ -419,20 +440,31 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
             )}
           </div>
 
-          {/* Log in */}
-          <button
-            type="button"
-            onClick={() => {
-              setProfileMenuOpen(false);
-              setHelpMenuOpen(false);
-              setMobileOpen(false);
-              router.push('/login');
-            }}
-            className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm font-medium text-[var(--dc-text)] transition-colors hover:bg-[var(--dc-surface-hover)]"
-          >
-            <IconMask icon="/icons/arrow-right-to-line.svg" className="h-4 w-4 shrink-0" />
-            <span>Log in</span>
-          </button>
+          {/* Log in / Log out */}
+          {isGuest ? (
+            <button
+              type="button"
+              onClick={() => {
+                setProfileMenuOpen(false);
+                setHelpMenuOpen(false);
+                setMobileOpen(false);
+                router.push('/login');
+              }}
+              className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm font-medium text-[var(--dc-text)] transition-colors hover:bg-[var(--dc-surface-hover)]"
+            >
+              <IconMask icon="/icons/arrow-right-to-line.svg" className="h-4 w-4 shrink-0" />
+              <span>Log in</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => void handleLogout()}
+              className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm font-medium text-[var(--dc-text)] transition-colors hover:bg-red-500/10 hover:text-red-500"
+            >
+              <IconMask icon="/icons/log-out.svg" className="h-4 w-4 shrink-0" />
+              <span>Log out</span>
+            </button>
+          )}
         </div>,
         document.body
       )}
@@ -495,19 +527,22 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
+                if (isAuthLoading) return;
                 if (isGuest) {
                   router.push('/login');
                 } else {
-                  handleOpenSettings('account');
+                  router.push(profile.username ? `/u/${encodeURIComponent(profile.username)}` : '/profile');
                 }
               }}
               className="rail-action flex h-9 min-w-[36px] items-center justify-center rounded-full px-1.5 transition-transform hover:scale-105 active:scale-95"
               aria-label={isGuest ? 'Guest — Sign in' : 'Profile'}
             >
-              {isGuest ? (
+              {isAuthLoading || (!isGuest && isProfilePending) ? (
+                <div className="h-7 w-7 animate-pulse rounded-full bg-[var(--dc-surface)]" />
+              ) : isGuest ? (
                 <span className="text-[11px] font-medium text-[var(--dc-text-muted)]">Guest</span>
               ) : (
-                <Image src={safeAvatarSource(profile.avatar)} alt="User" width={28} height={28} unoptimized className="h-7 w-7 rounded-full object-cover" />
+                <Image src={safeAvatarSource(profile.avatar)} alt="User" width={28} height={28} unoptimized loading="lazy" className="h-7 w-7 rounded-full object-cover" />
               )}
             </button>
           </div>

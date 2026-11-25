@@ -144,6 +144,12 @@ export default function UserProfilePage() {
   }, [loadProfile]);
 
   useEffect(() => {
+    if (data?.profile) {
+      document.title = `${data.profile.name} (@${data.profile.username}) / DeepChat`;
+    }
+  }, [data?.profile?.name, data?.profile?.username]);
+
+  useEffect(() => {
     const el = pageRef.current;
     if (isLoading || !data || !el || prefersReducedMotion()) return;
     const ctx = gsap.context(() => {
@@ -726,9 +732,10 @@ export default function UserProfilePage() {
 
       {cropSrc && (
         <CropDialog
-          src={cropSrc}
-          onCancel={() => setCropSrc(null)}
-          onConfirm={croppedUrl => {
+          image={cropSrc}
+          closing={false}
+          onClose={() => setCropSrc(null)}
+          onSave={(croppedUrl: string) => {
             setDraftAvatar(croppedUrl);
             setCropSrc(null);
           }}

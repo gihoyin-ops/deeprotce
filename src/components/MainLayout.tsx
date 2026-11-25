@@ -256,6 +256,18 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   }, []);
 
   useEffect(() => {
+    if (pathname === '/settings' || pathname.startsWith('/settings/')) {
+      const rawTab = pathname.replace(/^\/settings\/?/, '').split('/')[0];
+      const resolvedTab: SettingsTab = isSettingsTab(rawTab) ? rawTab : 'general';
+      const frame = window.requestAnimationFrame(() => {
+        setSettingsInitialTab(resolvedTab);
+        setIsSettingsOpen(true);
+      });
+      return () => window.cancelAnimationFrame(frame);
+    }
+  }, [pathname]);
+
+  useEffect(() => {
     const handleOpenSettings = (event: Event) => {
       const tab = event instanceof CustomEvent && isSettingsTab(event.detail?.tab) ? event.detail.tab : 'general';
       openSettings(tab);
@@ -1052,7 +1064,12 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       {isSettingsOpen && (
         <SettingsModal
           isOpen={isSettingsOpen}
-          onClose={() => setIsSettingsOpen(false)}
+          onClose={() => {
+            setIsSettingsOpen(false);
+            if (pathname === '/settings' || pathname.startsWith('/settings/')) {
+              router.replace('/');
+            }
+          }}
           onBackToSidebar={openMobileLeftDrawer}
           initialTab={settingsInitialTab}
         />
