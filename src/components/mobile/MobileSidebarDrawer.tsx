@@ -107,6 +107,7 @@ const MobileSidebarDrawer = forwardRef<MobileDrawerHandle, MobileSidebarDrawerPr
       queryKey: deepchatQueryKeys.profile,
       queryFn: async () => getUserProfile() as Promise<UserProfileData>,
       initialData: () => getCachedUserProfileSync() ?? undefined,
+      initialDataUpdatedAt: 0,
       staleTime: 5 * 60 * 1000,
     });
 
