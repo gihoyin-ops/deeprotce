@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronRight, Loader2, X } from '@/components/ui/icons';
 import ToggleSwitch from '@/components/ui/ToggleSwitch';
 
@@ -241,9 +242,9 @@ export function DataTab({
       </div>
 
       {/* Cookie Preferences modal */}
-      {isCookieModalOpen && (
+      {isCookieModalOpen && typeof document !== 'undefined' && createPortal(
         <div
-          className="fixed inset-0 z-[260] flex items-center justify-center bg-black/50 p-4 backdrop-blur-[2px]"
+          className="fixed inset-0 z-[400] flex items-center justify-center bg-black/50 p-4 backdrop-blur-[2px]"
           onClick={() => setIsCookieModalOpen(false)}
         >
           <div
@@ -317,7 +318,8 @@ export function DataTab({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
