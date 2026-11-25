@@ -158,3 +158,50 @@ export function AnimatedImagesSvg({
     </svg>
   );
 }
+
+export function AnimatedSearchSvg({
+  hovered = false,
+  className = 'h-[18px] w-[18px]'
+}: AnimatedIconProps) {
+  const groupRef = useRef<SVGGElement | null>(null);
+  const handleRef = useRef<SVGPathElement | null>(null);
+
+  useEffect(() => {
+    if (prefersReducedMotion()) return;
+    if (groupRef.current) {
+      gsap.to(groupRef.current, {
+        rotation: hovered ? -12 : 0,
+        scale: hovered ? 1.08 : 1,
+        transformOrigin: '11px 11px',
+        duration: 0.42,
+        ease: 'elastic.out(1, 0.6)'
+      });
+    }
+    if (handleRef.current) {
+      gsap.to(handleRef.current, {
+        x: hovered ? 0.8 : 0,
+        y: hovered ? 0.8 : 0,
+        duration: 0.32,
+        ease: 'power3.out'
+      });
+    }
+  }, [hovered]);
+
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <g ref={groupRef}>
+        <circle cx="11" cy="11" r="8" />
+        <path ref={handleRef} d="m21 21-4.3-4.3" />
+      </g>
+    </svg>
+  );
+}

@@ -98,6 +98,25 @@ const detailFromEvent = (event: CustomEvent<DeepChatNotificationDetail>) => even
 const settingsTabs: SettingsTab[] = ['account', 'usage', 'general', 'appearance', 'notifications', 'voice', 'personality', 'keyboard', 'archived', 'storage', 'data'];
 const isSettingsTab = (value: unknown): value is SettingsTab => typeof value === 'string' && settingsTabs.includes(value as SettingsTab);
 
+const THEME_TOAST_OPTIONS = {
+  style: {
+    background: 'var(--dc-panel)',
+    color: 'var(--dc-text-strong)',
+    border: '1px solid var(--dc-border)',
+    borderRadius: '9999px',
+    padding: '10px 16px',
+    fontSize: '13.5px',
+    fontWeight: 500,
+    boxShadow: '0 12px 32px -8px rgba(0, 0, 0, 0.22)',
+  },
+  success: {
+    iconTheme: { primary: '#10b981', secondary: 'var(--dc-panel)' },
+  },
+  error: {
+    iconTheme: { primary: '#ef4444', secondary: 'var(--dc-panel)' },
+  },
+};
+
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { isGuest } = useGuestStatus();
@@ -795,18 +814,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         <Toaster
           position="top-center"
           containerStyle={{ zIndex: 99999 }}
-          toastOptions={{
-            style: {
-              background: '#1e293b',
-              color: '#fff',
-              borderRadius: '16px',
-              padding: '12px 16px',
-              fontSize: '14px',
-              fontWeight: 500,
-            },
-            success: { iconTheme: { primary: '#10b981', secondary: '#fff' } },
-            error: { iconTheme: { primary: '#ef4444', secondary: '#fff' } },
-          }}
+          toastOptions={THEME_TOAST_OPTIONS}
         />
       </div>
     );
@@ -830,18 +838,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         <Toaster
           position="top-center"
           containerStyle={{ zIndex: 99999 }}
-          toastOptions={{
-            style: {
-              background: '#1e293b',
-              color: '#fff',
-              borderRadius: '16px',
-              padding: '12px 16px',
-              fontSize: '14px',
-              fontWeight: 500,
-            },
-            success: { iconTheme: { primary: '#10b981', secondary: '#fff' } },
-            error: { iconTheme: { primary: '#ef4444', secondary: '#fff' } },
-          }}
+          toastOptions={THEME_TOAST_OPTIONS}
         />
       </div>
     );
@@ -1046,22 +1043,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       <Toaster
         position="top-center"
         containerStyle={{ zIndex: 99999 }}
-        toastOptions={{
-          style: {
-            background: '#1e293b',
-            color: '#fff',
-            borderRadius: '16px',
-            padding: '12px 16px',
-            fontSize: '14px',
-            fontWeight: 500,
-          },
-          success: {
-            iconTheme: { primary: '#10b981', secondary: '#fff' },
-          },
-          error: {
-            iconTheme: { primary: '#ef4444', secondary: '#fff' },
-          },
-        }}
+        toastOptions={THEME_TOAST_OPTIONS}
       />
     </div>
   );

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
@@ -17,7 +18,7 @@ import { saveUserProfileClient } from '@/lib/storage/client-storage';
 import { convertImageToWebp } from '@/lib/images/client-webp';
 import { prefersReducedMotion } from '@/components/mobile/gesture-utils';
 import { CropDialog } from '@/components/settings/panels/CropDialog';
-import { Check, Edit3, Globe, Loader2, RefreshCw, Share2, X } from '@/components/ui/icons';
+import { Check, Edit3, Globe, Loader2, Share2, X } from '@/components/ui/icons';
 
 interface DailyPoint {
   day: string;
@@ -95,6 +96,7 @@ export default function UserProfilePage() {
   const rawUsername = decodeURIComponent(params?.username || '');
 
   const pageRef = useRef<HTMLDivElement | null>(null);
+  const editCardRef = useRef<HTMLFormElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [data, setData] = useState<ProfileResponse | null>(null);
@@ -459,105 +461,129 @@ export default function UserProfilePage() {
           <p className="mt-1 text-sm text-[var(--dc-text-muted)]">@{profile.username}</p>
         </header>
 
-        {/* Inline Edit Drawer (Owner only) */}
-        {isOwner && isEditing && (
-          <form
-            onSubmit={handleSaveEdit}
-            className="mt-6 rounded-2xl border border-[var(--dc-border-subtle)] bg-[var(--dc-surface)] p-5 sm:p-6"
+  useEffect(() => {
+    const el = editCardRef.current;
+    if (!isEditing || !el || prefersReducedMotion()) return;
+    const ctx = gsap.context(() => {
+      gsap.fromTo(
+        el,
+        { opacity: 0, scale: 0.95, y: 12 },
+        { opacity: 1, scale: 1, y: 0, duration: 0.3, ease: 'expo.out', clearProps: 'transform' }
+      );
+    }, editCardRef);
+    return () => ctx.revert();
+  }, [isEditing]);
+
+        {/* Instagram-style Centered Edit Profile Modal (Owner only) */}
+        {isOwner && isEditing && typeof document !== 'undefined' && createPortal(
+          <div
+            onClick={() => setIsEditing(false)}
+            className="fixed inset-0 z-[10050] flex items-center justify-center bg-black/55 p-4 backdrop-blur-[2px]"
           >
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-[var(--dc-text-strong)]">Edit profile</h2>
-              <button
-                type="button"
-                onClick={() => setIsEditing(false)}
-                aria-label="Close editor"
-                className="rounded-full p-1 text-[var(--dc-text-muted)] hover:bg-[var(--dc-canvas)] hover:text-[var(--dc-text-strong)]"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="mb-4 flex flex-wrap items-center gap-3">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleFileChange}
-                className="hidden"
-              />
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="rounded-full border border-[var(--dc-border-subtle)] bg-[var(--dc-canvas)] px-3.5 py-1.5 text-xs font-medium text-[var(--dc-text-strong)] transition-colors hover:border-[var(--dc-border-strong)]"
-              >
-                Upload photo
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  setDraftAvatar(
-                    buildDefaultAvatarUrl(
-                      `${draftUsername || profile.username}-${Math.random().toString(36).slice(2, 6)}`
-                    )
-                  )
-                }
-                className="inline-flex items-center gap-1.5 rounded-full border border-[var(--dc-border-subtle)] bg-[var(--dc-canvas)] px-3.5 py-1.5 text-xs font-medium text-[var(--dc-text-muted)] transition-colors hover:border-[var(--dc-border-strong)] hover:text-[var(--dc-text-strong)]"
-              >
-                <RefreshCw className="h-3 w-3" />
-                <span>Shuffle avatar</span>
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
-                <label className="mb-1.5 block text-xs font-medium text-[var(--dc-text-muted)]">
-                  Name
-                </label>
-                <input
-                  type="text"
-                  maxLength={64}
-                  value={draftName}
-                  onChange={e => setDraftName(e.target.value)}
-                  className="h-10 w-full rounded-xl border border-[var(--dc-border-subtle)] bg-[var(--dc-canvas)] px-3 text-sm text-[var(--dc-text-strong)] outline-none focus:border-[var(--dc-border-strong)]"
-                  placeholder="Your name"
-                />
+            <form
+              ref={editCardRef}
+              onClick={e => e.stopPropagation()}
+              onSubmit={handleSaveEdit}
+              className="w-full max-w-sm rounded-3xl border border-[var(--dc-border)] bg-[var(--dc-panel)] p-6 shadow-2xl"
+            >
+              <div className="mb-5 flex items-center justify-between">
+                <h2 className="text-base font-semibold text-[var(--dc-text-strong)]">Edit profile</h2>
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(false)}
+                  aria-label="Close editor"
+                  className="rounded-full p-1 text-[var(--dc-text-muted)] hover:bg-[var(--dc-surface-hover)] hover:text-[var(--dc-text-strong)]"
+                >
+                  <X className="h-4 w-4" />
+                </button>
               </div>
-              <div>
-                <label className="mb-1.5 block text-xs font-medium text-[var(--dc-text-muted)]">
-                  Username
-                </label>
-                <div className="flex h-10 items-center rounded-xl border border-[var(--dc-border-subtle)] bg-[var(--dc-canvas)] px-3 focus-within:border-[var(--dc-border-strong)]">
-                  <span className="text-sm text-[var(--dc-text-muted)]">@</span>
+
+              {/* Tap photo directly to change photo (Instagram style, no shuffle) */}
+              <div className="mb-5 flex flex-col items-center">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="group relative h-20 w-20 overflow-hidden rounded-full border border-[var(--dc-border-subtle)] bg-[var(--dc-surface)] focus:outline-none"
+                  aria-label="Change profile photo"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={draftAvatar || DEFAULT_GUEST_AVATAR}
+                    alt={draftName || profile.name}
+                    className="h-full w-full object-cover transition-opacity duration-200 group-hover:opacity-75"
+                  />
+                  <span className="absolute inset-0 flex items-center justify-center bg-black/35 text-[11px] font-medium text-white opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                    Change
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="mt-2 text-xs font-medium text-[var(--deepchat-accent)] hover:underline"
+                >
+                  Change profile photo
+                </button>
+              </div>
+
+              <div className="space-y-3.5">
+                <div>
+                  <label className="mb-1.5 block text-xs font-medium text-[var(--dc-text-muted)]">
+                    Name
+                  </label>
                   <input
                     type="text"
-                    maxLength={32}
-                    value={draftUsername}
-                    onChange={e => setDraftUsername(normalizeUsername(e.target.value))}
-                    className="min-w-0 flex-1 bg-transparent pl-1 text-sm text-[var(--dc-text-strong)] outline-none"
-                    placeholder="username"
+                    maxLength={64}
+                    value={draftName}
+                    onChange={e => setDraftName(e.target.value)}
+                    className="h-11 w-full rounded-xl border border-[var(--dc-border-subtle)] bg-[var(--dc-surface)] px-3.5 text-sm text-[var(--dc-text-strong)] outline-none focus:border-[var(--dc-border-strong)]"
+                    placeholder="Your name"
                   />
                 </div>
+                <div>
+                  <label className="mb-1.5 block text-xs font-medium text-[var(--dc-text-muted)]">
+                    Username
+                  </label>
+                  <div className="flex h-11 items-center rounded-xl border border-[var(--dc-border-subtle)] bg-[var(--dc-surface)] px-3.5 focus-within:border-[var(--dc-border-strong)]">
+                    <span className="text-sm text-[var(--dc-text-muted)]">@</span>
+                    <input
+                      type="text"
+                      maxLength={32}
+                      value={draftUsername}
+                      onChange={e => setDraftUsername(normalizeUsername(e.target.value))}
+                      className="min-w-0 flex-1 bg-transparent pl-1 text-sm text-[var(--dc-text-strong)] outline-none"
+                      placeholder="username"
+                    />
+                  </div>
+                </div>
               </div>
-            </div>
 
-            <div className="mt-4 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setIsEditing(false)}
-                className="h-9 rounded-full px-4 text-xs font-medium text-[var(--dc-text-muted)] hover:text-[var(--dc-text-strong)]"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={isSaving}
-                className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[var(--dc-invert)] px-4 text-xs font-medium text-[var(--dc-text-on-invert)] transition-opacity hover:opacity-90 disabled:opacity-60"
-              >
-                {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
-                <span>Save changes</span>
-              </button>
-            </div>
-          </form>
+              <div className="mt-6 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(false)}
+                  className="h-9 rounded-full px-4 text-xs font-medium text-[var(--dc-text-muted)] hover:text-[var(--dc-text-strong)]"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSaving}
+                  className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[var(--dc-invert)] px-4 text-xs font-medium text-[var(--dc-text-on-invert)] transition-opacity hover:opacity-90 disabled:opacity-60"
+                >
+                  {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                  <span>Save</span>
+                </button>
+              </div>
+            </form>
+          </div>,
+          document.body
         )}
 
         {/* Private State */}
@@ -623,10 +649,15 @@ export default function UserProfilePage() {
                 </span>
               </div>
 
-              <div className="custom-scrollbar overflow-x-auto pb-1">
-                <div className="inline-flex gap-[3px]">
+              <div className="custom-scrollbar overflow-x-auto pb-1 sm:overflow-visible">
+                <div
+                  className="inline-flex gap-[3px] sm:grid sm:w-full sm:gap-1"
+                  style={{
+                    gridTemplateColumns: `repeat(${Math.max(1, activityWeeks.length)}, minmax(0, 1fr))`
+                  }}
+                >
                   {activityWeeks.map((week, wIdx) => (
-                    <div key={wIdx} className="flex flex-col gap-[3px]">
+                    <div key={wIdx} className="flex flex-col gap-[3px] sm:gap-1">
                       {week.map(pt => {
                         const levelClass =
                           pt.level === 4
@@ -646,7 +677,7 @@ export default function UserProfilePage() {
                             onFocus={() => setHoveredDay(pt)}
                             onMouseLeave={() => setHoveredDay(null)}
                             aria-label={`${pt.day}: ${pt.tokens} tokens`}
-                            className={`h-[11px] w-[11px] rounded-[2.5px] transition-transform duration-150 hover:scale-125 ${levelClass}`}
+                            className={`h-[11px] w-[11px] rounded-[2.5px] transition-transform duration-150 hover:scale-125 sm:aspect-square sm:h-auto sm:w-full sm:rounded-[3px] ${levelClass}`}
                           />
                         );
                       })}

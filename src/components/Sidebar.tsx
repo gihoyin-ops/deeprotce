@@ -25,7 +25,8 @@ import ContactSupportModal from './ui/ContactSupportModal';
 import {
   AnimatedImagesSvg,
   AnimatedLibrarySvg,
-  AnimatedNewChatSvg
+  AnimatedNewChatSvg,
+  AnimatedSearchSvg
 } from './ui/SidebarAnimatedIcons';
 
 type SidebarSettingsTab = Extract<SettingsTab, 'general' | 'account' | 'personality' | 'keyboard'>;
@@ -64,6 +65,7 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
   const shortcuts = useShortcutLabels();
   const { isGuest, isAuthLoading } = useGuestStatus();
   const [showAllRecent, setShowAllRecent] = useState(false);
+  const [searchHovered, setSearchHovered] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [helpMenuOpen, setHelpMenuOpen] = useState(false);
   const [supportModalOpen, setSupportModalOpen] = useState(false);
@@ -514,10 +516,10 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
         <div className="flex flex-1 flex-col items-center">
           <div className="flex flex-col items-center gap-1.5">
             <CollapsedSidebarButton label="New Chat" shortcuts={[{ label: shortcuts.newChat.join('+'), tone: 'muted' }]} onClick={handleNewChat}>
-              <AnimatedNewChatSvg className="h-[19px] w-[19px]" />
+              {(hovered) => <AnimatedNewChatSvg hovered={hovered} className="h-[19px] w-[19px]" />}
             </CollapsedSidebarButton>
             <CollapsedSidebarButton label="Search" shortcuts={[{ label: shortcuts.search.join('+'), tone: 'muted' }]} onClick={onOpenSearch}>
-              <Search className="h-[19px] w-[19px]" strokeWidth={2} />
+              {(hovered) => <AnimatedSearchSvg hovered={hovered} className="h-[19px] w-[19px]" />}
             </CollapsedSidebarButton>
             <CollapsedSidebarButton label="Action menu" onClick={onOpenActions}>
               <Ellipsis className="h-[19px] w-[19px]" strokeWidth={2} />
@@ -577,10 +579,12 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
               <button
                 type="button"
                 onClick={onOpenSearch}
+                onMouseEnter={() => setSearchHovered(true)}
+                onMouseLeave={() => setSearchHovered(false)}
                 className="flex h-8 w-8 items-center justify-center rounded-xl text-[var(--dc-text-muted)] transition-colors hover:bg-black/[0.05] hover:text-[var(--dc-text-strong)] active:scale-95 dark:hover:bg-white/[0.08]"
                 aria-label="Search chats"
               >
-                <Search className="h-[18px] w-[18px]" strokeWidth={1.9} />
+                <AnimatedSearchSvg hovered={searchHovered} className="h-[18px] w-[18px]" />
               </button>
             </Tooltip>
             <Tooltip label="Close sidebar" side="bottom" align="end">
@@ -730,11 +734,24 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
   );
 }
 
-function CollapsedSidebarButton({ children, label, shortcuts = [], onClick }: { children: React.ReactNode; label: string; shortcuts?: Array<{ label: string; tone: 'muted' }>; onClick: () => void }) {
+function CollapsedSidebarButton({
+  children,
+  label,
+  shortcuts = [],
+  onClick
+}: {
+  children: React.ReactNode | ((hovered: boolean) => React.ReactNode);
+  label: string;
+  shortcuts?: Array<{ label: string; tone: 'muted' }>;
+  onClick: () => void;
+}) {
+  const [hovered, setHovered] = useState(false);
   return (
     <Tooltip label={label} shortcuts={shortcuts} side="right" align="center">
       <button
         type="button"
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
         onClick={(e) => {
           e.stopPropagation();
           onClick();
@@ -742,7 +759,7 @@ function CollapsedSidebarButton({ children, label, shortcuts = [], onClick }: { 
         className="rail-action flex h-9 w-9 items-center justify-center rounded-xl text-[var(--dc-text-body)] transition-all hover:bg-black/[0.05] hover:text-[var(--dc-text-strong)] active:scale-95 dark:hover:bg-white/[0.08]"
         aria-label={label}
       >
-        {children}
+        {typeof children === 'function' ? children(hovered) : children}
       </button>
     </Tooltip>
   );
