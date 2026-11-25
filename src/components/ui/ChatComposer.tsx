@@ -28,6 +28,7 @@ import ModelSelector from './ModelSelector';
 import Tooltip from './Tooltip';
 import { ComposerToolsMenu, ImageToolBadge, SearchToolBadge } from './ComposerToolsMenu';
 import AttachmentPreviewModal from './AttachmentPreviewModal';
+import GlobalImagePreviewModal from './GlobalImagePreviewModal';
 import {
   getDictationLanguage,
   loadGeneralSettings,
@@ -1140,12 +1141,25 @@ export default function ChatComposer({
         </div>
       </form>
 
-      <AttachmentPreviewModal
-        isOpen={isPreviewOpen && Boolean(activePreviewFile)}
-        file={activePreviewFile ?? previewFile}
-        onClose={() => setIsPreviewOpen(false)}
-        onExited={() => setPreviewFile(null)}
-      />
+      {activePreviewFile && isComposerImageFile(activePreviewFile) ? (
+        <GlobalImagePreviewModal
+          isOpen={isPreviewOpen}
+          src={activePreviewFile.dataUrl || activePreviewFile.previewUrl || ''}
+          alt={activePreviewFile.name}
+          fileName={activePreviewFile.name}
+          onClose={() => {
+            setIsPreviewOpen(false);
+            setPreviewFile(null);
+          }}
+        />
+      ) : (
+        <AttachmentPreviewModal
+          isOpen={isPreviewOpen && Boolean(activePreviewFile)}
+          file={activePreviewFile ?? previewFile}
+          onClose={() => setIsPreviewOpen(false)}
+          onExited={() => setPreviewFile(null)}
+        />
+      )}
     </div>
   );
 }

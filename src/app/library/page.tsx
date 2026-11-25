@@ -16,6 +16,7 @@ import {
   X
 } from '@/components/ui/icons';
 import { prefersReducedMotion } from '@/components/mobile/gesture-utils';
+import GlobalImagePreviewModal from '@/components/ui/GlobalImagePreviewModal';
 import { convertImageToWebp, downloadImageAsPng } from '@/lib/images/client-webp';
 import {
   listGuestLibraryData,
@@ -190,13 +191,6 @@ function HeartSvg({ filled, className = 'h-4 w-4' }: { filled?: boolean; classNa
   );
 }
 
-const formatBytes = (bytes: number): string => {
-  if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
-  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${bytes} B`;
-};
-
 const formatPurgeCountdown = (purgeAt: number | null): string => {
   if (!purgeAt) return 'Auto-deletes in 48h';
   const diffMs = Math.max(0, purgeAt - Date.now());
@@ -227,6 +221,8 @@ export default function LibraryPage() {
   const settingsMenuRef = useRef<HTMLDivElement | null>(null);
   const trashCardRef = useRef<HTMLDivElement | null>(null);
   const newFolderCardRef = useRef<HTMLDivElement | null>(null);
+  const selectionBarRef = useRef<HTMLDivElement | null>(null);
+  const moreMenuRef = useRef<HTMLDivElement | null>(null);
 
   const holdTimerRef = useRef<number | null>(null);
   const holdOriginRef = useRef<{ x: number; y: number } | null>(null);
@@ -422,6 +418,33 @@ export default function LibraryPage() {
     }, newFolderCardRef);
     return () => ctx.revert();
   }, [isNewFolderModalOpen]);
+
+  // Smooth GSAP entrance for floating selection bar & "..." menu
+  useEffect(() => {
+    const barEl = selectionBarRef.current;
+    if (!isSelecting || !barEl || prefersReducedMotion()) return;
+    const ctx = gsap.context(() => {
+      gsap.fromTo(
+        barEl,
+        { opacity: 0, y: 26, scale: 0.92 },
+        { opacity: 1, y: 0, scale: 1, duration: 0.38, ease: 'back.out(1.4)', clearProps: 'transform' }
+      );
+    }, selectionBarRef);
+    return () => ctx.revert();
+  }, [isSelecting]);
+
+  useEffect(() => {
+    const menuEl = moreMenuRef.current;
+    if (!isMoreMenuOpen || !menuEl || prefersReducedMotion()) return;
+    const ctx = gsap.context(() => {
+      gsap.fromTo(
+        menuEl,
+        { opacity: 0, y: 8, scale: 0.9, transformOrigin: 'bottom right' },
+        { opacity: 1, y: 0, scale: 1, duration: 0.28, ease: 'expo.out', clearProps: 'transform' }
+      );
+    }, moreMenuRef);
+    return () => ctx.revert();
+  }, [isMoreMenuOpen]);
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -1139,7 +1162,10 @@ export default function LibraryPage() {
       {/* Floating Selection Bar */}
       {isSelecting && (
         <div className="fixed inset-x-0 bottom-5 z-40 flex justify-center px-4">
-          <div className="relative flex items-center gap-1.5 rounded-full border border-[var(--dc-border)] bg-[#14161b] px-3 py-1.5 text-white shadow-xl">
+          <div
+            ref={selectionBarRef}
+            className="relative flex items-center gap-1.5 rounded-full border border-[var(--dc-border)] bg-[#14161b] px-3 py-1.5 text-white shadow-xl"
+          >
             <span className="px-2 text-xs font-medium text-white/90">
               {selectedIds.length} selected
             </span>
@@ -1178,7 +1204,10 @@ export default function LibraryPage() {
               </button>
 
               {isMoreMenuOpen && (
-                <div className="absolute bottom-11 right-0 w-36 rounded-2xl border border-[var(--dc-border)] bg-[var(--dc-panel)] p-1 text-[var(--dc-text-strong)] shadow-xl">
+                <div
+                  ref={moreMenuRef}
+                  className="absolute bottom-11 right-0 w-36 rounded-2xl border border-[var(--dc-border)] bg-[var(--dc-panel)] p-1 text-[var(--dc-text-strong)] shadow-xl"
+                >
                   <button
                     type="button"
                     onClick={() => {
@@ -1409,60 +1438,14 @@ export default function LibraryPage() {
         </div>
       )}
 
-      {/* Clean Lightbox Preview */}
-      {previewItem && (
-        <div
-          onClick={() => setPreviewItem(null)}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-xs"
-        >
-          <div
-            onClick={e => e.stopPropagation()}
-            className="relative max-h-[90dvh] w-full max-w-2xl overflow-hidden rounded-2xl border border-white/10 bg-[#111318] text-white shadow-2xl"
-          >
-            <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium">{previewItem.fileName}</p>
-                <p className="text-[11px] text-white/60">
-                  {formatBytes(previewItem.sizeBytes)}
-                  {typeof previewItem.metadata?.model === 'string'
-                    ? ` · ${previewItem.metadata.model}`
-                    : ''}
-                </p>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => void downloadImageAsPng(previewItem.url, previewItem.fileName)}
-                  className="inline-flex h-8 items-center gap-1.5 rounded-full bg-white/10 px-3 text-xs font-medium hover:bg-white/15"
-                >
-                  <Download className="h-3.5 w-3.5" />
-                  <span>PNG</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPreviewItem(null)}
-                  className="flex h-8 w-8 items-center justify-center rounded-full text-white/70 hover:bg-white/10 hover:text-white"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-            <div className="flex max-h-[72dvh] items-center justify-center bg-black/40 p-4">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={previewItem.url}
-                alt={previewItem.fileName}
-                className="max-h-[65dvh] w-auto rounded-lg object-contain"
-              />
-            </div>
-            {typeof previewItem.metadata?.prompt === 'string' && previewItem.metadata.prompt && (
-              <div className="border-t border-white/10 px-4 py-3 text-xs text-white/75">
-                {previewItem.metadata.prompt}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      {/* Global Pure Image Preview */}
+      <GlobalImagePreviewModal
+        isOpen={Boolean(previewItem)}
+        src={previewItem?.url || ''}
+        alt={previewItem?.fileName || 'Image preview'}
+        fileName={previewItem?.fileName}
+        onClose={() => setPreviewItem(null)}
+      />
     </div>
   );
 }

@@ -22,6 +22,11 @@ import { deepchatQueryKeys } from '@/lib/query-keys';
 import { safeAvatarSource } from '@/lib/utils';
 import { logoutAccountClient, useGuestStatus } from '@/lib/auth/guest';
 import ContactSupportModal from './ui/ContactSupportModal';
+import {
+  AnimatedImagesSvg,
+  AnimatedLibrarySvg,
+  AnimatedNewChatSvg
+} from './ui/SidebarAnimatedIcons';
 
 type SidebarSettingsTab = Extract<SettingsTab, 'general' | 'account' | 'personality' | 'keyboard'>;
 
@@ -509,7 +514,7 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
         <div className="flex flex-1 flex-col items-center">
           <div className="flex flex-col items-center gap-1.5">
             <CollapsedSidebarButton label="New Chat" shortcuts={[{ label: shortcuts.newChat.join('+'), tone: 'muted' }]} onClick={handleNewChat}>
-              <SquarePen className="h-[19px] w-[19px]" strokeWidth={1.9} />
+              <AnimatedNewChatSvg className="h-[19px] w-[19px]" />
             </CollapsedSidebarButton>
             <CollapsedSidebarButton label="Search" shortcuts={[{ label: shortcuts.search.join('+'), tone: 'muted' }]} onClick={onOpenSearch}>
               <Search className="h-[19px] w-[19px]" strokeWidth={2} />
@@ -593,9 +598,9 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
 
         <div className="shrink-0 px-2.5 pb-3 pt-1">
           <div className="space-y-0.5">
-            <ExpandedSidebarMenuItem label="New Chat" icon={<SquarePen className="h-[17px] w-[17px]" strokeWidth={1.9} />} onClick={handleNewChat} />
-            <ExpandedSidebarMenuItem label="Library" icon={<Library className="h-[17px] w-[17px]" strokeWidth={1.9} />} onClick={() => { setMobileOpen(false); router.push('/library'); }} />
-            <ExpandedSidebarMenuItem label="Images" icon={<ImageIcon className="h-[17px] w-[17px]" strokeWidth={1.9} />} onClick={() => toast('Images are available from the composer image tool.')} />
+            <ExpandedSidebarMenuItem label="New Chat" icon={(hovered) => <AnimatedNewChatSvg hovered={hovered} className="h-[17px] w-[17px]" />} onClick={handleNewChat} />
+            <ExpandedSidebarMenuItem label="Library" icon={(hovered) => <AnimatedLibrarySvg hovered={hovered} className="h-[17px] w-[17px]" />} onClick={() => { setMobileOpen(false); router.push('/library'); }} />
+            <ExpandedSidebarMenuItem label="Images" icon={(hovered) => <AnimatedImagesSvg hovered={hovered} className="h-[17px] w-[17px]" />} onClick={() => toast('Images are available from the composer image tool.')} />
           </div>
         </div>
 
@@ -743,15 +748,26 @@ function CollapsedSidebarButton({ children, label, shortcuts = [], onClick }: { 
   );
 }
 
-function ExpandedSidebarMenuItem({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick: () => void }) {
+function ExpandedSidebarMenuItem({
+  icon,
+  label,
+  onClick
+}: {
+  icon: React.ReactNode | ((hovered: boolean) => React.ReactNode);
+  label: string;
+  onClick: () => void;
+}) {
+  const [hovered, setHovered] = useState(false);
   return (
     <button
       type="button"
       onClick={onClick}
-      className="group flex h-9 w-full items-center gap-2.5 rounded-xl px-2 text-left text-[var(--dc-text)] transition-all hover:bg-black/[0.05] hover:text-[var(--dc-text-strong)] active:scale-[0.99] dark:hover:bg-white/[0.07]"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className="group flex h-9 w-full items-center gap-2.5 rounded-xl px-2 text-left text-[var(--dc-text)] transition-colors hover:bg-black/[0.05] hover:text-[var(--dc-text-strong)] active:scale-[0.99] dark:hover:bg-white/[0.07]"
     >
-      <span className="flex h-[18px] w-[18px] shrink-0 items-center justify-center text-[var(--dc-text-body)] transition-transform group-hover:scale-105 group-hover:text-[var(--dc-text-strong)]">
-        {icon}
+      <span className="flex h-[18px] w-[18px] shrink-0 items-center justify-center text-[var(--dc-text-body)] group-hover:text-[var(--dc-text-strong)]">
+        {typeof icon === 'function' ? icon(hovered) : icon}
       </span>
       <span className="truncate text-[14px] font-medium leading-normal tracking-[-0.01em]">{label}</span>
     </button>
