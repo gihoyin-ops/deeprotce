@@ -376,7 +376,7 @@ export default function SharedChatPage({ params }: { params: Promise<{ id: strin
               <span className="max-w-[140px] truncate">{ownerName}</span>
             </div>
 
-            <Tooltip content={linkCopied ? 'Copied' : 'Copy link'} placement="bottom">
+            <Tooltip label={linkCopied ? 'Copied' : 'Copy link'} side="bottom">
               <button
                 type="button"
                 onClick={handleCopyLink}
@@ -543,7 +543,7 @@ export default function SharedChatPage({ params }: { params: Promise<{ id: strin
                 />
 
                 <div className="flex shrink-0 items-center gap-1.5">
-                  <Tooltip content="Minimize bar (view only)" placement="top">
+                  <Tooltip label="Minimize bar (view only)" side="top">
                     <button
                       type="button"
                       onClick={() => {
@@ -806,7 +806,7 @@ function SharedMessageBubble({
                 : 'pointer-events-none hidden opacity-0'
             }`}
           >
-            <Tooltip content={copied ? 'Copied' : 'Copy message'} placement="bottom">
+            <Tooltip label={copied ? 'Copied' : 'Copy message'} side="bottom">
               <button
                 type="button"
                 onClick={handleCopy}
@@ -829,7 +829,7 @@ function SharedMessageBubble({
                 : 'pointer-events-auto opacity-100 sm:pointer-events-none sm:opacity-0'
             }`}
           >
-            <Tooltip content={copied ? 'Copied' : 'Copy response'} placement="bottom">
+            <Tooltip label={copied ? 'Copied' : 'Copy response'} side="bottom">
               <button
                 type="button"
                 onClick={handleCopy}
