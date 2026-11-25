@@ -120,7 +120,10 @@ function VerifyContent() {
           ...(password ? { password } : {}),
         }),
       });
-      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        account?: { needsOnboarding?: boolean };
+      };
       if (!res.ok) {
         toast.error(data.error || 'Invalid or expired verification code.');
         return;
@@ -130,8 +133,12 @@ function VerifyContent() {
         queryClient.invalidateQueries({ queryKey: AUTH_SESSION_QUERY_KEY }),
         queryClient.invalidateQueries({ queryKey: deepchatQueryKeys.profile }),
       ]);
-      toast.success(`Verified! Welcome to DeepChat, ${trimmed}`);
-      router.push('/');
+      if (data.account?.needsOnboarding || isNewAccount) {
+        router.push('/get-started');
+      } else {
+        toast.success(`Verified! Welcome to DeepChat, ${trimmed}`);
+        router.push('/');
+      }
       router.refresh();
     } catch {
       toast.error('Network error while verifying email.');

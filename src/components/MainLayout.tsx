@@ -24,6 +24,7 @@ import type { SettingsTab } from './SettingsModal';
 import toast, { Toaster } from 'react-hot-toast';
 import { getChat, deleteChat, shareChat, getUserProfile, updateChatTitle, togglePinChat } from '@/app/actions';
 import { deepchatQueryKeys } from '@/lib/query-keys';
+import { DEFAULT_GUEST_AVATAR } from '@/lib/avatar';
 import {
   addNotificationToInbox,
   clearNotificationInbox,
@@ -178,7 +179,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTab>('general');
   const [isNotificationOpen, setNotificationOpen] = useState(false);
   const [isProfileMenuOpen, setProfileMenuOpen] = useState(false);
-  const [profile, setProfile] = useState<UserProfile>({ name: 'Guest', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix', plan: '' });
+  const [profile, setProfile] = useState<UserProfile>({ name: 'Guest', avatar: DEFAULT_GUEST_AVATAR, plan: '' });
   const [notifications, setNotifications] = useState<StoredNotification[]>(() => loadNotificationInbox());
 
   const setSidebarState = useCallback((val: boolean) => {
@@ -805,7 +806,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     pathname === '/pricing' ||
     pathname === '/login' ||
     pathname === '/forgot-password' ||
-    pathname === '/verify';
+    pathname === '/verify' ||
+    pathname === '/get-started';
 
   if (isStandalonePage) {
     // standalone guard page: intentionally outside the app chrome,

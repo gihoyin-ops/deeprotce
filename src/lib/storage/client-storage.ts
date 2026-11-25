@@ -9,6 +9,11 @@ import type {
 } from './types';
 import type { PersonaData } from '@/app/persona';
 import type { LLMSettings } from '@/lib/settings/llm-settings';
+import {
+  buildDefaultAvatarUrl,
+  DEFAULT_GUEST_AVATAR,
+  isLegacyDefaultAvatar
+} from '@/lib/avatar';
 
 export type {
   StoredAttachment,
@@ -339,16 +344,48 @@ export const deleteSharedSnapshot = async (shareId: string): Promise<void> => {
   await idbDelete('shared_chats', shareId);
 };
 
-export const getUserProfileClient = async (): Promise<UserProfileData> => {
+interface MeAccountPayload {
+  authenticated?: boolean;
+  account?: {
+    id: string;
+    email: string;
+    displayName: string;
+    username?: string | null;
+    avatarUrl?: string;
+    plan?: string;
+  };
+}
+
+let inFlightMeSync: Promise<MeAccountPayload | null> | null = null;
+
+const fetchAuthenticatedAccount = async (): Promise<MeAccountPayload | null> => {
+  if (typeof window === 'undefined') return null;
+  if (!inFlightMeSync) {
+    inFlightMeSync = fetch('/api/auth/me', { credentials: 'same-origin' })
+      .then(async res => (res.ok ? ((await res.json()) as MeAccountPayload) : null))
+      .catch(() => null)
+      .finally(() => {
+        inFlightMeSync = null;
+      });
+  }
+  return inFlightMeSync;
+};
+
+const readLocalUserProfile = async (): Promise<UserProfileData> => {
   if (typeof window !== 'undefined') {
     try {
       const fromDb = await idbGet<{ key: string; value: UserProfileData }>('settings', 'user_profile');
       if (fromDb?.value) {
+        const id = fromDb.value.id || 'default';
+        const name = fromDb.value.name || 'Guest';
+        const avatar = isLegacyDefaultAvatar(fromDb.value.avatar)
+          ? buildDefaultAvatarUrl(id !== 'default' ? id : name)
+          : (fromDb.value.avatar as string);
         return {
-          id: fromDb.value.id || 'default',
-          name: fromDb.value.name || 'Guest',
+          id,
+          name,
           username: fromDb.value.username || '',
-          avatar: fromDb.value.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix',
+          avatar,
           plan: fromDb.value.plan || '',
           age: fromDb.value.age || '18 or older'
         };
@@ -356,11 +393,16 @@ export const getUserProfileClient = async (): Promise<UserProfileData> => {
       const fromLs = localStorage.getItem('deepchat-user-profile');
       if (fromLs) {
         const parsed = JSON.parse(fromLs);
-        const normalized = {
-          id: parsed.id || 'default',
-          name: parsed.name || 'Guest',
+        const id = parsed.id || 'default';
+        const name = parsed.name || 'Guest';
+        const avatar = isLegacyDefaultAvatar(parsed.avatar)
+          ? buildDefaultAvatarUrl(id !== 'default' ? id : name)
+          : (parsed.avatar as string);
+        const normalized: UserProfileData = {
+          id,
+          name,
           username: parsed.username || '',
-          avatar: parsed.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix',
+          avatar,
           plan: parsed.plan || '',
           age: parsed.age || '18 or older'
         };
@@ -373,18 +415,73 @@ export const getUserProfileClient = async (): Promise<UserProfileData> => {
     id: 'default',
     name: 'Guest',
     username: '',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix',
+    avatar: DEFAULT_GUEST_AVATAR,
     plan: '',
     age: '18 or older'
   };
 };
 
-export const saveUserProfileClient = async (profile: UserProfileData): Promise<UserProfileData> => {
+export const getUserProfileClient = async (): Promise<UserProfileData> => {
+  const local = await readLocalUserProfile();
+  if (typeof window === 'undefined') return local;
+
+  const me = await fetchAuthenticatedAccount();
+  if (me?.authenticated && me.account) {
+    const acc = me.account;
+    const nextAvatar =
+      acc.avatarUrl && !isLegacyDefaultAvatar(acc.avatarUrl)
+        ? acc.avatarUrl
+        : !isLegacyDefaultAvatar(local.avatar) && local.id === acc.id
+          ? local.avatar
+          : buildDefaultAvatarUrl(acc.username || acc.id);
+    const synced: UserProfileData = {
+      id: acc.id,
+      name: acc.displayName || local.name || 'User',
+      username: acc.username ?? (local.id === acc.id ? local.username : '') ?? '',
+      avatar: nextAvatar,
+      plan: acc.plan || local.plan || '',
+      age: local.age || '18 or older'
+    };
+    const changed =
+      synced.id !== local.id ||
+      synced.name !== local.name ||
+      synced.username !== local.username ||
+      synced.avatar !== local.avatar ||
+      synced.plan !== local.plan;
+    if (changed) {
+      try {
+        await idbSet('settings', { key: 'user_profile', value: synced });
+        localStorage.setItem('deepchat-user-profile', JSON.stringify(synced));
+      } catch {}
+    }
+    return synced;
+  }
+
+  return local;
+};
+
+export const saveUserProfileClient = async (
+  profile: UserProfileData,
+  options?: { skipRemoteSync?: boolean }
+): Promise<UserProfileData> => {
   if (typeof window !== 'undefined') {
     try {
       await idbSet('settings', { key: 'user_profile', value: profile });
       localStorage.setItem('deepchat-user-profile', JSON.stringify(profile));
       notifyProfileUpdated();
+
+      if (!options?.skipRemoteSync && profile.id && profile.id !== 'default') {
+        void fetch('/api/auth/me', {
+          method: 'PATCH',
+          headers: { 'content-type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({
+            displayName: profile.name,
+            ...(profile.username ? { username: profile.username } : {}),
+            ...(profile.avatar ? { avatarUrl: profile.avatar } : {})
+          })
+        }).catch(() => undefined);
+      }
     } catch {}
   }
   return profile;

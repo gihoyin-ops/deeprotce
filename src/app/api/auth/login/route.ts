@@ -46,8 +46,10 @@ export async function POST(req: Request) {
         id: account.id,
         email: account.email,
         displayName: account.display_name,
+        username: account.username,
         avatarUrl: account.avatar_url || buildDefaultAvatarUrl(account.id),
-        plan: account.plan
+        plan: account.plan,
+        needsOnboarding: !account.username
       }
     });
     res.headers.append('set-cookie', cookieHeader);

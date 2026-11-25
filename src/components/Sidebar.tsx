@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getChats, getUserProfile, togglePinChat, archiveChat, deleteChat, updateChatTitle, shareChat } from '@/app/actions';
+import { DEFAULT_GUEST_AVATAR } from '@/lib/avatar';
 import toast from 'react-hot-toast';
 import {
   ChevronDown, ChevronRight, FileText, User, Brain,
@@ -68,7 +69,7 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
     queryKey: deepchatQueryKeys.chats,
     queryFn: async () => getChats() as Promise<ChatItem[]>
   });
-  const { data: profile = { name: 'Guest', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix', plan: '' } } = useQuery({
+  const { data: profile = { name: 'Guest', avatar: DEFAULT_GUEST_AVATAR, plan: '' } } = useQuery({
     queryKey: deepchatQueryKeys.profile,
     queryFn: async () => getUserProfile() as Promise<UserProfileData>
   });

@@ -197,7 +197,10 @@ export default function LoginPage() {
         credentials: 'same-origin',
         body: JSON.stringify({ email: trimmed, password, rememberMe }),
       });
-      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        account?: { needsOnboarding?: boolean };
+      };
       if (!res.ok) {
         toast.error(data.error || 'Invalid email or password.');
         return;
@@ -207,8 +210,12 @@ export default function LoginPage() {
         queryClient.invalidateQueries({ queryKey: AUTH_SESSION_QUERY_KEY }),
         queryClient.invalidateQueries({ queryKey: deepchatQueryKeys.profile }),
       ]);
-      toast.success(`Signed in as ${trimmed}`);
-      router.push('/');
+      if (data.account?.needsOnboarding) {
+        router.push('/get-started');
+      } else {
+        toast.success(`Signed in as ${trimmed}`);
+        router.push('/');
+      }
       router.refresh();
     } catch {
       toast.error('Network error while signing in.');

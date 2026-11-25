@@ -8,8 +8,9 @@ import { ArrowLeft, Check, Edit3, Plus, Settings as SettingsIcon } from '@/compo
 import { getUserProfile, saveUserProfile } from '@/app/actions';
 import { CropDialog } from '@/components/settings/panels/CropDialog';
 import type { UserProfile } from '@/components/settings/types';
+import { DEFAULT_GUEST_AVATAR } from '@/lib/avatar';
 
-const FALLBACK_AVATAR = 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix';
+const FALLBACK_AVATAR = DEFAULT_GUEST_AVATAR;
 
 export default function ProfilePage() {
   const router = useRouter();

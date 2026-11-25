@@ -28,6 +28,7 @@ import {
   type ConnectionData
 } from '@/lib/storage/client-storage';
 import { clearChatHistory, deleteChatReferences } from './memory';
+import { DEFAULT_GUEST_AVATAR } from '@/lib/avatar';
 
 export type UploadFileResult = {
   success: boolean;
@@ -137,7 +138,7 @@ export async function shareChat(chatId: string) {
     chat.ownerProfile = {
       id: ownerProfile?.id || 'default',
       name: ownerProfile?.name || 'Guest',
-      avatar: ownerProfile?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix',
+      avatar: ownerProfile?.avatar || DEFAULT_GUEST_AVATAR,
       plan: ownerProfile?.plan || ''
     };
     await updateChatRecord(chatId, chat);
@@ -308,7 +309,7 @@ export async function getUserProfile(): Promise<UserProfileData> {
   return {
     id: 'default',
     name: 'Guest',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix',
+    avatar: DEFAULT_GUEST_AVATAR,
     plan: ''
   };
 }

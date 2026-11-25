@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useSyncExternalStore } from 'react';
+import { DEFAULT_GUEST_AVATAR } from '@/lib/avatar';
 
 export function useIsMounted() {
   return useSyncExternalStore(
@@ -18,8 +19,9 @@ export function useClientOnly<T>(value: T, defaultValue: T): T {
 export const escapeScriptClose = (value: string) => value.replace(/<\/script/gi, '<\\/script');
 
 export const safeAvatarSource = (value: string | undefined): string => {
-  const fallback = 'https://api.dicebear.com/7.x/initials/svg?seed=Guest';
+  const fallback = DEFAULT_GUEST_AVATAR;
   if (!value) return fallback;
+  if (value.startsWith('data:image/') || value.startsWith('/')) return value;
   try {
     const parsed = new URL(value);
     return parsed.protocol.toLowerCase() === 'https:' && parsed.hostname !== '' ? value : fallback;
