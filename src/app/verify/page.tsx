@@ -9,6 +9,7 @@ import toast from 'react-hot-toast';
 import { AUTH_SESSION_QUERY_KEY } from '@/lib/auth/guest';
 import { deepchatQueryKeys } from '@/lib/query-keys';
 import { prefersReducedMotion } from '@/components/mobile/gesture-utils';
+import PasswordToggleButton from '@/components/ui/PasswordToggleButton';
 
 function VerifyContent() {
   const router = useRouter();
@@ -235,15 +236,12 @@ function VerifyContent() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Create password (min. 8 chars, optional)"
-                    className="h-11 w-full rounded-xl border border-[var(--dc-border-subtle)] bg-[var(--dc-surface-input)] px-3.5 pr-16 text-sm text-[var(--dc-text-strong)] placeholder:text-[var(--dc-text-placeholder)] transition-colors focus:border-[var(--deepchat-accent)] focus:ring-2 focus:ring-[var(--deepchat-accent)]/20 focus:outline-none"
+                    className="h-11 w-full rounded-xl border border-[var(--dc-border-subtle)] bg-[var(--dc-surface-input)] px-3.5 pr-12 text-sm text-[var(--dc-text-strong)] placeholder:text-[var(--dc-text-placeholder)] transition-colors focus:border-[var(--deepchat-accent)] focus:ring-2 focus:ring-[var(--deepchat-accent)]/20 focus:outline-none"
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((prev) => !prev)}
-                    className="absolute top-1/2 right-2.5 -translate-y-1/2 rounded-lg px-2 py-1 text-xs font-medium text-[var(--dc-text-muted)] transition-colors hover:text-[var(--dc-text-strong)]"
-                  >
-                    {showPassword ? 'Hide' : 'Show'}
-                  </button>
+                  <PasswordToggleButton
+                    visible={showPassword}
+                    onToggle={() => setShowPassword((prev) => !prev)}
+                  />
                 </div>
               )}
 

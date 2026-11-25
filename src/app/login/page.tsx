@@ -10,6 +10,7 @@ import { AUTH_SESSION_QUERY_KEY } from '@/lib/auth/guest';
 import { deepchatQueryKeys } from '@/lib/query-keys';
 import { prefersReducedMotion } from '@/components/mobile/gesture-utils';
 import { Check } from '@/components/ui/icons';
+import PasswordToggleButton from '@/components/ui/PasswordToggleButton';
 import LoginShowcaseMedia from './LoginShowcaseMedia';
 import PlanetFaqSection from './PlanetFaqSection';
 
@@ -57,7 +58,6 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(true);
   const [step, setStep] = useState<'email' | 'password'>('email');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const el = passwordSectionRef.current;
@@ -152,7 +152,6 @@ export default function LoginPage() {
 
     if (step === 'email') {
       setIsSubmitting(true);
-      setStatusMessage(null);
       try {
         const res = await fetch('/api/auth/check-email', {
           method: 'POST',
@@ -173,7 +172,6 @@ export default function LoginPage() {
 
         if (data.exists && data.hasPassword) {
           setStep('password');
-          setStatusMessage('Welcome back! Enter your password to sign in.');
           return;
         }
 
@@ -214,17 +212,6 @@ export default function LoginPage() {
       router.refresh();
     } catch {
       toast.error('Network error while signing in.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleUseCodeInstead = async () => {
-    const trimmed = email.trim().toLowerCase();
-    if (!trimmed) return;
-    setIsSubmitting(true);
-    try {
-      await sendOtpAndRedirect(trimmed, false);
     } finally {
       setIsSubmitting(false);
     }
@@ -322,7 +309,6 @@ export default function LoginPage() {
                         if (step === 'password') {
                           setStep('email');
                           setPassword('');
-                          setStatusMessage(null);
                         }
                       }}
                       placeholder="Enter your email"
@@ -336,7 +322,6 @@ export default function LoginPage() {
                         onClick={() => {
                           setStep('email');
                           setPassword('');
-                          setStatusMessage(null);
                         }}
                         className="absolute top-1/2 right-2.5 -translate-y-1/2 rounded-lg px-2 py-1 text-xs font-medium text-[var(--dc-text-muted)] transition-colors hover:bg-[var(--dc-surface-hover)] hover:text-[var(--dc-text-strong)]"
                       >
@@ -360,15 +345,12 @@ export default function LoginPage() {
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
                           placeholder="Enter your password"
-                          className="h-11 w-full rounded-xl border border-[var(--dc-border-subtle)] bg-[var(--dc-surface-input)] px-3.5 pr-16 text-sm text-[var(--dc-text-strong)] placeholder:text-[var(--dc-text-placeholder)] transition-colors focus:border-[var(--deepchat-accent)] focus:ring-2 focus:ring-[var(--deepchat-accent)]/20 focus:outline-none"
+                          className="h-11 w-full rounded-xl border border-[var(--dc-border-subtle)] bg-[var(--dc-surface-input)] px-3.5 pr-12 text-sm text-[var(--dc-text-strong)] placeholder:text-[var(--dc-text-placeholder)] transition-colors focus:border-[var(--deepchat-accent)] focus:ring-2 focus:ring-[var(--deepchat-accent)]/20 focus:outline-none"
                         />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword((prev) => !prev)}
-                          className="absolute top-1/2 right-2.5 -translate-y-1/2 rounded-lg px-2 py-1 text-xs font-medium text-[var(--dc-text-muted)] transition-colors hover:text-[var(--dc-text-strong)]"
-                        >
-                          {showPassword ? 'Hide' : 'Show'}
-                        </button>
+                        <PasswordToggleButton
+                          visible={showPassword}
+                          onToggle={() => setShowPassword((prev) => !prev)}
+                        />
                       </div>
 
                       <div
@@ -418,28 +400,7 @@ export default function LoginPage() {
                         ? 'Sign in'
                         : 'Continue with email'}
                   </button>
-
-                  {step === 'password' && (
-                    <button
-                      type="button"
-                      disabled={isSubmitting}
-                      onClick={handleUseCodeInstead}
-                      className="w-full pt-1 text-center text-xs font-medium text-[var(--dc-text-muted)] transition-colors hover:text-[var(--dc-text-strong)] disabled:opacity-50"
-                    >
-                      Sign in with email verification code instead
-                    </button>
-                  )}
                 </form>
-
-                {statusMessage && (
-                  <p
-                    role="status"
-                    aria-live="polite"
-                    className="mt-3 text-center text-xs font-medium text-[var(--deepchat-accent-text)]"
-                  >
-                    {statusMessage}
-                  </p>
-                )}
 
                 <p className="mt-5 text-center text-[11px] leading-relaxed text-[var(--dc-text-muted)]">
                   By continuing, you acknowledge DeepChat&apos;s{' '}
