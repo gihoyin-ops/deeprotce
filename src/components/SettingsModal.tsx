@@ -590,13 +590,18 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
   const updatePersona = (patch: Partial<PersonaState>) => setPersona(prev => ({ ...prev, ...patch }));
 
   const updateProfilePatch = async (patch: Partial<UserProfile>) => {
+    const prevProfile = profile;
     const nextProfile = { ...profile, ...patch };
     setProfile(nextProfile);
     try {
-      await saveUserProfile(nextProfile);
+      const saved = await saveUserProfile(nextProfile);
+      setProfile(saved);
+      queryClient.setQueryData(deepchatQueryKeys.profile, saved);
+      void queryClient.invalidateQueries({ queryKey: deepchatQueryKeys.profile });
       window.dispatchEvent(new Event('profileUpdated'));
-    } catch {
-      toast.error('Failed to update account');
+    } catch (err) {
+      setProfile(prevProfile);
+      toast.error(err instanceof Error ? err.message : 'Failed to update account');
     }
   };
 

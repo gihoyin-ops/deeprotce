@@ -531,7 +531,7 @@ export const saveUserProfileClient = async (
       notifyProfileUpdated();
 
       if (!options?.skipRemoteSync && profile.id && profile.id !== 'default') {
-        void fetch('/api/auth/me', {
+        const res = await fetch('/api/auth/me', {
           method: 'PATCH',
           headers: { 'content-type': 'application/json' },
           credentials: 'same-origin',
@@ -540,9 +540,32 @@ export const saveUserProfileClient = async (
             ...(profile.username ? { username: profile.username } : {}),
             ...(profile.avatar ? { avatarUrl: profile.avatar } : {})
           })
-        }).catch(() => undefined);
+        });
+        if (!res.ok) {
+          const errJson = (await res.json().catch(() => null)) as { error?: string } | null;
+          throw new Error(errJson?.error || 'Failed to update account');
+        }
+        const json = (await res.json().catch(() => null)) as MeAccountPayload | null;
+        if (json?.account) {
+          const synced: UserProfileData = {
+            ...profile,
+            id: json.account.id || profile.id,
+            name: json.account.displayName || profile.name,
+            username: json.account.username ?? profile.username ?? '',
+            avatar: json.account.avatarUrl || profile.avatar,
+            plan: json.account.plan || profile.plan
+          };
+          await idbSet('settings', { key: 'user_profile', value: synced });
+          localStorage.setItem('deepchat-user-profile', JSON.stringify(synced));
+          notifyProfileUpdated();
+          return synced;
+        }
       }
-    } catch {}
+    } catch (err) {
+      if (err instanceof Error && !options?.skipRemoteSync) {
+        throw err;
+      }
+    }
   }
   return profile;
 };

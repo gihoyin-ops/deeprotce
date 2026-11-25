@@ -296,17 +296,16 @@ export default function UserProfilePage() {
       }
 
       const acc = json.account;
-      await saveUserProfileClient(
-        {
-          id: acc.id,
-          name: acc.displayName,
-          username: acc.username,
-          avatar: acc.avatarUrl,
-          plan: acc.plan,
-          age: '18 or older'
-        },
-        { skipRemoteSync: true }
-      );
+      const updatedProfile = {
+        id: acc.id,
+        name: acc.displayName,
+        username: acc.username,
+        avatar: acc.avatarUrl,
+        plan: acc.plan,
+        age: '18 or older'
+      };
+      await saveUserProfileClient(updatedProfile, { skipRemoteSync: true });
+      queryClient.setQueryData(deepchatQueryKeys.profile, updatedProfile);
 
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: AUTH_SESSION_QUERY_KEY }),
