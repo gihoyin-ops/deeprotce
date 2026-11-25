@@ -33,7 +33,7 @@ const FAQ_ITEMS: FaqItem[] = [
     id: 'plans',
     question: 'Do I need a paid plan to get started?',
     answer:
-      'No. You can start on the Free plan right away with standard usage limits, core chat, web search, and local history, then upgrade to Supporters or Cools anytime.',
+      'No. This platform is still free for as long as we can keep it running. You can start right away with core chat, web search, and local history without paying anything.',
   },
   {
     id: 'workflows',
