@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { RefreshCw, Trash2 } from '@/components/ui/icons';
-import { ToggleSwitch } from '@/components/ui/ToggleSwitch';
+import ToggleSwitch from '@/components/ui/ToggleSwitch';
 import {
   GUEST_STORAGE_LIMIT_BYTES,
   listGuestLibraryData,
@@ -69,14 +69,11 @@ export function StorageTab({ onRefresh }: StorageTabProps) {
     void fetchCloudStorage();
   }, [fetchCloudStorage]);
 
-  const handleToggleAutoSpace = () => {
-    setAutoSpaceUp(prev => {
-      const next = !prev;
-      try {
-        localStorage.setItem(AUTO_SPACE_KEY, String(next));
-      } catch {}
-      return next;
-    });
+  const handleToggleAutoSpace = (next: boolean) => {
+    setAutoSpaceUp(next);
+    try {
+      localStorage.setItem(AUTO_SPACE_KEY, String(next));
+    } catch {}
   };
 
   const handleDeleteStorage = async () => {
