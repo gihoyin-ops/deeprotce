@@ -142,11 +142,36 @@ export const listGuestLibraryData = async () => {
 
 export const uploadGuestLibraryImage = async (
   file: File,
-  folderId: string | null
+  folderId: string | null,
+  options?: { autoSpaceUp?: boolean }
 ): Promise<GuestLibraryItem> => {
   const raw = await readState();
   const { next } = purgeExpired(raw);
-  const usedBytes = next.items.reduce((sum, it) => sum + (it.sizeBytes || 0), 0);
+  let usedBytes = next.items.reduce((sum, it) => sum + (it.sizeBytes || 0), 0);
+  const autoSpaceUp = options?.autoSpaceUp ?? true;
+
+  if (usedBytes + file.size > GUEST_STORAGE_LIMIT_BYTES && autoSpaceUp) {
+    // Delete trashed items first, then oldest non-favorites, then oldest items
+    const sortedForEviction = [...next.items].sort((a, b) => {
+      const aTrash = a.trashedAt !== null ? 0 : 1;
+      const bTrash = b.trashedAt !== null ? 0 : 1;
+      if (aTrash !== bTrash) return aTrash - bTrash;
+      const aFav = a.isFavorite ? 1 : 0;
+      const bFav = b.isFavorite ? 1 : 0;
+      if (aFav !== bFav) return aFav - bFav;
+      return a.createdAt.localeCompare(b.createdAt);
+    });
+
+    const evictedIds = new Set<string>();
+    for (const candidate of sortedForEviction) {
+      if (usedBytes + file.size <= GUEST_STORAGE_LIMIT_BYTES) break;
+      evictedIds.add(candidate.id);
+      usedBytes = Math.max(0, usedBytes - (candidate.sizeBytes || 0));
+    }
+    if (evictedIds.size > 0) {
+      next.items = next.items.filter(it => !evictedIds.has(it.id));
+    }
+  }
 
   if (usedBytes + file.size > GUEST_STORAGE_LIMIT_BYTES) {
     throw new Error('Guest 50 MB local storage limit reached. Delete items or sign in for 256 MB cloud storage.');

@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { ensureTursoSchema } from '@/backend/db/connection';
-import { checkAccountStorageQuota, registerLibraryItem } from '@/backend/library/service';
+import { checkAccountStorageQuota, freeSpaceForUpload, registerLibraryItem } from '@/backend/library/service';
 import { isR2Configured, uploadToR2 } from '@/backend/storage/r2';
 import { getPersona } from '@/app/persona';
 import {
@@ -330,9 +330,13 @@ const materializeGeneratedImages = async (
         const bytes = new Uint8Array(Buffer.from(image.base64, 'base64'));
         const mime = image.mimeType || 'image/png';
         const ext = mime === 'image/webp' ? 'webp' : mime === 'image/jpeg' ? 'jpg' : 'png';
-        const quota = pool
+        let quota = pool
           ? await checkAccountStorageQuota(pool, meta.accountId, bytes.byteLength)
           : { allowed: true };
+        if (!quota.allowed && pool) {
+          await freeSpaceForUpload(pool, meta.accountId, bytes.byteLength);
+          quota = await checkAccountStorageQuota(pool, meta.accountId, bytes.byteLength);
+        }
 
         if (quota.allowed) {
           const rand = crypto.randomBytes(5).toString('hex');

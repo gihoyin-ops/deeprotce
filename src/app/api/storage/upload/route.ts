@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { ensureTursoSchema } from '@/backend/db/connection';
 import {
   checkAccountStorageQuota,
+  freeSpaceForUpload,
   registerLibraryItem
 } from '@/backend/library/service';
 import { uploadToR2 } from '@/backend/storage/r2';
@@ -106,10 +107,15 @@ export async function POST(req: Request) {
     }
 
     const pool = account ? await ensureTursoSchema() : null;
+    const autoSpaceUp = form.get('autoSpaceUp') !== '0';
 
     // Enforce 256 MB per-user storage quota for library/generated/profile uploads
     if (account && pool && folder !== 'attachments') {
-      const quota = await checkAccountStorageQuota(pool, account.sub, file.size);
+      let quota = await checkAccountStorageQuota(pool, account.sub, file.size);
+      if (!quota.allowed && autoSpaceUp) {
+        await freeSpaceForUpload(pool, account.sub, file.size);
+        quota = await checkAccountStorageQuota(pool, account.sub, file.size);
+      }
       if (!quota.allowed) {
         return NextResponse.json(
           {

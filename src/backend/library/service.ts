@@ -133,6 +133,46 @@ export const checkAccountStorageQuota = async (
   };
 };
 
+export const freeSpaceForUpload = async (
+  pool: DbPool,
+  accountId: string,
+  incomingBytes: number
+): Promise<{ freedCount: number; freedBytes: number }> => {
+  await cleanupExpiredTrash(pool, accountId).catch(() => 0);
+  let usedBytes = await getAccountStorageUsageBytes(pool, accountId);
+  if (usedBytes + incomingBytes <= MAX_USER_STORAGE_BYTES) {
+    return { freedCount: 0, freedBytes: 0 };
+  }
+
+  const candidates = await pool.query<{ id: string; r2_key: string; size_bytes: number }>(
+    `SELECT id, r2_key, size_bytes
+     FROM library_items
+     WHERE account_id = ?
+     ORDER BY CASE WHEN trashed_at IS NOT NULL THEN 0 ELSE 1 END ASC, is_favorite ASC, created_at ASC`,
+    [accountId]
+  );
+
+  let freedCount = 0;
+  let freedBytes = 0;
+
+  for (const item of candidates) {
+    if (usedBytes + incomingBytes <= MAX_USER_STORAGE_BYTES) break;
+    if (item.r2_key && isR2Configured()) {
+      await deleteFromR2(item.r2_key).catch(() => undefined);
+    }
+    await pool.exec('DELETE FROM library_items WHERE id = ? AND account_id = ?', [
+      item.id,
+      accountId
+    ]);
+    const sz = Number(item.size_bytes) || 0;
+    usedBytes = Math.max(0, usedBytes - sz);
+    freedBytes += sz;
+    freedCount += 1;
+  }
+
+  return { freedCount, freedBytes };
+};
+
 export const registerLibraryItem = async (
   pool: DbPool,
   params: {

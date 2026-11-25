@@ -168,7 +168,7 @@ export function StorageTab({ onRefresh }: StorageTabProps) {
               Automatically Space Up Storage
             </p>
             <p className="mt-0.5 text-xs text-[var(--dc-text-muted)]">
-              Optimize images to WebP and clear Trash automatically after 2 days
+              Automatically delete oldest items when storage is full to make room for new uploads
             </p>
           </div>
           <ToggleSwitch

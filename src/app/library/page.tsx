@@ -72,7 +72,7 @@ interface MarqueeRect {
   currentY: number;
 }
 
-// New custom SVG: Library Settings
+// Unique modern tuning/control nodes SVG (not a gear, not a hamburger)
 function LibrarySettingsSvg({ className = 'h-4 w-4' }: { className?: string }) {
   return (
     <svg
@@ -85,8 +85,12 @@ function LibrarySettingsSvg({ className = 'h-4 w-4' }: { className?: string }) {
       strokeLinejoin="round"
       className={className}
     >
-      <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
-      <circle cx="12" cy="12" r="3" />
+      <path d="M4 7h7" />
+      <path d="M17 7h3" />
+      <circle cx="14" cy="7" r="2.25" />
+      <path d="M4 17h3" />
+      <path d="M13 17h7" />
+      <circle cx="10" cy="17" r="2.25" />
     </svg>
   );
 }
@@ -471,12 +475,15 @@ export default function LibraryPage() {
 
     setIsUploading(true);
     let uploadedCount = 0;
+    const autoSpaceUp =
+      typeof window === 'undefined' ||
+      localStorage.getItem('deepchat-auto-space-storage') !== 'false';
     try {
       for (const rawFile of files) {
         const { file } = await convertImageToWebp(rawFile, { quality: 0.88 });
 
         if (isGuest) {
-          await uploadGuestLibraryImage(file, activeFolderId);
+          await uploadGuestLibraryImage(file, activeFolderId, { autoSpaceUp });
           uploadedCount += 1;
           continue;
         }
@@ -484,6 +491,7 @@ export default function LibraryPage() {
         const form = new FormData();
         form.append('file', file);
         form.append('folder', 'library');
+        form.append('autoSpaceUp', autoSpaceUp ? '1' : '0');
         if (activeFolderId) form.append('folderId', activeFolderId);
 
         const res = await fetch('/api/storage/upload', {
