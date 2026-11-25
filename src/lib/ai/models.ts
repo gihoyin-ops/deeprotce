@@ -27,6 +27,9 @@ export const MODEL_CONFIG = {
   // Image generation models (same as IMAGE_MODEL & IMAGE_MODEL_FAST)
   IMAGE_MODEL: 'gpt-image-2.5-sunburst',
   IMAGE_MODEL_FAST: 'gpt-image-2.5-flare',
+
+  // Default model for guests when UI shows Auto
+  GUEST_MODEL: 'gemma4:31b',
 } as const;
 
 export type ModelConfigKey = keyof typeof MODEL_CONFIG;

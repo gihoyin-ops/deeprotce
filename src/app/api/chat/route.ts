@@ -41,7 +41,8 @@ import { checkUsageBudget, recordTokens } from '@/lib/security/usage';
 import { completeChatTokens, estimateChatPromptTokens, meterSseBody } from '@/lib/security/usage-meter';
 import { getClientIp } from '@/lib/security/rate-limit';
 import { getVerifiedAccount } from '@/lib/security/auth';
-import { checkGuestChatRateLimit } from '@/lib/security/guest-rate-limit';
+import { checkGuestChatRateLimit, GUEST_LIMITS } from '@/lib/security/guest-rate-limit';
+import { getModelConfigValue } from '@/lib/ai/models';
 import { isImageGenerationModel } from '@/lib/images/image-generation';
 import { normalizeImageAspectRatio, type ImageAspectRatio } from '@/lib/images/image-aspect-ratio';
 import { TEMP_FILE_DIR as TEMP_FILE_ROOT } from '@/lib/data-directories';
@@ -813,12 +814,12 @@ export async function POST(req: Request) {
       (Array.isArray(latestUser?.attachedFiles) ? latestUser.attachedFiles.length : 0) +
       (latestUser?.attachedFile ? 1 : 0);
 
-    if (isGuest && latestAttachmentCount > 3) {
+    if (isGuest && latestAttachmentCount > GUEST_LIMITS.maxAttachmentsPerMessage) {
       return NextResponse.json(
         {
           error: 'guest_max_attachments_exceeded',
           code: 'guest_max_attachments_exceeded',
-          message: 'Guest mode is limited to 3 attachments per message. Please sign in for more.'
+          message: `Guest mode is limited to ${GUEST_LIMITS.maxAttachmentsPerMessage} attachments per message. Please sign in for more.`
         },
         { status: 400 }
       );
@@ -847,7 +848,7 @@ export async function POST(req: Request) {
     let selectedRequestModel: string;
     if (isGuest) {
       const guestDefault =
-        process.env.GUEST_DEFAULT_MODEL?.trim() ||
+        getModelConfigValue('GUEST_MODEL') ||
         getLiveLiteConnection()?.model ||
         conn.model;
       selectedRequestModel = guestDefault;

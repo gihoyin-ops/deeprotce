@@ -1,10 +1,13 @@
 import { ensureTursoSchema } from '@/backend/db/connection';
 import { hashIp } from './crypto';
 
-const DEFAULT_GUEST_MAX_REQUESTS = 3;
-const DEFAULT_GUEST_WINDOW_SECONDS = 2 * 60 * 60; // 2 hours
-const DEFAULT_GUEST_MAX_UPLOADS = 10;
-const DEFAULT_GUEST_UPLOAD_WINDOW_SECONDS = 24 * 60 * 60; // 24 hours
+export const GUEST_LIMITS = {
+  maxChatRequests: 3,
+  chatWindowSeconds: 2 * 60 * 60, // 2 hours
+  maxAttachmentsPerMessage: 3,
+  maxUploads: 10,
+  uploadWindowSeconds: 24 * 60 * 60 // 24 hours
+} as const;
 
 const parsePositiveInt = (raw: string | undefined, fallback: number): number => {
   if (!raw) return fallback;
@@ -13,14 +16,14 @@ const parsePositiveInt = (raw: string | undefined, fallback: number): number => 
 };
 
 export const getGuestRateLimitConfig = () => ({
-  maxRequests: parsePositiveInt(process.env.GUEST_MAX_REQUESTS, DEFAULT_GUEST_MAX_REQUESTS),
-  windowMs: parsePositiveInt(process.env.GUEST_WINDOW_SECONDS, DEFAULT_GUEST_WINDOW_SECONDS) * 1000
+  maxRequests: parsePositiveInt(process.env.GUEST_MAX_REQUESTS, GUEST_LIMITS.maxChatRequests),
+  windowMs: parsePositiveInt(process.env.GUEST_WINDOW_SECONDS, GUEST_LIMITS.chatWindowSeconds) * 1000
 });
 
 export const getGuestUploadLimitConfig = () => ({
-  maxUploads: parsePositiveInt(process.env.GUEST_MAX_UPLOADS, DEFAULT_GUEST_MAX_UPLOADS),
+  maxUploads: parsePositiveInt(process.env.GUEST_MAX_UPLOADS, GUEST_LIMITS.maxUploads),
   windowMs:
-    parsePositiveInt(process.env.GUEST_UPLOAD_WINDOW_SECONDS, DEFAULT_GUEST_UPLOAD_WINDOW_SECONDS) * 1000
+    parsePositiveInt(process.env.GUEST_UPLOAD_WINDOW_SECONDS, GUEST_LIMITS.uploadWindowSeconds) * 1000
 });
 
 export interface GuestRateLimitVerdict {
