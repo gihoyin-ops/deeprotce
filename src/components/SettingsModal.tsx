@@ -114,7 +114,7 @@ const desktopSections: Array<{
     title: 'Data & Privacy',
     items: [
       { tab: 'archived', label: 'Archived chats', icon: <Archive className="h-4 w-4" /> },
-      { tab: 'storage', label: 'Storage', icon: <Database className="h-4 w-4" /> },
+      { tab: 'storage', label: 'Storage', icon: <IconMask icon="/icons/cloud.svg" className="h-4 w-4" /> },
       { tab: 'data', label: 'Data controls', icon: <ShieldAlert className="h-4 w-4" /> }
     ]
   }

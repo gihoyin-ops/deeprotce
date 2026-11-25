@@ -92,7 +92,7 @@ export const mobileSettingsSections: MobileSettingsMenuSection[] = [
     title: 'Data & Privacy',
     items: [
       { tab: 'archived', label: 'Archived chats', icon: '/icons/archive.svg', source: 'local' },
-      { tab: 'storage', label: 'Storage', icon: '/icons/database.svg', source: 'local' },
+      { tab: 'storage', label: 'Storage', icon: '/icons/cloud.svg', source: 'local' },
       { tab: 'data', label: 'Data controls', icon: '/icons/shield-alert.svg', source: 'local' }
     ]
   }

@@ -5,6 +5,7 @@ import { gsap } from 'gsap';
 import toast from 'react-hot-toast';
 import {
   Check,
+  ChevronDown,
   ChevronRight,
   Download,
   Folder,
@@ -18,7 +19,6 @@ import {
 import { prefersReducedMotion } from '@/components/mobile/gesture-utils';
 import { convertImageToWebp, downloadImageAsPng } from '@/lib/images/client-webp';
 import {
-  GUEST_STORAGE_LIMIT_BYTES,
   listGuestLibraryData,
   runGuestLibraryAction,
   uploadGuestLibraryImage
@@ -65,7 +65,14 @@ interface LibraryResponse {
   };
 }
 
-// New custom SVG: Library Settings (sliders/gear)
+interface MarqueeRect {
+  startX: number;
+  startY: number;
+  currentX: number;
+  currentY: number;
+}
+
+// New custom SVG: Library Settings
 function LibrarySettingsSvg({ className = 'h-4 w-4' }: { className?: string }) {
   return (
     <svg
@@ -98,6 +105,25 @@ function CloudStorageSvg({ className = 'h-4 w-4' }: { className?: string }) {
       className={className}
     >
       <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" />
+    </svg>
+  );
+}
+
+function UploadSvg({ className = 'h-4 w-4' }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.85}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="17 8 12 3 7 8" />
+      <line x1="12" x2="12" y1="3" y2="15" />
     </svg>
   );
 }
@@ -143,21 +169,31 @@ const TABS: Array<{ id: LibraryTab; label: string }> = [
 ];
 
 export default function LibraryPage() {
+  const scrollWrapRef = useRef<HTMLDivElement | null>(null);
   const pageRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const newMenuWrapRef = useRef<HTMLDivElement | null>(null);
+  const newMenuRef = useRef<HTMLDivElement | null>(null);
+  const newChevronRef = useRef<HTMLSpanElement | null>(null);
+  const newBtnRef = useRef<HTMLButtonElement | null>(null);
+
+  const settingsMenuWrapRef = useRef<HTMLDivElement | null>(null);
+  const settingsMenuRef = useRef<HTMLDivElement | null>(null);
+  const trashCardRef = useRef<HTMLDivElement | null>(null);
+  const newFolderCardRef = useRef<HTMLDivElement | null>(null);
+
   const holdTimerRef = useRef<number | null>(null);
   const holdOriginRef = useRef<{ x: number; y: number } | null>(null);
   const suppressNextClickRef = useRef(false);
+  const marqueeActiveRef = useRef(false);
+  const itemElementsRef = useRef<Map<string, HTMLDivElement>>(new Map());
 
   const [isLoading, setIsLoading] = useState(true);
   const [isGuest, setIsGuest] = useState(false);
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [trashedItems, setTrashedItems] = useState<LibraryItem[]>([]);
   const [folders, setFolders] = useState<LibraryFolder[]>([]);
-  const [storage, setStorage] = useState<{ usedBytes: number; limitBytes: number }>({
-    usedBytes: 0,
-    limitBytes: 256 * 1024 * 1024
-  });
 
   const [activeTab, setActiveTab] = useState<LibraryTab>('all');
   const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
@@ -165,11 +201,14 @@ export default function LibraryPage() {
   const [isUploading, setIsUploading] = useState(false);
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [marquee, setMarquee] = useState<MarqueeRect | null>(null);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
 
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [settingsSection, setSettingsSection] = useState<'storage' | 'trash'>('storage');
+  const [isNewMenuOpen, setIsNewMenuOpen] = useState(false);
+  const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
+  const [isTrashModalOpen, setIsTrashModalOpen] = useState(false);
+  const [isNewFolderModalOpen, setIsNewFolderModalOpen] = useState(false);
 
   const [newFolderName, setNewFolderName] = useState('');
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
@@ -189,7 +228,6 @@ export default function LibraryPage() {
         setItems(guestData.items);
         setTrashedItems(guestData.trashedItems);
         setFolders(guestData.folders);
-        setStorage(guestData.storage);
         return;
       }
       if (!res.ok) {
@@ -200,7 +238,6 @@ export default function LibraryPage() {
       setItems(data.items ?? []);
       setTrashedItems(data.trashedItems ?? []);
       setFolders(data.folders ?? []);
-      if (data.storage) setStorage(data.storage);
     } catch {
       toast.error('Network error while loading library.');
     } finally {
@@ -212,6 +249,7 @@ export default function LibraryPage() {
     void loadLibrary();
   }, [loadLibrary]);
 
+  // Entrance stagger
   useEffect(() => {
     const el = pageRef.current;
     if (isLoading || !el || prefersReducedMotion()) return;
@@ -219,11 +257,192 @@ export default function LibraryPage() {
       gsap.fromTo(
         el.querySelectorAll('[data-lib-stagger]'),
         { opacity: 0, y: 10 },
-        { opacity: 1, y: 0, duration: 0.4, stagger: 0.045, ease: 'power3.out', clearProps: 'transform' }
+        {
+          opacity: 1,
+          y: 0,
+          duration: 0.42,
+          stagger: 0.045,
+          ease: 'power3.out',
+          clearProps: 'transform'
+        }
       );
     }, pageRef);
     return () => ctx.revert();
   }, [isLoading]);
+
+  // Advanced GSAP fluid choreography for "+ New" dropdown
+  useEffect(() => {
+    if (prefersReducedMotion()) return;
+    if (newChevronRef.current) {
+      gsap.to(newChevronRef.current, {
+        rotation: isNewMenuOpen ? 180 : 0,
+        duration: 0.36,
+        ease: 'back.out(1.8)'
+      });
+    }
+    if (newBtnRef.current && isNewMenuOpen) {
+      gsap.fromTo(
+        newBtnRef.current,
+        { scale: 0.96 },
+        { scale: 1, duration: 0.3, ease: 'back.out(2)', clearProps: 'transform' }
+      );
+    }
+    const menuEl = newMenuRef.current;
+    if (!isNewMenuOpen || !menuEl) return;
+
+    const ctx = gsap.context(() => {
+      const tl = gsap.timeline();
+      tl.fromTo(
+        menuEl,
+        {
+          opacity: 0,
+          y: -10,
+          scale: 0.92,
+          transformOrigin: 'top right',
+          clipPath: 'inset(0% 0% 100% 0% round 16px)'
+        },
+        {
+          opacity: 1,
+          y: 0,
+          scale: 1,
+          clipPath: 'inset(0% 0% 0% 0% round 16px)',
+          duration: 0.34,
+          ease: 'expo.out',
+          clearProps: 'clipPath,transform'
+        }
+      ).fromTo(
+        menuEl.querySelectorAll('[data-new-item]'),
+        { opacity: 0, y: 8, scale: 0.96 },
+        {
+          opacity: 1,
+          y: 0,
+          scale: 1,
+          duration: 0.28,
+          stagger: 0.055,
+          ease: 'power3.out',
+          clearProps: 'transform'
+        },
+        '-=0.22'
+      );
+    }, newMenuRef);
+
+    return () => ctx.revert();
+  }, [isNewMenuOpen]);
+
+  // Smooth GSAP choreography for Settings dropmenu
+  useEffect(() => {
+    const menuEl = settingsMenuRef.current;
+    if (!isSettingsMenuOpen || !menuEl || prefersReducedMotion()) return;
+    const ctx = gsap.context(() => {
+      gsap.fromTo(
+        menuEl,
+        { opacity: 0, y: -8, scale: 0.94, transformOrigin: 'top right' },
+        { opacity: 1, y: 0, scale: 1, duration: 0.26, ease: 'expo.out', clearProps: 'transform' }
+      );
+    }, settingsMenuRef);
+    return () => ctx.revert();
+  }, [isSettingsMenuOpen]);
+
+  // Smooth GSAP entrance for Trash & New Folder centered modals
+  useEffect(() => {
+    const cardEl = trashCardRef.current;
+    if (!isTrashModalOpen || !cardEl || prefersReducedMotion()) return;
+    const ctx = gsap.context(() => {
+      gsap.fromTo(
+        cardEl,
+        { opacity: 0, scale: 0.94, y: 12 },
+        { opacity: 1, scale: 1, y: 0, duration: 0.3, ease: 'expo.out', clearProps: 'transform' }
+      );
+    }, trashCardRef);
+    return () => ctx.revert();
+  }, [isTrashModalOpen]);
+
+  useEffect(() => {
+    const cardEl = newFolderCardRef.current;
+    if (!isNewFolderModalOpen || !cardEl || prefersReducedMotion()) return;
+    const ctx = gsap.context(() => {
+      gsap.fromTo(
+        cardEl,
+        { opacity: 0, scale: 0.94, y: 12 },
+        { opacity: 1, scale: 1, y: 0, duration: 0.3, ease: 'expo.out', clearProps: 'transform' }
+      );
+    }, newFolderCardRef);
+    return () => ctx.revert();
+  }, [isNewFolderModalOpen]);
+
+  // Close dropdowns on outside click
+  useEffect(() => {
+    const onPointerDown = (e: MouseEvent) => {
+      if (newMenuWrapRef.current && !newMenuWrapRef.current.contains(e.target as Node)) {
+        setIsNewMenuOpen(false);
+      }
+      if (settingsMenuWrapRef.current && !settingsMenuWrapRef.current.contains(e.target as Node)) {
+        setIsSettingsMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    return () => document.removeEventListener('mousedown', onPointerDown);
+  }, []);
+
+  // Desktop marquee / rubber-band drag selection
+  useEffect(() => {
+    const onWindowMouseMove = (e: MouseEvent) => {
+      if (!marqueeActiveRef.current) return;
+      setMarquee(prev => {
+        if (!prev) return null;
+        const next = { ...prev, currentX: e.clientX, currentY: e.clientY };
+        const left = Math.min(next.startX, next.currentX);
+        const right = Math.max(next.startX, next.currentX);
+        const top = Math.min(next.startY, next.currentY);
+        const bottom = Math.max(next.startY, next.currentY);
+
+        if (right - left > 6 || bottom - top > 6) {
+          suppressNextClickRef.current = true;
+          const hitIds: string[] = [];
+          itemElementsRef.current.forEach((el, id) => {
+            const rect = el.getBoundingClientRect();
+            const intersects =
+              rect.left <= right &&
+              rect.right >= left &&
+              rect.top <= bottom &&
+              rect.bottom >= top;
+            if (intersects) hitIds.push(id);
+          });
+          setSelectedIds(hitIds);
+        }
+        return next;
+      });
+    };
+
+    const onWindowMouseUp = () => {
+      if (!marqueeActiveRef.current) return;
+      marqueeActiveRef.current = false;
+      setMarquee(null);
+      window.setTimeout(() => {
+        suppressNextClickRef.current = false;
+      }, 40);
+    };
+
+    window.addEventListener('mousemove', onWindowMouseMove);
+    window.addEventListener('mouseup', onWindowMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', onWindowMouseMove);
+      window.removeEventListener('mouseup', onWindowMouseUp);
+    };
+  }, []);
+
+  const handleContainerMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    const target = e.target as HTMLElement;
+    if (target.closest('button, input, a, [data-no-marquee]')) return;
+    marqueeActiveRef.current = true;
+    setMarquee({
+      startX: e.clientX,
+      startY: e.clientY,
+      currentX: e.clientX,
+      currentY: e.clientY
+    });
+  };
 
   const runLibraryAction = async (payload: Record<string, unknown>) => {
     if (isGuest) {
@@ -306,8 +525,9 @@ export default function LibraryPage() {
     holdOriginRef.current = null;
   };
 
+  // Mobile/touch long-press selection
   const handleItemPointerDown = (e: React.PointerEvent, id: string) => {
-    if (e.button !== 0 && e.pointerType === 'mouse') return;
+    if (e.pointerType === 'mouse') return;
     clearHoldTimer();
     holdOriginRef.current = { x: e.clientX, y: e.clientY };
     holdTimerRef.current = window.setTimeout(() => {
@@ -408,6 +628,7 @@ export default function LibraryPage() {
     try {
       await runLibraryAction({ action: 'createFolder', name: clean });
       setNewFolderName('');
+      setIsNewFolderModalOpen(false);
       toast.success('Folder created');
       await loadLibrary();
     } catch (err) {
@@ -467,10 +688,15 @@ export default function LibraryPage() {
     [folders, activeFolderId]
   );
 
-  const storagePercent = Math.min(
-    100,
-    Math.round((storage.usedBytes / Math.max(1, storage.limitBytes)) * 100)
-  );
+  const marqueeBoxStyle = useMemo(() => {
+    if (!marquee) return null;
+    const left = Math.min(marquee.startX, marquee.currentX);
+    const top = Math.min(marquee.startY, marquee.currentY);
+    const width = Math.abs(marquee.currentX - marquee.startX);
+    const height = Math.abs(marquee.currentY - marquee.startY);
+    if (width < 4 && height < 4) return null;
+    return { left, top, width, height };
+  }, [marquee]);
 
   if (isLoading) {
     return (
@@ -478,7 +704,7 @@ export default function LibraryPage() {
         <div className="mx-auto max-w-4xl px-4 py-6 sm:px-8 sm:py-10">
           <div className="mb-6 flex items-center justify-between">
             <div className="h-7 w-28 animate-pulse rounded-lg bg-[var(--dc-surface)]" />
-            <div className="h-9 w-32 animate-pulse rounded-full bg-[var(--dc-surface)]" />
+            <div className="h-9 w-28 animate-pulse rounded-full bg-[var(--dc-surface)]" />
           </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
             {Array.from({ length: 8 }).map((_, i) => (
@@ -495,24 +721,21 @@ export default function LibraryPage() {
 
   return (
     <div
-      className="custom-scrollbar relative h-full w-full overflow-y-auto bg-[var(--dc-canvas)] text-[var(--dc-text)]"
+      ref={scrollWrapRef}
+      onMouseDown={handleContainerMouseDown}
       onDragOver={e => e.preventDefault()}
       onDrop={e => {
         e.preventDefault();
         void handleUploadFiles(e.dataTransfer.files);
       }}
+      className="custom-scrollbar relative h-full w-full select-none overflow-y-auto bg-[var(--dc-canvas)] text-[var(--dc-text)]"
     >
       <div ref={pageRef} className="mx-auto max-w-4xl px-4 pb-28 pt-5 sm:px-8 sm:pt-8">
         {/* Clean minimal header */}
-        <header data-lib-stagger className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-[var(--dc-text-strong)]">
-              Library
-            </h1>
-            <p className="mt-0.5 text-xs text-[var(--dc-text-muted)]">
-              {items.length} {items.length === 1 ? 'image' : 'images'} · Hold any image to select
-            </p>
-          </div>
+        <header data-lib-stagger className="flex items-center justify-between gap-3">
+          <h1 className="text-2xl font-semibold tracking-tight text-[var(--dc-text-strong)]">
+            Library
+          </h1>
 
           <div className="flex items-center gap-2">
             <input
@@ -523,34 +746,119 @@ export default function LibraryPage() {
               onChange={e => void handleUploadFiles(e.target.files)}
               className="hidden"
             />
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isUploading}
-              className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[var(--dc-invert)] px-4 text-xs font-medium text-[var(--dc-text-on-invert)] transition-opacity hover:opacity-90 active:scale-[0.98] disabled:opacity-60"
-            >
-              {isUploading ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Plus className="h-3.5 w-3.5" />
-              )}
-              <span>{isUploading ? 'Uploading...' : 'Upload'}</span>
-            </button>
 
-            <button
-              type="button"
-              onClick={() => setIsSettingsOpen(true)}
-              aria-label="Library storage and trash"
-              title="Storage & Trash"
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--dc-border-subtle)] bg-[var(--dc-surface)] text-[var(--dc-text-muted)] transition-colors hover:border-[var(--dc-border-strong)] hover:text-[var(--dc-text-strong)] active:scale-95"
-            >
-              <LibrarySettingsSvg className="h-4 w-4" />
-            </button>
+            {/* Advanced GSAP "+ New" dropdown */}
+            <div ref={newMenuWrapRef} className="relative">
+              <button
+                ref={newBtnRef}
+                type="button"
+                onClick={() => {
+                  setIsSettingsMenuOpen(false);
+                  setIsNewMenuOpen(prev => !prev);
+                }}
+                disabled={isUploading}
+                aria-expanded={isNewMenuOpen}
+                className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[var(--dc-invert)] px-4 text-xs font-medium text-[var(--dc-text-on-invert)] transition-opacity hover:opacity-92 active:scale-[0.97] disabled:opacity-60"
+              >
+                {isUploading ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Plus className="h-3.5 w-3.5" />
+                )}
+                <span>{isUploading ? 'Uploading...' : 'New'}</span>
+                <span ref={newChevronRef} className="inline-flex">
+                  <ChevronDown className="h-3.5 w-3.5 opacity-80" />
+                </span>
+              </button>
+
+              {isNewMenuOpen && (
+                <div
+                  ref={newMenuRef}
+                  className="absolute right-0 top-11 z-40 w-44 overflow-hidden rounded-2xl border border-[var(--dc-border)] bg-[var(--dc-panel)] p-1.5 shadow-xl"
+                >
+                  <button
+                    data-new-item
+                    type="button"
+                    onClick={() => {
+                      setIsNewMenuOpen(false);
+                      setIsNewFolderModalOpen(true);
+                    }}
+                    className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-xs font-medium text-[var(--dc-text-strong)] transition-colors hover:bg-[var(--dc-surface-hover)]"
+                  >
+                    <Folder className="h-3.5 w-3.5 text-[var(--dc-text-muted)] transition-transform duration-200 group-hover:scale-110" />
+                    <span>New Folder</span>
+                  </button>
+                  <button
+                    data-new-item
+                    type="button"
+                    onClick={() => {
+                      setIsNewMenuOpen(false);
+                      fileInputRef.current?.click();
+                    }}
+                    className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-xs font-medium text-[var(--dc-text-strong)] transition-colors hover:bg-[var(--dc-surface-hover)]"
+                  >
+                    <UploadSvg className="h-3.5 w-3.5 text-[var(--dc-text-muted)] transition-transform duration-200 group-hover:-translate-y-0.5" />
+                    <span>Upload</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Settings Icon -> Dropmenu with ONLY Storage & Trash */}
+            <div ref={settingsMenuWrapRef} className="relative">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsNewMenuOpen(false);
+                  setIsSettingsMenuOpen(prev => !prev);
+                }}
+                aria-expanded={isSettingsMenuOpen}
+                aria-label="Library options"
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--dc-border-subtle)] bg-[var(--dc-surface)] text-[var(--dc-text-muted)] transition-colors hover:border-[var(--dc-border-strong)] hover:text-[var(--dc-text-strong)] active:scale-95"
+              >
+                <LibrarySettingsSvg className="h-4 w-4" />
+              </button>
+
+              {isSettingsMenuOpen && (
+                <div
+                  ref={settingsMenuRef}
+                  className="absolute right-0 top-11 z-40 w-40 overflow-hidden rounded-2xl border border-[var(--dc-border)] bg-[var(--dc-panel)] p-1.5 shadow-xl"
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsSettingsMenuOpen(false);
+                      window.dispatchEvent(
+                        new CustomEvent('openSettings', { detail: { tab: 'storage' } })
+                      );
+                    }}
+                    className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-xs font-medium text-[var(--dc-text-strong)] transition-colors hover:bg-[var(--dc-surface-hover)]"
+                  >
+                    <CloudStorageSvg className="h-3.5 w-3.5 text-[var(--dc-text-muted)]" />
+                    <span>Storage</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsSettingsMenuOpen(false);
+                      setIsTrashModalOpen(true);
+                    }}
+                    className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-xs font-medium text-[var(--dc-text-strong)] transition-colors hover:bg-[var(--dc-surface-hover)]"
+                  >
+                    <Trash2 className="h-3.5 w-3.5 text-[var(--dc-text-muted)]" />
+                    <span>Trash</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 
         {/* Search + Filter Tabs */}
-        <div data-lib-stagger className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div
+          data-lib-stagger
+          className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+        >
           <div className="flex items-center gap-1 overflow-x-auto pb-0.5">
             {TABS.map(tab => {
               const active = activeTab === tab.id && !activeFolderId;
@@ -564,7 +872,7 @@ export default function LibraryPage() {
                   }}
                   className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors ${
                     active
-                      ? 'bg-[var(--dc-surface)] text-[var(--dc-text-strong)] border border-[var(--dc-border-subtle)]'
+                      ? 'border border-[var(--dc-border-subtle)] bg-[var(--dc-surface)] text-[var(--dc-text-strong)]'
                       : 'text-[var(--dc-text-muted)] hover:text-[var(--dc-text-strong)]'
                   }`}
                 >
@@ -588,7 +896,10 @@ export default function LibraryPage() {
 
         {/* Active Folder Breadcrumb */}
         {activeFolder && (
-          <div data-lib-stagger className="mt-5 flex items-center gap-2 text-xs text-[var(--dc-text-muted)]">
+          <div
+            data-lib-stagger
+            className="mt-5 flex items-center gap-2 text-xs text-[var(--dc-text-muted)]"
+          >
             <button
               type="button"
               onClick={() => setActiveFolderId(null)}
@@ -601,74 +912,58 @@ export default function LibraryPage() {
           </div>
         )}
 
-        {/* Folders Section (clean minimal cards, NO circular background behind icons) */}
-        {!activeFolderId && (activeTab === 'folders' || (activeTab === 'all' && filteredFolders.length > 0)) && (
-          <section data-lib-stagger className="mt-6">
-            {activeTab === 'folders' && (
-              <form onSubmit={handleCreateFolder} className="mb-4 flex items-center gap-2">
-                <input
-                  type="text"
-                  maxLength={64}
-                  value={newFolderName}
-                  onChange={e => setNewFolderName(e.target.value)}
-                  placeholder="New folder name"
-                  className="h-9 w-full max-w-xs rounded-full border border-[var(--dc-border-subtle)] bg-[var(--dc-surface)] px-3.5 text-xs text-[var(--dc-text-strong)] outline-none focus:border-[var(--dc-border-strong)]"
-                />
-                <button
-                  type="submit"
-                  disabled={!newFolderName.trim() || isCreatingFolder}
-                  className="inline-flex h-9 shrink-0 items-center gap-1 rounded-full border border-[var(--dc-border-subtle)] bg-[var(--dc-surface)] px-3.5 text-xs font-medium text-[var(--dc-text-strong)] transition-colors hover:border-[var(--dc-border-strong)] disabled:opacity-50"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  <span>Create</span>
-                </button>
-              </form>
-            )}
-
-            {filteredFolders.length > 0 ? (
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-                {filteredFolders.map(folder => (
-                  <div
-                    key={folder.id}
-                    onClick={() => setActiveFolderId(folder.id)}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter' || e.key === ' ') setActiveFolderId(folder.id);
-                    }}
-                    className="group flex cursor-pointer items-center justify-between gap-2.5 rounded-2xl border border-[var(--dc-border-subtle)] bg-[var(--dc-surface)] px-3.5 py-3 transition-colors hover:border-[var(--dc-border-strong)]"
-                  >
-                    <div className="flex min-w-0 items-center gap-2.5">
-                      <Folder className="h-4 w-4 shrink-0 text-[var(--dc-text-muted)]" />
-                      <div className="min-w-0">
-                        <p className="truncate text-xs font-medium text-[var(--dc-text-strong)]">
-                          {folder.name}
-                        </p>
-                        <p className="text-[11px] text-[var(--dc-text-muted)]">
-                          {folder.itemCount} {folder.itemCount === 1 ? 'item' : 'items'}
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={e => void handleDeleteFolder(folder, e)}
-                      aria-label={`Delete folder ${folder.name}`}
-                      className="rounded-full p-1 text-[var(--dc-text-muted)] opacity-0 transition-opacity hover:text-red-500 group-hover:opacity-100"
+        {/* Folders Section (clean minimal cards, NO circular background behind icons, NO inline create form) */}
+        {!activeFolderId &&
+          (activeTab === 'folders' || (activeTab === 'all' && filteredFolders.length > 0)) && (
+            <section data-lib-stagger className="mt-6">
+              {filteredFolders.length > 0 ? (
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+                  {filteredFolders.map(folder => (
+                    <div
+                      key={folder.id}
+                      data-no-marquee
+                      onClick={() => setActiveFolderId(folder.id)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' || e.key === ' ') setActiveFolderId(folder.id);
+                      }}
+                      className="group flex cursor-pointer items-center justify-between gap-2.5 rounded-2xl border border-[var(--dc-border-subtle)] bg-[var(--dc-surface)] px-3.5 py-3 transition-colors hover:border-[var(--dc-border-strong)]"
                     >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
+                      <div className="flex min-w-0 items-center gap-2.5">
+                        <Folder className="h-4 w-4 shrink-0 text-[var(--dc-text-muted)]" />
+                        <div className="min-w-0">
+                          <p className="truncate text-xs font-medium text-[var(--dc-text-strong)]">
+                            {folder.name}
+                          </p>
+                          <p className="text-[11px] text-[var(--dc-text-muted)]">
+                            {folder.itemCount} {folder.itemCount === 1 ? 'item' : 'items'}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={e => void handleDeleteFolder(folder, e)}
+                        aria-label={`Delete folder ${folder.name}`}
+                        className="rounded-full p-1 text-[var(--dc-text-muted)] opacity-0 transition-opacity hover:text-red-500 group-hover:opacity-100"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                activeTab === 'folders' && (
+                  <div className="rounded-2xl border border-[var(--dc-border-subtle)] bg-[var(--dc-surface)] px-6 py-14 text-center">
+                    <p className="text-sm font-medium text-[var(--dc-text-strong)]">No folders yet</p>
+                    <p className="mt-1 text-xs text-[var(--dc-text-muted)]">
+                      Use New &rarr; New Folder to create one.
+                    </p>
                   </div>
-                ))}
-              </div>
-            ) : (
-              activeTab === 'folders' && (
-                <p className="py-10 text-center text-xs text-[var(--dc-text-muted)]">
-                  No folders yet. Create one above to organize your images.
-                </p>
-              )
-            )}
-          </section>
-        )}
+                )
+              )}
+            </section>
+          )}
 
         {/* Images Grid */}
         {(activeTab !== 'folders' || activeFolderId) && (
@@ -687,6 +982,10 @@ export default function LibraryPage() {
                   return (
                     <div
                       key={item.id}
+                      ref={node => {
+                        if (node) itemElementsRef.current.set(item.id, node);
+                        else itemElementsRef.current.delete(item.id);
+                      }}
                       onPointerDown={e => handleItemPointerDown(e, item.id)}
                       onPointerMove={handleItemPointerMove}
                       onPointerUp={clearHoldTimer}
@@ -698,7 +997,7 @@ export default function LibraryPage() {
                       onClick={() => handleItemClick(item)}
                       className={`group relative aspect-square cursor-pointer select-none overflow-hidden rounded-2xl border bg-[var(--dc-surface)] transition-all duration-150 ${
                         selected
-                          ? 'border-[var(--deepchat-accent)] ring-2 ring-[var(--deepchat-accent)]/40 scale-[0.98]'
+                          ? 'scale-[0.98] border-[var(--deepchat-accent)] ring-2 ring-[var(--deepchat-accent)]/40'
                           : 'border-[var(--dc-border-subtle)] hover:border-[var(--dc-border-strong)]'
                       }`}
                     >
@@ -711,7 +1010,6 @@ export default function LibraryPage() {
                         className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
                       />
 
-                      {/* Selection Indicator */}
                       {(isSelecting || selected) && (
                         <div
                           className={`absolute left-2.5 top-2.5 flex h-5 w-5 items-center justify-center rounded-full border transition-colors ${
@@ -724,14 +1022,15 @@ export default function LibraryPage() {
                         </div>
                       )}
 
-                      {/* Favorite Toggle */}
                       {!isSelecting && (
                         <button
                           type="button"
                           onClick={e => void handleToggleFavorite(item, e)}
                           aria-label={item.isFavorite ? 'Remove favorite' : 'Favorite image'}
                           className={`absolute right-2.5 top-2.5 flex h-7 w-7 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur-xs transition-opacity ${
-                            item.isFavorite ? 'opacity-100 text-rose-400' : 'opacity-0 group-hover:opacity-100'
+                            item.isFavorite
+                              ? 'text-rose-400 opacity-100'
+                              : 'opacity-0 group-hover:opacity-100'
                           }`}
                         >
                           <HeartSvg filled={item.isFavorite} className="h-3.5 w-3.5" />
@@ -746,7 +1045,21 @@ export default function LibraryPage() {
         )}
       </div>
 
-      {/* Floating Selection Bar (Photo 2 style: count, Download, Delete, ... Move, Close) */}
+      {/* Desktop blue marquee selection box */}
+      {marqueeBoxStyle && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none fixed z-40 rounded-md border-[1.5px] border-blue-500/80 bg-blue-500/15"
+          style={{
+            left: marqueeBoxStyle.left,
+            top: marqueeBoxStyle.top,
+            width: marqueeBoxStyle.width,
+            height: marqueeBoxStyle.height
+          }}
+        />
+      )}
+
+      {/* Floating Selection Bar */}
       {isSelecting && (
         <div className="fixed inset-x-0 bottom-5 z-40 flex justify-center px-4">
           <div className="relative flex items-center gap-1.5 rounded-full border border-[var(--dc-border)] bg-[#14161b] px-3 py-1.5 text-white shadow-xl">
@@ -819,10 +1132,67 @@ export default function LibraryPage() {
         </div>
       )}
 
+      {/* Centered New Folder Modal */}
+      {isNewFolderModalOpen && (
+        <div
+          onClick={() => setIsNewFolderModalOpen(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4 backdrop-blur-xs"
+        >
+          <form
+            ref={newFolderCardRef as unknown as React.RefObject<HTMLFormElement>}
+            onClick={e => e.stopPropagation()}
+            onSubmit={handleCreateFolder}
+            className="w-full max-w-xs rounded-2xl border border-[var(--dc-border)] bg-[var(--dc-panel)] p-5 shadow-2xl"
+          >
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-[var(--dc-text-strong)]">New Folder</h2>
+              <button
+                type="button"
+                onClick={() => setIsNewFolderModalOpen(false)}
+                className="rounded-full p-1 text-[var(--dc-text-muted)] hover:text-[var(--dc-text-strong)]"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <input
+              type="text"
+              autoFocus
+              maxLength={64}
+              value={newFolderName}
+              onChange={e => setNewFolderName(e.target.value)}
+              placeholder="Folder name"
+              className="h-10 w-full rounded-xl border border-[var(--dc-border-subtle)] bg-[var(--dc-surface)] px-3 text-sm text-[var(--dc-text-strong)] outline-none focus:border-[var(--dc-border-strong)]"
+            />
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setIsNewFolderModalOpen(false)}
+                className="h-9 rounded-full px-3.5 text-xs font-medium text-[var(--dc-text-muted)] hover:text-[var(--dc-text-strong)]"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={!newFolderName.trim() || isCreatingFolder}
+                className="h-9 rounded-full bg-[var(--dc-invert)] px-4 text-xs font-medium text-[var(--dc-text-on-invert)] transition-opacity hover:opacity-90 disabled:opacity-50"
+              >
+                {isCreatingFolder ? 'Creating...' : 'Create'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {/* Move to Folder Modal */}
       {isMoveModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-xs rounded-2xl border border-[var(--dc-border)] bg-[var(--dc-panel)] p-5 shadow-2xl">
+        <div
+          onClick={() => setIsMoveModalOpen(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4 backdrop-blur-xs"
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            className="w-full max-w-xs rounded-2xl border border-[var(--dc-border)] bg-[var(--dc-panel)] p-5 shadow-2xl"
+          >
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-sm font-semibold text-[var(--dc-text-strong)]">Move to folder</h2>
               <button
@@ -857,157 +1227,105 @@ export default function LibraryPage() {
         </div>
       )}
 
-      {/* Library Settings Modal: Storage (Cloud SVG) & Trash (2-day auto-purge) */}
-      {isSettingsOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-2xl border border-[var(--dc-border)] bg-[var(--dc-panel)] p-5 shadow-2xl">
+      {/* Focused Centered Trash Modal */}
+      {isTrashModalOpen && (
+        <div
+          onClick={() => setIsTrashModalOpen(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4 backdrop-blur-xs"
+        >
+          <div
+            ref={trashCardRef}
+            onClick={e => e.stopPropagation()}
+            className="w-full max-w-md rounded-2xl border border-[var(--dc-border)] bg-[var(--dc-panel)] p-5 shadow-2xl"
+          >
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-base font-semibold text-[var(--dc-text-strong)]">
-                Library Settings
-              </h2>
+              <h2 className="text-base font-semibold text-[var(--dc-text-strong)]">Trash</h2>
               <button
                 type="button"
-                onClick={() => setIsSettingsOpen(false)}
-                aria-label="Close library settings"
+                onClick={() => setIsTrashModalOpen(false)}
+                aria-label="Close trash"
                 className="rounded-full p-1 text-[var(--dc-text-muted)] hover:text-[var(--dc-text-strong)]"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
-            <div className="mb-4 flex items-center gap-1.5 border-b border-[var(--dc-border-subtle)] pb-3">
-              <button
-                type="button"
-                onClick={() => setSettingsSection('storage')}
-                className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors ${
-                  settingsSection === 'storage'
-                    ? 'bg-[var(--dc-surface)] text-[var(--dc-text-strong)] border border-[var(--dc-border-subtle)]'
-                    : 'text-[var(--dc-text-muted)] hover:text-[var(--dc-text-strong)]'
-                }`}
-              >
-                <CloudStorageSvg className="h-3.5 w-3.5" />
-                <span>Storage</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setSettingsSection('trash')}
-                className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors ${
-                  settingsSection === 'trash'
-                    ? 'bg-[var(--dc-surface)] text-[var(--dc-text-strong)] border border-[var(--dc-border-subtle)]'
-                    : 'text-[var(--dc-text-muted)] hover:text-[var(--dc-text-strong)]'
-                }`}
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-                <span>Trash ({trashedItems.length})</span>
-              </button>
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-xs text-[var(--dc-text-muted)]">
+                Items in Trash are permanently deleted after 2 days.
+              </p>
+              {trashedItems.length > 0 && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await runLibraryAction({ action: 'emptyTrash' });
+                    toast.success('Trash emptied');
+                    await loadLibrary();
+                  }}
+                  className="shrink-0 text-xs font-medium text-red-500 hover:underline"
+                >
+                  Empty trash
+                </button>
+              )}
             </div>
 
-            {settingsSection === 'storage' ? (
-              <div className="space-y-4">
-                <div className="rounded-2xl border border-[var(--dc-border-subtle)] bg-[var(--dc-surface)] p-4">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-medium text-[var(--dc-text-strong)]">
-                      {formatBytes(storage.usedBytes)} used
-                    </span>
-                    <span className="text-[var(--dc-text-muted)]">
-                      {formatBytes(storage.limitBytes)} total
-                    </span>
-                  </div>
-                  <div className="mt-2.5 h-2 w-full overflow-hidden rounded-full bg-[var(--dc-canvas)]">
-                    <div
-                      className={`h-full rounded-full transition-all duration-300 ${
-                        storagePercent >= 90 ? 'bg-red-500' : 'bg-[var(--deepchat-accent)]'
-                      }`}
-                      style={{ width: `${Math.max(2, storagePercent)}%` }}
-                    />
-                  </div>
-                  <p className="mt-2.5 text-[11px] text-[var(--dc-text-muted)]">
-                    {isGuest
-                      ? `Guest mode stores images locally in your browser (50 MB limit). Sign in for ${formatBytes(256 * 1024 * 1024)} cloud storage.`
-                      : `Uploads are automatically optimized to WebP. Generated images and trashed items count toward your ${formatBytes(storage.limitBytes || GUEST_STORAGE_LIMIT_BYTES)} quota until permanently removed.`}
-                  </p>
-                </div>
-              </div>
+            {trashedItems.length === 0 ? (
+              <p className="py-10 text-center text-xs text-[var(--dc-text-muted)]">
+                Trash is empty.
+              </p>
             ) : (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs text-[var(--dc-text-muted)]">
-                    Items in Trash are permanently deleted after 2 days.
-                  </p>
-                  {trashedItems.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        await runLibraryAction({ action: 'emptyTrash' });
-                        toast.success('Trash emptied');
-                        await loadLibrary();
-                      }}
-                      className="shrink-0 text-xs font-medium text-red-500 hover:underline"
-                    >
-                      Empty trash
-                    </button>
-                  )}
-                </div>
-
-                {trashedItems.length === 0 ? (
-                  <p className="py-8 text-center text-xs text-[var(--dc-text-muted)]">
-                    Trash is empty.
-                  </p>
-                ) : (
-                  <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
-                    {trashedItems.map(item => (
-                      <div
-                        key={item.id}
-                        className="flex items-center justify-between gap-3 rounded-xl border border-[var(--dc-border-subtle)] bg-[var(--dc-surface)] p-2.5"
-                      >
-                        <div className="flex min-w-0 items-center gap-2.5">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={item.url}
-                            alt={item.fileName}
-                            loading="lazy"
-                            className="h-10 w-10 shrink-0 rounded-lg object-cover"
-                          />
-                          <div className="min-w-0">
-                            <p className="truncate text-xs font-medium text-[var(--dc-text-strong)]">
-                              {item.fileName}
-                            </p>
-                            <p className="text-[11px] text-[var(--dc-text-muted)]">
-                              {formatPurgeCountdown(item.purgeAt)}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex shrink-0 items-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              await runLibraryAction({ action: 'restore', itemIds: [item.id] });
-                              toast.success('Restored');
-                              await loadLibrary();
-                            }}
-                            className="rounded-full border border-[var(--dc-border-subtle)] px-2.5 py-1 text-[11px] font-medium text-[var(--dc-text-strong)] hover:border-[var(--dc-border-strong)]"
-                          >
-                            Restore
-                          </button>
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              await runLibraryAction({
-                                action: 'deletePermanent',
-                                itemIds: [item.id]
-                              });
-                              toast.success('Permanently deleted');
-                              await loadLibrary();
-                            }}
-                            className="rounded-full px-2 py-1 text-[11px] font-medium text-red-500 hover:bg-red-500/10"
-                          >
-                            Delete
-                          </button>
-                        </div>
+              <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
+                {trashedItems.map(item => (
+                  <div
+                    key={item.id}
+                    className="flex items-center justify-between gap-3 rounded-xl border border-[var(--dc-border-subtle)] bg-[var(--dc-surface)] p-2.5"
+                  >
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={item.url}
+                        alt={item.fileName}
+                        loading="lazy"
+                        className="h-10 w-10 shrink-0 rounded-lg object-cover"
+                      />
+                      <div className="min-w-0">
+                        <p className="truncate text-xs font-medium text-[var(--dc-text-strong)]">
+                          {item.fileName}
+                        </p>
+                        <p className="text-[11px] text-[var(--dc-text-muted)]">
+                          {formatPurgeCountdown(item.purgeAt)}
+                        </p>
                       </div>
-                    ))}
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          await runLibraryAction({ action: 'restore', itemIds: [item.id] });
+                          toast.success('Restored');
+                          await loadLibrary();
+                        }}
+                        className="rounded-full border border-[var(--dc-border-subtle)] px-2.5 py-1 text-[11px] font-medium text-[var(--dc-text-strong)] hover:border-[var(--dc-border-strong)]"
+                      >
+                        Restore
+                      </button>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          await runLibraryAction({
+                            action: 'deletePermanent',
+                            itemIds: [item.id]
+                          });
+                          toast.success('Permanently deleted');
+                          await loadLibrary();
+                        }}
+                        className="rounded-full px-2 py-1 text-[11px] font-medium text-red-500 hover:bg-red-500/10"
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </div>
-                )}
+                ))}
               </div>
             )}
           </div>
