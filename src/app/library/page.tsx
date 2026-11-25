@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import Link from 'next/link';
 import { gsap } from 'gsap';
 import toast from 'react-hot-toast';
 import {
@@ -18,6 +17,12 @@ import {
 } from '@/components/ui/icons';
 import { prefersReducedMotion } from '@/components/mobile/gesture-utils';
 import { convertImageToWebp, downloadImageAsPng } from '@/lib/images/client-webp';
+import {
+  GUEST_STORAGE_LIMIT_BYTES,
+  listGuestLibraryData,
+  runGuestLibraryAction,
+  uploadGuestLibraryImage
+} from '@/lib/storage/guest-library';
 
 type LibraryTab = 'all' | 'images' | 'favorites' | 'folders' | 'suggested';
 
@@ -180,6 +185,11 @@ export default function LibraryPage() {
       const data = (await res.json()) as LibraryResponse;
       if (data.guest || res.status === 401) {
         setIsGuest(true);
+        const guestData = await listGuestLibraryData();
+        setItems(guestData.items);
+        setTrashedItems(guestData.trashedItems);
+        setFolders(guestData.folders);
+        setStorage(guestData.storage);
         return;
       }
       if (!res.ok) {
@@ -204,7 +214,7 @@ export default function LibraryPage() {
 
   useEffect(() => {
     const el = pageRef.current;
-    if (isLoading || isGuest || !el || prefersReducedMotion()) return;
+    if (isLoading || !el || prefersReducedMotion()) return;
     const ctx = gsap.context(() => {
       gsap.fromTo(
         el.querySelectorAll('[data-lib-stagger]'),
@@ -213,9 +223,13 @@ export default function LibraryPage() {
       );
     }, pageRef);
     return () => ctx.revert();
-  }, [isLoading, isGuest]);
+  }, [isLoading]);
 
   const runLibraryAction = async (payload: Record<string, unknown>) => {
+    if (isGuest) {
+      await runGuestLibraryAction(payload as Parameters<typeof runGuestLibraryAction>[0]);
+      return;
+    }
     const res = await fetch('/api/library', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -241,6 +255,13 @@ export default function LibraryPage() {
     try {
       for (const rawFile of files) {
         const { file } = await convertImageToWebp(rawFile, { quality: 0.88 });
+
+        if (isGuest) {
+          await uploadGuestLibraryImage(file, activeFolderId);
+          uploadedCount += 1;
+          continue;
+        }
+
         const form = new FormData();
         form.append('file', file);
         form.append('folder', 'library');
@@ -265,8 +286,8 @@ export default function LibraryPage() {
         );
         await loadLibrary();
       }
-    } catch {
-      toast.error('Failed to process image upload.');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to process image upload.');
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -467,25 +488,6 @@ export default function LibraryPage() {
               />
             ))}
           </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (isGuest) {
-    return (
-      <div className="custom-scrollbar flex h-full w-full items-center justify-center overflow-y-auto bg-[var(--dc-canvas)] px-6 text-[var(--dc-text)]">
-        <div className="max-w-sm text-center">
-          <h1 className="text-xl font-semibold text-[var(--dc-text-strong)]">Sign in to use Library</h1>
-          <p className="mt-2 text-sm text-[var(--dc-text-muted)]">
-            Every account gets 256 MB of cloud image storage for uploads and generated images.
-          </p>
-          <Link
-            href="/login"
-            className="mt-5 inline-flex h-10 items-center justify-center rounded-full bg-[var(--dc-invert)] px-5 text-sm font-medium text-[var(--dc-text-on-invert)] transition-opacity hover:opacity-90"
-          >
-            Sign in
-          </Link>
         </div>
       </div>
     );
@@ -920,8 +922,9 @@ export default function LibraryPage() {
                     />
                   </div>
                   <p className="mt-2.5 text-[11px] text-[var(--dc-text-muted)]">
-                    Uploads are automatically optimized to WebP. Generated images and trashed items
-                    count toward your 256 MB quota until permanently removed.
+                    {isGuest
+                      ? `Guest mode stores images locally in your browser (50 MB limit). Sign in for ${formatBytes(256 * 1024 * 1024)} cloud storage.`
+                      : `Uploads are automatically optimized to WebP. Generated images and trashed items count toward your ${formatBytes(storage.limitBytes || GUEST_STORAGE_LIMIT_BYTES)} quota until permanently removed.`}
                   </p>
                 </div>
               </div>

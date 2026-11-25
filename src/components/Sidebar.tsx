@@ -594,7 +594,7 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
         <div className="shrink-0 px-2.5 pb-3 pt-1">
           <div className="space-y-0.5">
             <ExpandedSidebarMenuItem label="New Chat" icon={<SquarePen className="h-[17px] w-[17px]" strokeWidth={1.9} />} onClick={handleNewChat} />
-            <ExpandedSidebarMenuItem label="Library" icon={<Library className="h-[17px] w-[17px]" strokeWidth={1.9} />} active={pathname === '/library'} onClick={() => { setMobileOpen(false); router.push('/library'); }} />
+            <ExpandedSidebarMenuItem label="Library" icon={<Library className="h-[17px] w-[17px]" strokeWidth={1.9} />} onClick={() => { setMobileOpen(false); router.push('/library'); }} />
             <ExpandedSidebarMenuItem label="Images" icon={<ImageIcon className="h-[17px] w-[17px]" strokeWidth={1.9} />} onClick={() => toast('Images are available from the composer image tool.')} />
           </div>
         </div>
