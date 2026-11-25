@@ -17,7 +17,7 @@ export const MODEL_CONFIG = {
 
   // Lite models for small-context tasks like chat titles & memory extraction
   LITE_MODEL: [
-    'gemini-3.1-flash-lite|Gemini 3.1 Flash Lite|Fast and lightweight model for daily tasks.|light',
+    'gemini-3.5-flash-lite|Gemini 3.5 Flash Lite|Fast and lightweight model for daily tasks.|light',
   ],
 
   // Optional per-model or global effort cap (same format as MODEL_MAX_EFFORT)
