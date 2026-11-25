@@ -557,7 +557,7 @@ export default function MobileModelSheet({ isOpen, onClose }: MobileModelSheetPr
         aria-label="Model studio"
         className="dc-ms-sheet relative z-10 max-h-[85svh] w-full select-none px-4 pb-[max(1.15rem,env(safe-area-inset-bottom))] pt-2.5"
       >
-        {isUltra && <div className="dc-ms-ultra-top-seam" aria-hidden="true" />}
+        {!isGuest && isUltra && <div className="dc-ms-ultra-top-seam" aria-hidden="true" />}
 
         {/* Drag Handle + Header */}
         <div
@@ -574,15 +574,21 @@ export default function MobileModelSheet({ isOpen, onClose }: MobileModelSheetPr
               <h2 className="truncate text-[17px] font-semibold tracking-tight text-[var(--dc-text-strong)]">
                 {isGuest ? 'Auto' : selectedModel.name}
               </h2>
-              <p
-                className={`mt-0.5 text-[12px] ${
-                  isUltra
-                    ? 'dc-ms-ultra-text font-semibold'
-                    : 'font-medium text-[var(--dc-text-muted)]'
-                }`}
-              >
-                {currentTier.key} · {currentTier.speed}
-              </p>
+              {isGuest ? (
+                <p className="mt-0.5 text-[12px] font-medium text-[var(--dc-text-muted)]">
+                  Automatic model selection
+                </p>
+              ) : (
+                <p
+                  className={`mt-0.5 text-[12px] ${
+                    isUltra
+                      ? 'dc-ms-ultra-text font-semibold'
+                      : 'font-medium text-[var(--dc-text-muted)]'
+                  }`}
+                >
+                  {currentTier.key} · {currentTier.speed}
+                </p>
+              )}
             </div>
 
             <button
@@ -596,7 +602,23 @@ export default function MobileModelSheet({ isOpen, onClose }: MobileModelSheetPr
           </div>
         </div>
 
-        {/* Section 1: Immediate One-Thumb Intelligence Control */}
+        {isGuest ? (
+          <div className="pt-1">
+            <div className="dc-mob-model-card dc-ms-model-item-active flex w-full items-start justify-between gap-3 rounded-2xl border p-4 text-left">
+              <div className="min-w-0 flex-1">
+                <span className="block text-[15px] font-semibold leading-tight text-[#0371DD] dark:text-[#38BDF8]">
+                  Auto
+                </span>
+                <p className="mt-1.5 text-[12.5px] leading-relaxed text-[var(--dc-text-muted)]">
+                  Automatically selects the best model and reasoning depth for your needs.
+                </p>
+              </div>
+              <AnimatedCheckSvg isUltra={false} size={20} />
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Section 1: Immediate One-Thumb Intelligence Control */}
         <div className="mb-4 rounded-2xl border border-[var(--dc-border)] bg-[var(--dc-surface-subtle)] p-3.5">
           <div className="mb-2.5 flex min-h-[20px] items-center justify-between gap-2">
             <span className="text-[12.5px] font-semibold text-[var(--dc-text-strong)]">
@@ -755,6 +777,8 @@ export default function MobileModelSheet({ isOpen, onClose }: MobileModelSheetPr
             )}
           </div>
         </div>
+          </>
+        )}
       </div>
     </div>,
     document.body

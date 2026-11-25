@@ -13,6 +13,7 @@ import {
   getLatestUserMessage,
   shouldRequestImageGeneration
 } from '@/lib/agent/backend-tools';
+import { setActiveLimit } from '@/lib/security/client-limit';
 
 interface MemoryApiMessage {
   id?: string;
@@ -133,6 +134,30 @@ const listeners = new Map<string, Set<(snapshot: ChatGenerationSnapshot) => void
 const getResponseError = async (res: Response) => {
   try {
     const data = await res.clone().json();
+    if (
+      res.status === 429 ||
+      res.status === 402 ||
+      data?.code === 'guest_rate_limit_exceeded' ||
+      data?.code === 'usage_limit_reached'
+    ) {
+      const retryHeader = Number.parseInt(res.headers.get('retry-after') || '', 10);
+      const retrySeconds =
+        typeof data?.retryAfterSeconds === 'number' && data.retryAfterSeconds > 0
+          ? data.retryAfterSeconds
+          : Number.isFinite(retryHeader) && retryHeader > 0
+            ? retryHeader
+            : data?.code === 'guest_rate_limit_exceeded'
+              ? 7200
+              : 1800;
+      setActiveLimit({
+        reason: data?.code === 'guest_rate_limit_exceeded' ? 'guest' : 'usage',
+        message:
+          typeof data?.message === 'string' && data.message
+            ? data.message
+            : 'You have reached your usage limit. Please try again later.',
+        resetAt: Date.now() + retrySeconds * 1000,
+      });
+    }
     // server sends a human message next to the code, show the sentence
     return data?.message || data?.error || null;
   } catch {

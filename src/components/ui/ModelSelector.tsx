@@ -118,7 +118,7 @@ export default function ModelSelector({
   const effectiveTierIndex = Math.min(tierIndex, maxTierIndex);
   const availableTiers = TIERS.slice(0, maxTierIndex + 1);
   const currentTier = TIERS[effectiveTierIndex] || TIERS[0];
-  const isUltra = maxTierIndex >= 4 && effectiveTierIndex === 4;
+  const isUltra = !isGuest && maxTierIndex >= 4 && effectiveTierIndex === 4;
 
   const openSelector = useCallback(() => {
     viewDirectionRef.current = 0;
@@ -719,7 +719,21 @@ export default function ModelSelector({
 
   const panelBody = (
     <div ref={viewPanelRef}>
-      {view === 'menu' ? (
+      {isGuest ? (
+        <div key="guest-auto" className="p-2">
+          <div className="dc-ms-model-item dc-ms-model-item-active dc-ms-stagger cursor-default">
+            <div className="flex min-w-0 flex-1 flex-col gap-1">
+              <span className="text-[13.5px] font-semibold leading-tight text-[#0371DD] dark:text-[#38BDF8]">
+                Auto
+              </span>
+              <span className="text-[11.5px] leading-relaxed text-[var(--dc-text-muted)]">
+                Automatically selects the best model and reasoning depth for your needs.
+              </span>
+            </div>
+            <AnimatedCheckSvg isUltra={false} />
+          </div>
+        </div>
+      ) : view === 'menu' ? (
         <div key="menu" className="space-y-0.5 p-1.5 sm:p-2">
           <button
             type="button"

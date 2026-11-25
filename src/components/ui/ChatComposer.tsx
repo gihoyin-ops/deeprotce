@@ -1,10 +1,12 @@
 'use client';
 
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import NextImage from 'next/image';
 import { useQuery } from '@tanstack/react-query';
 import { gsap } from 'gsap';
 import {
+  AlertCircle,
   ArrowUp,
   BookOpen,
   Code2,
@@ -33,6 +35,9 @@ import {
 } from '@/lib/settings/general-settings';
 import { type ImageAspectRatio } from '@/lib/images/image-aspect-ratio';
 import { deepchatQueryKeys } from '@/lib/query-keys';
+import { useGuestStatus } from '@/lib/auth/guest';
+import { formatRemainingTime, useActiveLimit } from '@/lib/security/client-limit';
+import { prefersReducedMotion } from '@/components/mobile/gesture-utils';
 
 export interface ComposerFile {
   name: string;
@@ -198,6 +203,33 @@ export default function ChatComposer({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const composerRef = useRef<HTMLFormElement>(null);
   const composerBodyRef = useRef<HTMLDivElement>(null);
+  const limitCardRef = useRef<HTMLDivElement>(null);
+  const { isGuest } = useGuestStatus();
+  const activeLimit = useActiveLimit(isGuest);
+  const isLimited = Boolean(activeLimit);
+  const [limitTick, setLimitTick] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!activeLimit) return;
+    setLimitTick(Date.now());
+    const interval = window.setInterval(() => {
+      setLimitTick(Date.now());
+    }, 30_000);
+    return () => window.clearInterval(interval);
+  }, [activeLimit]);
+
+  useEffect(() => {
+    const el = limitCardRef.current;
+    if (!el || !isLimited || prefersReducedMotion()) return;
+    const ctx = gsap.context(() => {
+      gsap.fromTo(
+        el,
+        { opacity: 0, y: 10, scale: 0.98 },
+        { opacity: 1, y: 0, scale: 1, duration: 0.34, ease: 'power3.out', clearProps: 'transform' }
+      );
+    }, limitCardRef);
+    return () => ctx.revert();
+  }, [isLimited]);
   const gridRef = useRef<HTMLDivElement>(null);
   const compactTextSlotRef = useRef<HTMLDivElement>(null);
   const expandedTextSlotRef = useRef<HTMLDivElement>(null);
@@ -612,7 +644,7 @@ export default function ChatComposer({
   }, []);
 
   const submit = () => {
-    if (!canSubmit || isBusy || isUploading) return;
+    if (isLimited || !canSubmit || isBusy || isUploading) return;
     onSubmit(value);
   };
 
@@ -890,6 +922,42 @@ export default function ChatComposer({
 
   return (
     <div className="flex w-full flex-col gap-2">
+      {activeLimit && (
+        <div
+          ref={limitCardRef}
+          role="status"
+          aria-live="polite"
+          className="flex flex-col gap-2.5 rounded-2xl border border-amber-500/25 bg-[var(--dc-panel)] px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div className="flex min-w-0 items-start gap-2.5 sm:items-center">
+            <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber-500/12 text-amber-600 dark:text-amber-400 sm:mt-0">
+              <AlertCircle className="h-4 w-4" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-[var(--dc-text-strong)] sm:text-[13px]">
+                {activeLimit.reason === 'guest'
+                  ? "You've reached the guest message limit"
+                  : "You've reached your usage limit"}
+              </p>
+              <p className="mt-0.5 text-[11.5px] leading-snug text-[var(--dc-text-muted)] sm:text-xs">
+                {activeLimit.reason === 'guest'
+                  ? `Resets in ${formatRemainingTime(activeLimit.resetAt, limitTick)}. Sign in to continue chatting.`
+                  : `Your usage window resets in ${formatRemainingTime(activeLimit.resetAt, limitTick)}. Please try again later.`}
+              </p>
+            </div>
+          </div>
+
+          {activeLimit.reason === 'guest' && (
+            <Link
+              href="/login"
+              className="inline-flex shrink-0 items-center justify-center self-start rounded-full bg-[var(--dc-invert)] px-3.5 py-1.5 text-xs font-medium text-[var(--dc-text-on-invert)] transition-colors hover:bg-[var(--dc-invert-hover)] sm:self-center"
+            >
+              Sign in
+            </Link>
+          )}
+        </div>
+      )}
+
       <form
         ref={composerRef}
         onSubmit={(event) => {
@@ -1045,14 +1113,21 @@ export default function ChatComposer({
 
           <textarea
             ref={textareaRef}
-            placeholder={placeholder}
+            disabled={isLimited}
+            placeholder={
+              isLimited
+                ? 'Messaging is paused until your limit resets'
+                : placeholder
+            }
             className={`custom-scrollbar absolute left-0 top-0 z-20 w-full resize-none bg-transparent text-[16px] font-medium leading-snug text-[var(--dc-text-strong)] outline-none placeholder:text-[var(--dc-text-placeholder)] ${
               isToolComposerActive ? 'px-0 py-2' : 'px-1 py-2'
-            }`}
+            } ${isLimited ? 'cursor-not-allowed opacity-60' : ''}`}
             style={{ maxHeight: maxTextareaHeight, opacity: 0 }}
             rows={1}
             value={value}
-            onChange={(event) => onChange(event.target.value)}
+            onChange={(event) => {
+              if (!isLimited) onChange(event.target.value);
+            }}
             onKeyDown={(event) => {
               const shouldSend = sendMessageKey === 'mod-enter'
                 ? event.key === 'Enter' && (event.ctrlKey || event.metaKey)
