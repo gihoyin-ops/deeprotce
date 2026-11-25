@@ -1075,19 +1075,23 @@ export default function ModelSelector({
             <span className="truncate text-[13px] font-semibold tracking-tight">
               {displayModelName}
             </span>
-            <span
-              className="h-1 w-1 shrink-0 rounded-full bg-current opacity-25"
-              aria-hidden="true"
-            />
-            <span
-              className={`shrink-0 text-[12.5px] transition-colors duration-200 ${
-                isUltra
-                  ? 'dc-ms-ultra-text font-semibold'
-                  : 'font-medium text-[var(--dc-text-muted)]'
-              }`}
-            >
-              {currentTier.key}
-            </span>
+            {!isGuest && (
+              <>
+                <span
+                  className="h-1 w-1 shrink-0 rounded-full bg-current opacity-25"
+                  aria-hidden="true"
+                />
+                <span
+                  className={`shrink-0 text-[12.5px] transition-colors duration-200 ${
+                    isUltra
+                      ? 'dc-ms-ultra-text font-semibold'
+                      : 'font-medium text-[var(--dc-text-muted)]'
+                  }`}
+                >
+                  {currentTier.key}
+                </span>
+              </>
+            )}
           </div>
 
           <svg

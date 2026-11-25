@@ -17,7 +17,7 @@ export const MODEL_CONFIG = {
 
   // Lite models for small-context tasks like chat titles & memory extraction
   LITE_MODEL: [
-    'gemma4:31b|Gemma 4 31B|A Open Source Models From Google. Fast for daily task.|light',
+    'gemini-3.1-flash-lite|Gemini 3.1 Flash Lite|Fast and lightweight model for daily tasks.|light',
   ],
 
   // Optional per-model or global effort cap (same format as MODEL_MAX_EFFORT)
@@ -29,7 +29,7 @@ export const MODEL_CONFIG = {
   IMAGE_MODEL_FAST: 'gpt-image-2.5-flare',
 
   // Default model for guests when UI shows Auto
-  GUEST_MODEL: 'gemma4:31b',
+  GUEST_MODEL: 'gemini-3.1-flash-lite',
 } as const;
 
 export type ModelConfigKey = keyof typeof MODEL_CONFIG;
