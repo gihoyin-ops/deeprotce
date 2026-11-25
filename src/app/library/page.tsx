@@ -298,7 +298,8 @@ export default function LibraryPage() {
           JSON.stringify({
             items: nextItems,
             trashedItems: nextTrashed,
-            folders: nextFolders
+            folders: nextFolders,
+            fetchedAt: Date.now()
           })
         );
       } catch {}
@@ -310,6 +311,7 @@ export default function LibraryPage() {
   }, []);
 
   useEffect(() => {
+    let shouldRevalidate = true;
     try {
       const cachedRaw = localStorage.getItem('deepchat-library-cache-v1');
       if (cachedRaw) {
@@ -317,14 +319,20 @@ export default function LibraryPage() {
           items?: LibraryItem[];
           trashedItems?: LibraryItem[];
           folders?: LibraryFolder[];
+          fetchedAt?: number;
         };
         if (Array.isArray(parsed.items)) setItems(parsed.items);
         if (Array.isArray(parsed.trashedItems)) setTrashedItems(parsed.trashedItems);
         if (Array.isArray(parsed.folders)) setFolders(parsed.folders);
         setIsLoading(false);
+        if (parsed.fetchedAt && Date.now() - parsed.fetchedAt < 2 * 60 * 1000) {
+          shouldRevalidate = false;
+        }
       }
     } catch {}
-    void loadLibrary();
+    if (shouldRevalidate) {
+      void loadLibrary();
+    }
   }, [loadLibrary]);
 
   // Subtle entrance without opacity: 0 flicker
@@ -994,7 +1002,7 @@ export default function LibraryPage() {
           data-lib-stagger
           className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
         >
-          <div className="flex items-center gap-1 overflow-x-auto pb-0.5">
+          <div className="flex items-center gap-1 overflow-x-auto pb-0.5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             {TABS.map(tab => {
               const active = activeTab === tab.id && !activeFolderId;
               return (

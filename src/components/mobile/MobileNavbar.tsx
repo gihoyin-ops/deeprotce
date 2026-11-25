@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { gsap } from 'gsap';
-import { MoreHorizontal, Search, SquarePen } from '@/components/ui/icons';
+import { MoreHorizontal, SquarePen } from '@/components/ui/icons';
 import { UltraPrismBorderSvg } from '@/components/ui/ModelSelectorVisuals';
 import { useSelectedModelState } from '@/lib/ai/model-selection';
 import { useGuestStatus } from '@/lib/auth/guest';
@@ -331,40 +331,34 @@ export default function MobileNavbar({
           )}
         </div>
 
-        {/* Right: Quick Action Zone (only on chat pages) */}
+        {/* Right: Quick Action Zone (only when in an active chat) */}
         <div className="flex w-[88px] shrink-0 items-center justify-end gap-0.5">
-          {isChatPage && (
+          {isChatPage && hasActiveChat && (
             <>
-              {hasActiveChat && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    triggerSubtleHaptic(6);
-                    onNewChat();
-                  }}
-                  aria-label="New chat"
-                  className="flex h-11 w-11 items-center justify-center rounded-full text-[var(--dc-text-strong)] transition-transform duration-150 active:scale-90 hover:bg-[var(--dc-fill)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--deepchat-accent)]"
-                >
-                  <SquarePen className="h-[18px] w-[18px]" strokeWidth={2.1} />
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => {
+                  triggerSubtleHaptic(6);
+                  onNewChat();
+                }}
+                aria-label="New chat"
+                className="flex h-11 w-11 items-center justify-center rounded-full text-[var(--dc-text-strong)] transition-transform duration-150 active:scale-90 hover:bg-[var(--dc-fill)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--deepchat-accent)]"
+              >
+                <SquarePen className="h-[18px] w-[18px]" strokeWidth={2.1} />
+              </button>
 
               <button
                 type="button"
                 onClick={() => {
                   triggerSubtleHaptic(6);
-                  onOpenRightDrawer(hasActiveChat ? 'chat' : 'search');
+                  onOpenRightDrawer('chat');
                 }}
-                aria-label={hasActiveChat ? 'Open chat utility hub' : 'Open search and inbox'}
+                aria-label="Open chat utility hub"
                 aria-expanded={isRightDrawerOpen}
                 aria-controls="mobile-right-drawer"
                 className="relative flex h-11 w-11 items-center justify-center rounded-full text-[var(--dc-text-strong)] transition-transform duration-150 active:scale-90 hover:bg-[var(--dc-fill)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--deepchat-accent)]"
               >
-                {hasActiveChat ? (
-                  <MoreHorizontal className="h-[20px] w-[20px]" strokeWidth={2.1} />
-                ) : (
-                  <Search className="h-[18.5px] w-[18.5px]" strokeWidth={2.1} />
-                )}
+                <MoreHorizontal className="h-[20px] w-[20px]" strokeWidth={2.1} />
                 {unreadNotifications > 0 && (
                   <span
                     className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-[var(--deepchat-accent)] ring-2 ring-[var(--dc-canvas)]"

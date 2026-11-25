@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { X } from '@/components/ui/icons';
 
 // modal frame with backdrop and animations
@@ -12,11 +13,11 @@ export function Dialog({ open, closing, zIndex, width = 'max-w-4xl', onClose, ch
   onClose: () => void;
   children: React.ReactNode;
 }) {
-  if (!open) return null;
-  return (
+  if (!open || typeof document === 'undefined') return null;
+  return createPortal(
     <div
       className={`fixed inset-0 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-[2px] dark:bg-black/75`}
-      style={{ zIndex, animation: `${closing ? 'settingsBackdropOut' : 'settingsBackdropIn'} 150ms ease-out both` }}
+      style={{ zIndex: Math.max(zIndex, 10050), animation: `${closing ? 'settingsBackdropOut' : 'settingsBackdropIn'} 150ms ease-out both` }}
       onClick={event => {
         event.stopPropagation();
         onClose();
@@ -31,7 +32,8 @@ export function Dialog({ open, closing, zIndex, width = 'max-w-4xl', onClose, ch
       >
         {children}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -45,7 +47,7 @@ export function DialogHeader({ title, description, onClose, icon }: {
     <div className="flex items-start justify-between gap-4 border-b border-slate-100 p-4 dark:border-slate-700/60 sm:p-6">
       <div className="flex min-w-0 items-start gap-3">
         {icon && (
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-300">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[var(--dc-fill)] text-[var(--dc-text-strong)]">
             {icon}
           </div>
         )}

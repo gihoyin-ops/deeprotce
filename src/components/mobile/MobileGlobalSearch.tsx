@@ -40,9 +40,9 @@ const IMAGE_EXTS = new Set(['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'svg', '
 const SEARCH_TABS: Array<{ id: SearchTab; label: string }> = [
   { id: 'all', label: 'All' },
   { id: 'chats', label: 'Chats' },
-  { id: 'img', label: 'Img' },
-  { id: 'document', label: 'Document' },
-  { id: 'project', label: 'Project' }
+  { id: 'img', label: 'Images' },
+  { id: 'document', label: 'Documents' },
+  { id: 'project', label: 'Projects' }
 ];
 
 export default function MobileGlobalSearch({ isOpen, onClose }: MobileGlobalSearchProps) {

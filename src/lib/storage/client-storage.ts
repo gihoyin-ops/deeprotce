@@ -356,13 +356,30 @@ interface MeAccountPayload {
   };
 }
 
+const ME_SYNC_TTL_MS = 5 * 60 * 1000;
+const ME_SYNCED_AT_KEY = 'deepchat-me-synced-at';
+
 let inFlightMeSync: Promise<MeAccountPayload | null> | null = null;
 
-const fetchAuthenticatedAccount = async (): Promise<MeAccountPayload | null> => {
+const fetchAuthenticatedAccount = async (force = false): Promise<MeAccountPayload | null> => {
   if (typeof window === 'undefined') return null;
+  if (!force) {
+    try {
+      const lastSynced = Number(localStorage.getItem(ME_SYNCED_AT_KEY) || '0');
+      if (lastSynced > 0 && Date.now() - lastSynced < ME_SYNC_TTL_MS) {
+        return null;
+      }
+    } catch {}
+  }
   if (!inFlightMeSync) {
     inFlightMeSync = fetch('/api/auth/me', { credentials: 'same-origin' })
-      .then(async res => (res.ok ? ((await res.json()) as MeAccountPayload) : null))
+      .then(async res => {
+        if (!res.ok) return null;
+        try {
+          localStorage.setItem(ME_SYNCED_AT_KEY, String(Date.now()));
+        } catch {}
+        return (await res.json()) as MeAccountPayload;
+      })
       .catch(() => null)
       .finally(() => {
         inFlightMeSync = null;
@@ -503,6 +520,7 @@ export const saveUserProfileClient = async (
     try {
       await idbSet('settings', { key: 'user_profile', value: profile });
       localStorage.setItem('deepchat-user-profile', JSON.stringify(profile));
+      localStorage.setItem(ME_SYNCED_AT_KEY, String(Date.now()));
       notifyProfileUpdated();
 
       if (!options?.skipRemoteSync && profile.id && profile.id !== 'default') {

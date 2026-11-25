@@ -92,6 +92,8 @@ export async function logoutAccountClient(queryClient: QueryClient): Promise<voi
 
   try {
     localStorage.removeItem('deepchat-user-profile');
+    localStorage.removeItem('deepchat-me-synced-at');
+    localStorage.removeItem('deepchat-library-cache-v1');
     localStorage.setItem(AUTH_HINT_KEY, '0');
     notifyAuthHint();
   } catch {}
