@@ -18,6 +18,7 @@ import type { SettingsTab } from './SettingsModal';
 import { IconMask } from './settings/mobile';
 import { deepchatQueryKeys } from '@/lib/query-keys';
 import { safeAvatarSource } from '@/lib/utils';
+import { useGuestStatus } from '@/lib/auth/guest';
 
 type SidebarSettingsTab = Extract<SettingsTab, 'general' | 'account' | 'personality' | 'keyboard'>;
 
@@ -51,6 +52,7 @@ const loadStoredBoolean = (key: string, fallback: boolean) => {
 
 export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettings, onOpenSearch, onOpenActions }: SidebarProps) {
   const shortcuts = useShortcutLabels();
+  const { isGuest } = useGuestStatus();
   const [showAllRecent, setShowAllRecent] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [helpMenuOpen, setHelpMenuOpen] = useState(false);
@@ -226,14 +228,16 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
             </div>
           </button>
 
-          <a
-            href="/pricing"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="shrink-0 rounded-full border border-[var(--dc-border)] bg-[var(--dc-surface)] px-3 py-1 text-xs font-medium text-[var(--dc-text-strong)] transition-colors hover:bg-[var(--dc-surface-hover)]"
-          >
-            Upgrade
-          </a>
+          {!isGuest && (
+            <a
+              href="/pricing"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="shrink-0 rounded-full border border-[var(--dc-border)] bg-[var(--dc-surface)] px-3 py-1 text-xs font-medium text-[var(--dc-text-strong)] transition-colors hover:bg-[var(--dc-surface-hover)]"
+            >
+              Upgrade
+            </a>
+          )}
         </div>
       ) : (
         <button
@@ -271,70 +275,74 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
           }}
           className="rounded-2xl border border-[var(--dc-border)] bg-[var(--dc-panel)] p-1.5 shadow-xl shadow-black/15 dark:shadow-black/60"
         >
-          {/* Header user card */}
-          <button
-            type="button"
-            onClick={() => {
-              setProfileMenuOpen(false);
-              setHelpMenuOpen(false);
-              router.push('/profile');
-            }}
-            className="flex w-full items-center justify-between gap-2.5 rounded-xl px-2.5 py-2 text-left transition-colors hover:bg-[var(--dc-surface-hover)]"
-          >
-            <div className="flex min-w-0 items-center gap-2.5">
-              <Image
-                src={avatarSrc}
-                alt="User"
-                width={32}
-                height={32}
-                unoptimized
-                className="h-8 w-8 shrink-0 rounded-full border border-[var(--dc-border)] object-cover"
-              />
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium leading-tight text-[var(--dc-text-strong)]">
-                  {profile.name || 'Guest'}
-                </p>
-                <p className="truncate text-xs leading-tight text-[var(--dc-text-muted)]">
-                  {profile.plan || 'Free'}
-                </p>
-              </div>
-            </div>
-            <ChevronRight className="h-4 w-4 shrink-0 text-[var(--dc-text-muted)]" />
-          </button>
+          {!isGuest && (
+            <>
+              {/* Header user card */}
+              <button
+                type="button"
+                onClick={() => {
+                  setProfileMenuOpen(false);
+                  setHelpMenuOpen(false);
+                  router.push('/profile');
+                }}
+                className="flex w-full items-center justify-between gap-2.5 rounded-xl px-2.5 py-2 text-left transition-colors hover:bg-[var(--dc-surface-hover)]"
+              >
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <Image
+                    src={avatarSrc}
+                    alt="User"
+                    width={32}
+                    height={32}
+                    unoptimized
+                    className="h-8 w-8 shrink-0 rounded-full border border-[var(--dc-border)] object-cover"
+                  />
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium leading-tight text-[var(--dc-text-strong)]">
+                      {profile.name || 'Guest'}
+                    </p>
+                    <p className="truncate text-xs leading-tight text-[var(--dc-text-muted)]">
+                      {profile.plan || 'Free'}
+                    </p>
+                  </div>
+                </div>
+                <ChevronRight className="h-4 w-4 shrink-0 text-[var(--dc-text-muted)]" />
+              </button>
 
-          <div className="my-1 border-t border-[var(--dc-border-subtle)]" />
+              <div className="my-1 border-t border-[var(--dc-border-subtle)]" />
 
-          <a
-            href="/pricing"
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() => setProfileMenuOpen(false)}
-            className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm font-medium text-[var(--dc-text)] transition-colors hover:bg-[var(--dc-surface-hover)]"
-          >
-            <IconMask icon="/icons/upgrade-plan.svg" className="h-4 w-4 shrink-0" />
-            <span>Upgrade plan</span>
-          </a>
+              <a
+                href="/pricing"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setProfileMenuOpen(false)}
+                className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm font-medium text-[var(--dc-text)] transition-colors hover:bg-[var(--dc-surface-hover)]"
+              >
+                <IconMask icon="/icons/upgrade-plan.svg" className="h-4 w-4 shrink-0" />
+                <span>Upgrade plan</span>
+              </a>
 
-          <button
-            type="button"
-            onClick={() => handleOpenSettings('personality')}
-            className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm font-medium text-[var(--dc-text)] transition-colors hover:bg-[var(--dc-surface-hover)]"
-          >
-            <IconMask icon="/icons/personalization.svg" className="h-4 w-4 shrink-0" />
-            <span>Personalization</span>
-          </button>
+              <button
+                type="button"
+                onClick={() => handleOpenSettings('personality')}
+                className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm font-medium text-[var(--dc-text)] transition-colors hover:bg-[var(--dc-surface-hover)]"
+              >
+                <IconMask icon="/icons/personalization.svg" className="h-4 w-4 shrink-0" />
+                <span>Personalization</span>
+              </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              setProfileMenuOpen(false);
-              router.push('/profile');
-            }}
-            className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm font-medium text-[var(--dc-text)] transition-colors hover:bg-[var(--dc-surface-hover)]"
-          >
-            <IconMask icon="/icons/user.svg" className="h-4 w-4 shrink-0" />
-            <span>Profile</span>
-          </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setProfileMenuOpen(false);
+                  router.push('/profile');
+                }}
+                className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm font-medium text-[var(--dc-text)] transition-colors hover:bg-[var(--dc-surface-hover)]"
+              >
+                <IconMask icon="/icons/user.svg" className="h-4 w-4 shrink-0" />
+                <span>Profile</span>
+              </button>
+            </>
+          )}
 
           <button
             type="button"

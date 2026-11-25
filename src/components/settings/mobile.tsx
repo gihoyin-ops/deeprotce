@@ -242,18 +242,21 @@ export function IconMask({ icon, className = 'h-5 w-5' }: { icon: string; source
 
 export function MobileSettingsHome({
   profile,
+  isGuest = true,
   onClose,
   onOpenTab,
   onOpenProfilePage,
   hidden,
 }: {
   profile: UserProfile;
+  isGuest?: boolean;
   onClose: () => void;
   onOpenTab: (tab: SettingsTab) => void;
   onOpenProfilePage: () => void;
   hidden: boolean;
 }) {
   const hasPhysicalKeyboard = useHasPhysicalKeyboard();
+  const guestHiddenTabs = new Set<SettingsTab>(['account', 'usage', 'personality']);
 
   return (
     <div className={`${hidden ? 'hidden' : 'flex'} h-full flex-col bg-[var(--dc-canvas)] sm:hidden`}>
@@ -275,31 +278,35 @@ export function MobileSettingsHome({
 
       <div className="custom-scrollbar flex-1 overflow-y-auto px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-4">
         {/* Profile Header Summary (taps through to /profile) */}
-        <button
-          type="button"
-          onClick={onOpenProfilePage}
-          className="mb-7 flex w-full flex-col items-center rounded-2xl py-2 transition-colors active:bg-[var(--dc-surface-hover)]"
-        >
-          <div className="flex h-[76px] w-[76px] items-center justify-center overflow-hidden rounded-full border-2 border-[var(--dc-border)] bg-indigo-500/12 text-indigo-600 dark:text-indigo-300">
-            {profile.avatar ? (
-              <NextImage src={profile.avatar} width={76} height={76} unoptimized className="h-full w-full object-cover" alt="User avatar" />
-            ) : (
-              <User className="h-11 w-11" strokeWidth={2.2} />
-            )}
-          </div>
-          <p className="mt-3 flex max-w-[240px] items-center gap-1.5 truncate text-[18px] font-semibold leading-tight text-[var(--dc-text-strong)]">
-            <span className="truncate">{profile.name || 'Guest'}</span>
-            <ExternalLink className="h-3.5 w-3.5 shrink-0 text-[var(--dc-text-muted)]" />
-          </p>
-          <p className="mt-0.5 truncate text-[12.5px] font-medium text-[var(--dc-text-muted)]">
-            {profile.plan || 'Free'}
-          </p>
-        </button>
+        {!isGuest && (
+          <button
+            type="button"
+            onClick={onOpenProfilePage}
+            className="mb-7 flex w-full flex-col items-center rounded-2xl py-2 transition-colors active:bg-[var(--dc-surface-hover)]"
+          >
+            <div className="flex h-[76px] w-[76px] items-center justify-center overflow-hidden rounded-full border-2 border-[var(--dc-border)] bg-indigo-500/12 text-indigo-600 dark:text-indigo-300">
+              {profile.avatar ? (
+                <NextImage src={profile.avatar} width={76} height={76} unoptimized className="h-full w-full object-cover" alt="User avatar" />
+              ) : (
+                <User className="h-11 w-11" strokeWidth={2.2} />
+              )}
+            </div>
+            <p className="mt-3 flex max-w-[240px] items-center gap-1.5 truncate text-[18px] font-semibold leading-tight text-[var(--dc-text-strong)]">
+              <span className="truncate">{profile.name || 'Guest'}</span>
+              <ExternalLink className="h-3.5 w-3.5 shrink-0 text-[var(--dc-text-muted)]" />
+            </p>
+            <p className="mt-0.5 truncate text-[12.5px] font-medium text-[var(--dc-text-muted)]">
+              {profile.plan || 'Free'}
+            </p>
+          </button>
+        )}
 
         <div className="space-y-6">
           {mobileSettingsSections.map(section => {
             const visibleItems = section.items.filter(
-              item => item.tab !== 'keyboard' || hasPhysicalKeyboard
+              item =>
+                (item.tab !== 'keyboard' || hasPhysicalKeyboard) &&
+                (!isGuest || !guestHiddenTabs.has(item.tab))
             );
             if (visibleItems.length === 0) return null;
 

@@ -1,4 +1,19 @@
 export const SESSION_COOKIE_NAME = 'dc_session';
+export const ACCOUNT_COOKIE_NAME = 'dc_account';
+
+export const hasAccountCookie = (headers: Headers): boolean => {
+  const cookie = headers.get('cookie');
+  if (cookie === null) return false;
+  for (const part of cookie.split(';')) {
+    const [rawName, ...rest] = part.split('=');
+    if (rawName?.trim() === ACCOUNT_COOKIE_NAME && rest.join('=').trim() !== '') {
+      return true;
+    }
+  }
+  return false;
+};
+
+export const isGuestRequest = (headers: Headers): boolean => !hasAccountCookie(headers);
 
 export const issueSessionToken = (): string => {
   const bytes = new Uint8Array(32);

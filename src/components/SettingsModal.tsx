@@ -63,6 +63,9 @@ import type {
   UserProfile
 } from './settings/types';
 import type { SettingsModalProps, SettingsTab } from './settings/types';
+import { useGuestStatus } from '@/lib/auth/guest';
+
+const GUEST_HIDDEN_TABS = new Set<SettingsTab>(['account', 'usage', 'personality']);
 
 export type { SettingsTab } from './settings/types';
 
@@ -121,10 +124,14 @@ const desktopSections: Array<{
 export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initialTab = 'general' }: SettingsModalProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const { isGuest } = useGuestStatus();
+
+  const resolvedInitialTab: SettingsTab =
+    isGuest && GUEST_HIDDEN_TABS.has(initialTab) ? 'general' : initialTab;
 
   // nav
-  const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
-  const [isMobileDetailOpen, setIsMobileDetailOpen] = useState(initialTab !== 'general');
+  const [activeTab, setActiveTab] = useState<SettingsTab>(resolvedInitialTab);
+  const [isMobileDetailOpen, setIsMobileDetailOpen] = useState(resolvedInitialTab !== 'general');
   const [isMobileDetailClosing, setIsMobileDetailClosing] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
 
@@ -884,6 +891,7 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
       >
         <MobileSettingsHome
           profile={profile}
+          isGuest={isGuest}
           onClose={closeToSidebar}
           onOpenTab={openMobileTab}
           onOpenProfilePage={() => {
@@ -914,7 +922,7 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
 
           <div className="flex-1 space-y-5 overflow-y-auto custom-scrollbar pr-0.5">
             {/* Profile link -> /profile */}
-            {(!searchQuery.trim() || 'profile'.includes(searchQuery.trim().toLowerCase()) || (profile.name || 'guest').toLowerCase().includes(searchQuery.trim().toLowerCase())) && (
+            {!isGuest && (!searchQuery.trim() || 'profile'.includes(searchQuery.trim().toLowerCase()) || (profile.name || 'guest').toLowerCase().includes(searchQuery.trim().toLowerCase())) && (
               <div>
                 <p className="mb-1.5 px-2 text-xs font-medium text-[var(--dc-text-muted)]">Profile</p>
                 <button
@@ -949,9 +957,12 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
             {/* Account & App Sections */}
             {desktopSections.map(section => {
               const q = searchQuery.trim().toLowerCase();
-              const filteredItems = q
-                ? section.items.filter(item => item.label.toLowerCase().includes(q) || section.title.toLowerCase().includes(q))
+              const visibleByGuest = isGuest
+                ? section.items.filter(item => !GUEST_HIDDEN_TABS.has(item.tab))
                 : section.items;
+              const filteredItems = q
+                ? visibleByGuest.filter(item => item.label.toLowerCase().includes(q) || section.title.toLowerCase().includes(q))
+                : visibleByGuest;
               if (filteredItems.length === 0) return null;
 
               return (

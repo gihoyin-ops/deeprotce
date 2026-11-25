@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { PLAN_ORDER, PLANS, formatTokens, parsePlan } from '@/lib/security/plans';
 import { USAGE_LEDGER_ENABLED, getUsageSnapshot, setIdentityPlan } from '@/lib/security/usage';
 import { getClientIp } from '@/lib/security/rate-limit';
+import { isGuestRequest } from '@/lib/security/auth';
 
 export const runtime = 'nodejs';
 
@@ -14,6 +15,16 @@ export const runtime = 'nodejs';
 // storage) and can never be enabled there, so routes report that too
 
 export async function GET(req: Request) {
+  if (isGuestRequest(req.headers)) {
+    return NextResponse.json({
+      ok: true,
+      guest: true,
+      available: false,
+      enforced: false,
+      error: 'usage is unavailable in guest mode; sign in to view account usage'
+    });
+  }
+
   const identityKey = getClientIp(req).slice(0, 128);
   const snapshot = getUsageSnapshot(identityKey);
 
@@ -63,6 +74,13 @@ const planChangesEnabled = () => {
 };
 
 export async function POST(req: Request) {
+  if (isGuestRequest(req.headers)) {
+    return NextResponse.json(
+      { error: 'guest_not_allowed', message: 'Sign in required to manage plan' },
+      { status: 401 }
+    );
+  }
+
   const identityKey = getClientIp(req).slice(0, 128);
 
   if (!USAGE_LEDGER_ENABLED) {

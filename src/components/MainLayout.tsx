@@ -45,6 +45,7 @@ import {
   subscribeAppearanceSettings
 } from '@/lib/settings/appearance-settings';
 import { safeAvatarSource } from '@/lib/utils';
+import { useGuestStatus } from '@/lib/auth/guest';
 
 const SettingsModal = dynamic(() => import('./SettingsModal'), {
   ssr: false,
@@ -135,6 +136,7 @@ const isSettingsTab = (value: unknown): value is SettingsTab => typeof value ===
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { isGuest } = useGuestStatus();
   const router = useRouter();
   const queryClient = useQueryClient();
   const hasActiveChat = pathname.startsWith('/chat');
@@ -774,10 +776,12 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         </div>
       </div>
       <div className="p-2">
-        <button onClick={openProfileSettings} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50">
-          <User className="h-4 w-4 text-slate-400" />
-          Edit Profile
-        </button>
+        {!isGuest && (
+          <button onClick={openProfileSettings} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50">
+            <User className="h-4 w-4 text-slate-400" />
+            Edit Profile
+          </button>
+        )}
         <button onClick={openGeneralSettings} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50">
           <Settings className="h-4 w-4 text-slate-400" />
           Settings
@@ -786,6 +790,12 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           <FileText className="h-4 w-4 text-slate-400" />
           Docs
         </button>
+        {isGuest && (
+          <button onClick={() => { setProfileMenuOpen(false); router.push('/login'); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50">
+            <User className="h-4 w-4 text-slate-400" />
+            Log in
+          </button>
+        )}
       </div>
     </div>
   );
