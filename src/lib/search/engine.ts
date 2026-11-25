@@ -60,7 +60,7 @@ interface ProviderAttempt {
   skipped?: string;
 }
 
-// warm-up pass retries each provider once after the budget already expired —
+// warm-up pass retries each provider once after the budget already expired,
 // the retry must never push the merge past the wall, so it becomes a freebie
 const WARMUP_RETRY_BUDGET_MS = 2500;
 
@@ -214,9 +214,9 @@ export const runWebSearch = async (tools: SearchRuntimeItem[], prompt: string, o
   }
 
   // first pass empty: rescue path, retry the down engines one by one
-  // (wikipedia first — the lightest, least-blocked endpoint) each under a
+  // (wikipedia first, the lightest, least-blocked endpoint) each under a
   // fresh 2.5s controller so the aborted share wall cannot cancel the retry;
-  // rate-limited engines are skipped — an immediate re-hit cannot clear an
+  // rate-limited engines are skipped, an immediate re-hit cannot clear an
   // IP quota and would only double the backoff
   if (results.length === 0) {
     const rescueable = new Set(failures.filter(failure => failure.kind !== 'rate-limited').map(failure => failure.providerId));

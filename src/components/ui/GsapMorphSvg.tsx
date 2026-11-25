@@ -6,18 +6,18 @@ import { gsap } from 'gsap';
 interface GsapMorphSvgProps {
   children: React.ReactElement;
   className?: string;
-  /** Custom morph rotation angle on desktop hover in degrees, default 12 */
+  /* * Custom morph rotation angle on desktop hover in degrees, default 12 */
   rotate?: number;
-  /** Scale on hover, default 1.15 */
+  /* * Scale on hover, default 1.15 */
   scale?: number;
-  /** Whether to apply magnetic fluid cursor tracking on desktop */
+  /* * Whether to apply magnetic fluid cursor tracking on desktop */
   magnetic?: boolean;
 }
 
 /**
- * High-performance GSAP wrapper for SVG icons.
+ * High-performance GSAP wrapper for SVG icons
  * On desktop PC (hover: hover and pointer: fine), applies smooth spring micro-animations,
- * path morphing/stroke animations, and magnetic fluid reactions on hover.
+ * path morphing/stroke animations, and magnetic fluid reactions on hover
  */
 export default function GsapMorphSvg({
   children,

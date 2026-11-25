@@ -1,5 +1,5 @@
-// Transactional email sender for OTP verification via Brevo.
-// In non-production dev without BREVO_API_KEY, logs the OTP to stdout so local testing works.
+// Transactional email sender for OTP verification via Brevo
+// In non-production dev without BREVO_API_KEY, logs the OTP to stdout so local testing works
 
 const parseFromHeader = (rawFrom: string): { name: string; email: string } => {
   const match = rawFrom.match(/^(.*)<([^>]+)>$/);

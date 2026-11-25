@@ -5,7 +5,7 @@ const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
 
 /**
  * Typed transport error so the engine can classify failures (rate limit vs
- * offline vs timeout) instead of parsing English messages.
+ * offline vs timeout) instead of parsing English messages
  */
 export class SearchTransportError extends Error {
   readonly kind: SearchErrorKind;

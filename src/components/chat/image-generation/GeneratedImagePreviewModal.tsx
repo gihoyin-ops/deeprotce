@@ -1371,7 +1371,7 @@ export default function GeneratedImagePreviewModal({
         data-lb-interactive="true"
         className="relative z-30 flex w-full flex-col items-center gap-2 px-3 pb-[max(0.9rem,env(safe-area-inset-bottom))] pt-1 sm:px-6 sm:pb-6"
       >
-        {/* Mode: VIEW — Primary Studio Mode Selector Toolbar */}
+        {/* Mode: VIEW, Primary Studio Mode Selector Toolbar */}
         {mode === 'view' && (
           <div
             ref={toolbarRef}
@@ -1425,7 +1425,7 @@ export default function GeneratedImagePreviewModal({
           </div>
         )}
 
-        {/* Mode: EDIT — Pin Editor (mobile safe) + Pin Chips + Compact Textarea */}
+        {/* Mode: EDIT, Pin Editor (mobile safe) + Pin Chips + Compact Textarea */}
         {mode === 'edit' && (
           <div className="flex w-full max-w-[34rem] flex-col gap-2">
             {/* Mobile Inline Active Pin Description Editor (never obscured by virtual keyboard) */}
@@ -1552,7 +1552,7 @@ export default function GeneratedImagePreviewModal({
           </div>
         )}
 
-        {/* Mode: ANNOTATE — Stage A (Drawing/Mask Dock) OR Stage B (Slide-up Compact Textarea) */}
+        {/* Mode: ANNOTATE, Stage A (Drawing/Mask Dock) OR Stage B (Slide-up Compact Textarea) */}
         {mode === 'annotate' && annotateStage === 'drawing' && (
           <div className="dc-lb-glass dc-lb-toolbar-scroll flex max-w-full items-center gap-1.5 rounded-full px-2.5 py-1.5">
             {/* Tool Switcher */}
@@ -1746,7 +1746,7 @@ export default function GeneratedImagePreviewModal({
           </div>
         )}
 
-        {/* Mode: RESIZE — Compact Responsive Ratio Picker + Send */}
+        {/* Mode: RESIZE, Compact Responsive Ratio Picker + Send */}
         {mode === 'resize' && (
           <div className="dc-lb-compact-composer flex w-full max-w-[34rem] flex-col gap-2 p-2.5">
             <div className="dc-lb-toolbar-scroll flex items-center gap-1.5">
@@ -1803,7 +1803,7 @@ export default function GeneratedImagePreviewModal({
           </div>
         )}
 
-        {/* Mode: REMOVE — Minimalist: ONLY Mask Size (small/large) + Send */}
+        {/* Mode: REMOVE, Minimalist: ONLY Mask Size (small/large) + Send */}
         {mode === 'remove' && (
           <div className="dc-lb-glass flex items-center gap-2 rounded-full px-3 py-1.5">
             <button

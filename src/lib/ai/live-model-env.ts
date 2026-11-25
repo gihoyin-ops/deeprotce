@@ -1,4 +1,4 @@
-// env-driven model list entries: 'MODEL_ID|Display Name|description|maxEffort'.
+// env-driven model list entries: 'MODEL_ID|Display Name|description|maxEffort'
 // - fields after the first '|' are optional ('id' alone keeps legacy behavior)
 // - empty entries are skipped ('a,,b' is valid); whitespace trimmed per field
 // - ids are case-sensitive and used verbatim (relays are case-sensitive)
@@ -82,7 +82,7 @@ const splitRawEntries = (val: string | readonly string[]): string[] => {
     for (const chunk of line.split(',')) {
       const firstField = (chunk.split('|')[0] ?? '').trim();
       // A comma inside a description produces a chunk whose leading field contains spaces;
-      // re-attach it to the previous entry instead of treating prose as a model ID.
+      // re-attach it to the previous entry instead of treating prose as a model ID
       if (merged.length > 0 && /\s/.test(firstField)) {
         merged[merged.length - 1] = `${merged[merged.length - 1]},${chunk}`;
       } else {

@@ -1,6 +1,6 @@
-// Model configuration (mirrors LIVE_MODEL, LITE_MODEL, MODEL_MAX_EFFORT, IMAGE_MODEL, IMAGE_MODEL_FAST).
-// Edit this file directly instead of managing model lists in Vercel env vars.
-// If an env var is set, it overrides the value here; leave it unset in env to use this file.
+// Model configuration (mirrors LIVE_MODEL, LITE_MODEL, MODEL_MAX_EFFORT, IMAGE_MODEL, IMAGE_MODEL_FAST)
+// Edit this file directly instead of managing model lists in Vercel env vars
+// If an env var is set, it overrides the value here; leave it unset in env to use this file
 //
 // Entry format: 'MODEL_ID|Display Name|description|maxEffort'
 // - Display Name, description, and maxEffort are optional

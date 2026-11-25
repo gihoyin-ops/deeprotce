@@ -68,7 +68,7 @@ export function getExportDimensions(
 export async function loadImageForCanvas(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new window.Image();
-    if (/^https?:\/\//i.test(src)) {
+    if (/^https?:\/\// i.test(src)) {
       img.crossOrigin = 'anonymous';
     }
     img.decoding = 'async';
@@ -186,7 +186,7 @@ export function exportCompactThumbnailJpeg(
 
 /**
  * Generates an OpenAI-compatible RGBA PNG mask where transparent pixels (alpha = 0)
- * indicate the regions to edit or remove, and opaque pixels (alpha = 255) are preserved.
+ * indicate the regions to edit or remove, and opaque pixels (alpha = 255) are preserved
  */
 export function exportOpenAiAlphaMaskPng(
   width: number,

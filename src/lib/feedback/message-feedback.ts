@@ -1,9 +1,9 @@
 // Client-side feedback helpers. The server sqlite (POST /api/feedback) is the
 // authoritative store; localStorage mirrors every vote so the UI can restore
-// state synchronously and keep it if the server file is missing.
+// state synchronously and keep it if the server file is missing
 //
 // One vote per message: re-clicking the active thumb removes the vote
-// ({remove: true}), clicking the other one flips it server-side.
+// ({remove: true}), clicking the other one flips it server-side
 
 export type MessageRating = 'like' | 'dislike';
 
@@ -144,7 +144,7 @@ export const submitMessageFeedback = async (
   } else {
     const saved: FeedbackRecord = {
       // Keep a prior annotation when the new call carries none (a plain flip
-      // from the toolbar reuses whatever the dialog last submitted).
+      // from the toolbar reuses whatever the dialog last submitted)
       rating,
       reasons: reasons.length > 0 ? reasons : previous?.rating === rating ? previous.reasons : [],
       details: details.length > 0 ? details : previous?.rating === rating ? previous.details : '',

@@ -15,9 +15,9 @@ type Connectivity = 'online' | 'offline' | 'unknown';
 
 const probeReachable = async (): Promise<boolean> => {
   try {
-    // any HTTP status counts: reaching the server at all means we are online.
+    // any HTTP status counts: reaching the server at all means we are online
     // only a network-level TypeError (no route / TCP refused / DNS) counts
-    // as offline. cache: 'no-store' defeats a cached 200 in disconnected states.
+    // as offline. cache: 'no-store' defeats a cached 200 in disconnected states
     await fetch(PROBE_URL, {
       cache: 'no-store',
       method: 'GET',

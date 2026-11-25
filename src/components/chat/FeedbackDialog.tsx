@@ -11,21 +11,21 @@ interface FeedbackDialogProps {
   open: boolean;
   closing: boolean;
   messageKind: 'error' | 'normal';
-  // Reason chips shown in the sheet (error list is led by "Always Error Response").
+  // Reason chips shown in the sheet (error list is led by "Always Error Response")
   reasons: readonly string[];
-  // Direction the sheet submits; set from the thumb the user tapped.
+  // Direction the sheet submits; set from the thumb the user tapped
   rating: MessageRating;
-  // Previously stored reasons/details for this rating, restored on re-open.
+  // Previously stored reasons/details for this rating, restored on re-open
   initialReasons: string[];
   initialDetails: string;
   onClose: () => void;
   onSubmit: (rating: MessageRating, reasons: string[], details: string) => Promise<boolean>;
 }
 
-// "Share feedback" sheet opened from the message thumbs (Like or Dislike).
+// "Share feedback" sheet opened from the message thumbs (Like or Dislike)
 // The only input is the reason list for this message kind plus an optional
 // details note; the direction itself was already chosen by the thumb tap, so
-// re-tapping the active thumb outside the sheet is what clears the vote.
+// re-tapping the active thumb outside the sheet is what clears the vote
 export function FeedbackDialog({ open, closing, messageKind, reasons, rating, initialReasons, initialDetails, onClose, onSubmit }: FeedbackDialogProps) {
   const [selectedReasons, setSelectedReasons] = useState<string[]>(initialReasons);
   const [details, setDetails] = useState(initialDetails);
@@ -34,7 +34,7 @@ export function FeedbackDialog({ open, closing, messageKind, reasons, rating, in
   const firstFocusRef = useRef<HTMLButtonElement>(null);
 
   // The dialog remounts for every open, so the state above starts fresh; move
-  // focus into the panel once it is on screen.
+  // focus into the panel once it is on screen
   useEffect(() => {
     if (!open) return;
     const timer = window.setTimeout(() => firstFocusRef.current?.focus(), 0);
@@ -57,7 +57,7 @@ export function FeedbackDialog({ open, closing, messageKind, reasons, rating, in
     }
   };
 
-  // Focus trap: Tab / Shift+Tab stay inside the dialog, Escape closes it.
+  // Focus trap: Tab / Shift+Tab stay inside the dialog, Escape closes it
   const handleKeyDown = (event: React.KeyboardEvent) => {
     if (event.key === 'Escape') {
       event.stopPropagation();

@@ -156,7 +156,7 @@ class LocalSqlitePool implements DbPool {
     if (this.db) return this.db;
     const { DatabaseSync } = await import('node:sqlite');
     ensureDataDirectoriesSync();
-    const dbPath = path.join(/*turbopackIgnore: true*/ DATA_DIR, 'deepchat.sqlite');
+    const dbPath = path.join(/* turbopackIgnore: true */ DATA_DIR, 'deepchat.sqlite');
     const instance = new DatabaseSync(dbPath);
     instance.exec('PRAGMA journal_mode = WAL;');
     instance.exec('PRAGMA foreign_keys = ON;');
@@ -167,7 +167,7 @@ class LocalSqlitePool implements DbPool {
   async query<T = Record<string, unknown>>(sql: string, params: unknown[] = []): Promise<T[]> {
     const db = await this.getDb();
     const stmt = db.prepare(sql);
-    return stmt.all(...(params as import('node:sqlite').SQLInputValue[])) as T[];
+    return stmt.all(...params) as T[];
   }
 
   async exec(sql: string, params: unknown[] = []): Promise<{ changes: number }> {
@@ -176,7 +176,7 @@ class LocalSqlitePool implements DbPool {
       db.exec(sql);
       return { changes: 0 };
     }
-    const result = db.prepare(sql).run(...(params as import('node:sqlite').SQLInputValue[]));
+    const result = db.prepare(sql).run(...params);
     return { changes: Number(result.changes ?? 0) };
   }
 

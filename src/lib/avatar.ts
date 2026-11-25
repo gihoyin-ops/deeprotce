@@ -1,5 +1,5 @@
-// Free deterministic avatar generator via DiceBear v9 (no API key required).
-// Produces unique illustrated avatars per user seed instead of plain letter initials.
+// Free deterministic avatar generator via DiceBear v9 (no API key required)
+// Produces unique illustrated avatars per user seed instead of plain letter initials
 
 const DICEBEAR_STYLE = 'notionists-neutral';
 const DICEBEAR_BACKGROUNDS = 'b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf';

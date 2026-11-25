@@ -49,7 +49,7 @@ const StageIcon = ({ kind }: { kind: ErrorPageProps['kind'] }) => {
 };
 
 // Self-contained error & restricted-route surface styled with DeepChat theme tokens
-// so it renders consistently even in global-error / global-not-found without globals.css.
+// so it renders consistently even in global-error / global-not-found without globals.css
 const ErrorPage = ({ kind, title, lines, primary, secondary }: ErrorPageProps) => {
   const rootRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLElement>(null);

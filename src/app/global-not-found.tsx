@@ -7,7 +7,7 @@ import { GLOBAL_CSS, THEME_SCRIPT } from '@/lib/standaloneTheme';
 // Routing-level 404 (experimental.globalNotFound): Next bypasses the whole
 // route tree, so this must be a complete standalone document, the same way
 // global-error.tsx is one. Only unmatched URLs land here, so the in-frame
-// chrome (sidebar/header) does not appear: the 404 is its own page.
+// chrome (sidebar/header) does not appear: the 404 is its own page
 const GlobalNotFound = () => {
   const router = useRouter();
   return (

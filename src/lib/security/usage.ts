@@ -18,11 +18,11 @@ export const USAGE_LEDGER_ENABLED = !isServerless;
 
 const DB_PATH = (() => {
   ensureDataDirectoriesSync();
-  return path.join(/*turbopackIgnore: true*/ DATA_DIR, 'deepchat-usage.sqlite');
+  return path.join(/* turbopackIgnore: true */ DATA_DIR, 'deepchat-usage.sqlite');
 })();
 
 export type WindowId = 'h5' | 'd7';
-/** public label for a window */
+/* * public label for a window */
 export type WindowLabel = '5h' | '7d';
 
 export const USAGE_WINDOWS: { id: WindowId; ms: number }[] = [
@@ -126,7 +126,7 @@ export interface UsageSnapshot {
   windows: UsageWindowSnapshot[];
 }
 
-/** current plan + window state; null when offline */
+/* * current plan + window state; null when offline */
 export const getUsageSnapshot = (identityKey: string): UsageSnapshot | null => {
   const database = getDb();
   if (!database) return null;
@@ -181,7 +181,7 @@ export type UsageGate =
   | { allowed: true; snapshot: UsageSnapshot | null }
   | { allowed: false; status: number; error: string; exhaustedWindow?: WindowLabel; retryAfterMs?: number };
 
-/** gate a spend; fail open when offline */
+/* * gate a spend; fail open when offline */
 export const checkUsageBudget = (identityKey: string): UsageGate => {
   const snapshot = getUsageSnapshot(identityKey);
   if (!snapshot) return { allowed: true, snapshot: null };
@@ -201,7 +201,7 @@ export const checkUsageBudget = (identityKey: string): UsageGate => {
   return { allowed: true, snapshot };
 };
 
-/** add spent tokens to both windows in one atomic statement */
+/* * add spent tokens to both windows in one atomic statement */
 export const recordTokens = (identityKey: string, tokens: number): void => {
   const database = getDb();
   if (!database) return;
@@ -232,7 +232,7 @@ export const recordTokens = (identityKey: string, tokens: number): void => {
   );
 };
 
-/** set or change the stored plan for an identity */
+/* * set or change the stored plan for an identity */
 export const setIdentityPlan = (identityKey: string, planId: PlanId): PlanId => {
   const database = getDb();
   if (!database) return planId;

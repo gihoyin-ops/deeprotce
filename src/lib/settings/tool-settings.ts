@@ -214,10 +214,10 @@ const getEnabledSearchRuntimeItems = (settings: ToolSettings, requested: boolean
   const installed = getInstalledSearchRuntimeItems(settings);
   const configuredInstalled = installed.filter(item => item.configured);
   if (configuredInstalled.length > 0) return configuredInstalled;
-  // No provider installed: return the DuckDuckGo marker so the search gate opens.
+  // No provider installed: return the DuckDuckGo marker so the search gate opens
   // The fan-out engine filters 'duckduckgo' out of the API-tools list, so this item
-  // only unlocks the request — the free pool (parallel/brave/duckduckgo/wikipedia)
-  // runs and DuckDuckGo is served exactly once, from the pool.
+  // only unlocks the request, the free pool (parallel/brave/duckduckgo/wikipedia)
+  // runs and DuckDuckGo is served exactly once, from the pool
   return [getDuckDuckGoRuntimeItem()];
 };
 

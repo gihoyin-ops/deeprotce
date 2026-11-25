@@ -3,7 +3,7 @@
 /**
  * Determines whether a touch gesture originating at `target` should yield
  * to an interactive control or horizontal scroll region instead of triggering
- * global mobile drawer swiping.
+ * global mobile drawer swiping
  */
 export function shouldIgnoreHorizontalSwipe(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false;
@@ -36,7 +36,7 @@ export function shouldIgnoreHorizontalSwipe(target: EventTarget | null): boolean
 }
 
 /**
- * Checks whether a blocking modal or bottom sheet is currently mounted on screen.
+ * Checks whether a blocking modal or bottom sheet is currently mounted on screen
  */
 export function hasBlockingModalOpen(): boolean {
   if (typeof document === 'undefined') return false;
@@ -46,7 +46,7 @@ export function hasBlockingModalOpen(): boolean {
 }
 
 /**
- * Fires a subtle micro-vibration on supported mobile devices without throwing.
+ * Fires a subtle micro-vibration on supported mobile devices without throwing
  */
 export function triggerSubtleHaptic(duration = 8): void {
   try {

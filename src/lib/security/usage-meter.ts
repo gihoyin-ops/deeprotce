@@ -16,7 +16,7 @@ const responseAsObject = (value: unknown): Record<string, unknown> | null =>
 const asNumber = (value: unknown): number | null =>
   typeof value === 'number' && Number.isFinite(value) ? Math.floor(value) : null;
 
-/** provider usage if present in a JSON response */
+/* * provider usage if present in a JSON response */
 export const providerUsageTokens = (data: unknown): number | null => {
   const usage = responseAsObject((responseAsObject(data)?.usage as unknown) ?? null);
   if (!usage) return null;
@@ -28,7 +28,7 @@ export const providerUsageTokens = (data: unknown): number | null => {
   return null;
 };
 
-/** prompt estimate from the final upstream message list */
+/* * prompt estimate from the final upstream message list */
 export const estimateChatPromptTokens = (messages: { role?: string; content?: unknown }[]): number => {
   let textChars = 0;
   let imageParts = 0;
@@ -47,14 +47,14 @@ export const estimateChatPromptTokens = (messages: { role?: string; content?: un
   return Math.ceil(textChars / 4) + imageParts * IMAGE_PART_TOKENS;
 };
 
-/** total for a non-stream chat turn; provider usage wins */
+/* * total for a non-stream chat turn; provider usage wins */
 export const completeChatTokens = (data: unknown, promptTokens: number, completionText: string): number => {
   const provider = providerUsageTokens(data);
   if (provider !== null) return provider;
   return promptTokens + estimateTokens(completionText);
 };
 
-/** token counter for a provider SSE stream */
+/* * token counter for a provider SSE stream */
 export class SseUsageMeter {
   private buffer = '';
   private textChars = 0;
@@ -93,14 +93,14 @@ export class SseUsageMeter {
     }
   }
 
-  /** provider usage if seen, else char estimate */
+  /* * provider usage if seen, else char estimate */
   tokens(promptTokens: number): number {
     if (this.providerTokens !== null) return this.providerTokens;
     return Math.ceil(this.textChars / 4) + promptTokens;
   }
 }
 
-/** passes the stream through and records one spend on end or cancel */
+/* * passes the stream through and records one spend on end or cancel */
 export const meterSseBody = (
   body: ReadableStream<Uint8Array> | null,
   identityKey: string,

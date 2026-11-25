@@ -503,7 +503,7 @@ const resolveAttachedFilePath = (file: AttachedFileInput) => {
 
   const ext = normalizeExt(file);
   const root = path.normalize(TEMP_FILE_ROOT + path.sep);
-  const filePath = path.normalize(path.join(/*turbopackIgnore: true*/ TEMP_FILE_ROOT, ext, name));
+  const filePath = path.normalize(path.join(/* turbopackIgnore: true */ TEMP_FILE_ROOT, ext, name));
 
   if (!filePath.toLowerCase().startsWith(root.toLowerCase())) {
     throw new Error(`Invalid attached file path: ${name}`);

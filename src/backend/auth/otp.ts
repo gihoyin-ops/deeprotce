@@ -12,9 +12,9 @@ const hashOtpCode = (email: string, purpose: OtpPurpose, code: string): string =
   hashToken(`${email.trim().toLowerCase()}:${purpose}:${code.trim()}`);
 
 // Progressive cooldown with random jitter as resend count increases within 1 hour:
-// - 1st send  -> next resend in 45-60s
-// - 2nd send  -> next resend in 120-180s (2-3 min)
-// - 3rd send  -> next resend in 300-480s (5-8 min)
+// - 1st send -> next resend in 45-60s
+// - 2nd send -> next resend in 120-180s (2-3 min)
+// - 3rd send -> next resend in 300-480s (5-8 min)
 // - 4th+ send -> next resend in 600-900s (10-15 min)
 const computeProgressiveCooldownMs = (priorSendsInWindow: number): number => {
   if (priorSendsInWindow <= 0) {

@@ -351,7 +351,7 @@ export default function ChatView({ chatId }: { chatId: string }) {
     return () => window.removeEventListener('deepchat:jump-to-message', handleJump);
   }, []);
 
-  // Keep the in-memory vote map in sync across tabs and after each submit.
+  // Keep the in-memory vote map in sync across tabs and after each submit
   useEffect(() => subscribeFeedback(() => setFeedbackMap(getFeedbackMap())), [chatId]);
 
   const feedbackFor = useCallback((messageId: string, versionIndex = 1) =>
@@ -366,9 +366,9 @@ export default function ChatView({ chatId }: { chatId: string }) {
   // Both thumbs open the "Share feedback" sheet, preselected to the tapped
   // direction; the chips list adapts to the message kind. Tapping the same
   // (filled) thumb again withdraws the vote, which is the only way to clear
-  // feedback: no separate "Remove feedback" text anywhere.
+  // feedback: no separate "Remove feedback" text anywhere
   // Votes are tracked per version so regenerating a response gives a fresh
-  // neutral state while preserving prior version votes.
+  // neutral state while preserving prior version votes
   const handleToolbarFeedback = useCallback((messageId: string, rating: 'like' | 'dislike', versionIndex = 1) => {
     const current = feedbackFor(messageId, versionIndex)?.rating ?? null;
     if (current === rating) {
@@ -392,7 +392,7 @@ export default function ChatView({ chatId }: { chatId: string }) {
     setFeedbackClosing(true);
     window.setTimeout(() => {
       if (target) {
-        // Return focus to the thumb that opened the sheet (static labels).
+        // Return focus to the thumb that opened the sheet (static labels)
         const msgEl = document.getElementById(`msg-${target.messageId}`);
         const label = target.rating === 'like' ? 'Like response' : 'Dislike response';
         const opener = msgEl ? Array.from(msgEl.querySelectorAll('button')).find(b => b.getAttribute('aria-label') === label) : null;
