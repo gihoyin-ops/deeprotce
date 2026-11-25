@@ -255,7 +255,12 @@ export function AppearanceTab({ settings, onChange }: AppearanceTabProps) {
             <PillDropdown
               value={settings.theme}
               options={THEME_OPTIONS}
-              onChange={value => onChange({ theme: value as AppearanceSettings['theme'] })}
+              onChange={value =>
+                onChange({
+                  theme: value as AppearanceSettings['theme'],
+                  backgroundColor: 'default'
+                })
+              }
               ariaLabel="Theme preset"
             />
           </div>

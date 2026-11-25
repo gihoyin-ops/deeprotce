@@ -25,6 +25,7 @@ import toast, { Toaster } from 'react-hot-toast';
 import { getChat, deleteChat, shareChat, getUserProfile, updateChatTitle, togglePinChat } from '@/app/actions';
 import { deepchatQueryKeys } from '@/lib/query-keys';
 import { DEFAULT_GUEST_AVATAR } from '@/lib/avatar';
+import DesktopGlobalSearchModal from './ui/DesktopGlobalSearchModal';
 import {
   addNotificationToInbox,
   clearNotificationInbox,
@@ -139,6 +140,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const [isModelSheetOpen, setModelSheetOpen] = useState(false);
   const [hasOpenedModelSheet, setHasOpenedModelSheet] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isDesktopSearchOpen, setIsDesktopSearchOpen] = useState(false);
   const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTab>('general');
   const [isNotificationOpen, setNotificationOpen] = useState(false);
   const [isProfileMenuOpen, setProfileMenuOpen] = useState(false);
@@ -192,16 +194,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   }, []);
 
   const handleOpenSearch = useCallback(() => {
-    if (typeof window !== 'undefined' && window.innerWidth < 640) {
-      openMobileRightDrawer('search');
-      return;
-    }
-    if (searchInputRef.current) {
-      searchInputRef.current.focus();
-      return;
-    }
-    toast('Search is available in chat view.');
-  }, [openMobileRightDrawer]);
+    setIsDesktopSearchOpen(true);
+  }, []);
 
   const handleOpenActions = useCallback(() => {
     toast('Action menu is available from the composer tools.');
@@ -1043,6 +1037,11 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           initialTab={settingsInitialTab}
         />
       )}
+
+      <DesktopGlobalSearchModal
+        isOpen={isDesktopSearchOpen}
+        onClose={() => setIsDesktopSearchOpen(false)}
+      />
 
       <Toaster
         position="top-center"

@@ -226,7 +226,7 @@ export function AccountTab({
           <div className="flex items-center justify-between gap-6 py-4">
             <div className="min-w-0">
               <p className="text-sm font-medium text-[var(--dc-text-strong)]">Delete account</p>
-              <p className="mt-0.5 text-xs text-[var(--dc-text-muted)]">Permanently delete your local account and all saved data</p>
+              <p className="mt-0.5 text-xs text-[var(--dc-text-muted)]">Permanently delete your DeepChat account and all synced data</p>
             </div>
             <button
               type="button"
