@@ -19,6 +19,7 @@ import { IconMask } from './settings/mobile';
 import { deepchatQueryKeys } from '@/lib/query-keys';
 import { safeAvatarSource } from '@/lib/utils';
 import { useGuestStatus } from '@/lib/auth/guest';
+import ContactSupportModal from './ui/ContactSupportModal';
 
 type SidebarSettingsTab = Extract<SettingsTab, 'general' | 'account' | 'personality' | 'keyboard'>;
 
@@ -56,6 +57,7 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
   const [showAllRecent, setShowAllRecent] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [helpMenuOpen, setHelpMenuOpen] = useState(false);
+  const [supportModalOpen, setSupportModalOpen] = useState(false);
   const [isPinnedOpen, setIsPinnedOpen] = useState(() => loadStoredBoolean('isPinnedOpen', true));
   const [isProjectsOpen, setIsProjectsOpen] = useState(() => loadStoredBoolean('isProjectsOpen', true));
   const [isRecentOpen, setIsRecentOpen] = useState(() => loadStoredBoolean('isRecentOpen', true));
@@ -147,10 +149,11 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
     onOpenSettings(tab);
   };
 
-  const handleOpenDocs = () => {
+  const handleOpenSupport = () => {
+    setHelpMenuOpen(false);
     setProfileMenuOpen(false);
     setMobileOpen(false);
-    toast('Docs are available in the project documentation.');
+    setSupportModalOpen(true);
   };
 
   const profileMenuRefs = useRef<Array<HTMLDivElement | null>>([]);
@@ -384,14 +387,11 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
               <div className="absolute bottom-0 left-full z-50 ml-1.5 w-48 rounded-2xl border border-[var(--dc-border)] bg-[var(--dc-panel)] p-1.5 shadow-xl shadow-black/15 dark:shadow-black/50">
                 <button
                   type="button"
-                  onClick={() => {
-                    setHelpMenuOpen(false);
-                    handleOpenDocs();
-                  }}
+                  onClick={handleOpenSupport}
                   className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-medium text-[var(--dc-text)] transition-colors hover:bg-[var(--dc-surface-hover)]"
                 >
-                  <FileText className="h-4 w-4 shrink-0" />
-                  <span>Docs &amp; Guide</span>
+                  <IconMask icon="/icons/help-buoy.svg" className="h-4 w-4 shrink-0" />
+                  <span>Contact support</span>
                 </button>
                 <button
                   type="button"
@@ -425,6 +425,10 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
         </div>,
         document.body
       )}
+      <ContactSupportModal
+        isOpen={supportModalOpen}
+        onClose={() => setSupportModalOpen(false)}
+      />
     </div>
     );
   };
