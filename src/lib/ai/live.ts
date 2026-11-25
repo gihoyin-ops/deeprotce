@@ -16,7 +16,17 @@ export const LIVE_LITE_CONNECTION_ID = 'live-lite';
 export const LIVE_PROVIDER = 'live';
 export const LIVE_LITE_PROVIDER = 'live-lite';
 
-const env = (key: string) => (process.env[key] || '').trim();
+const env = (key: string) => {
+  const raw = (process.env[key] || '').trim();
+  if (
+    raw.length >= 2 &&
+    ((raw.startsWith('"') && raw.endsWith('"')) ||
+      (raw.startsWith("'") && raw.endsWith("'")))
+  ) {
+    return raw.slice(1, -1).trim();
+  }
+  return raw;
+};
 
 // Normalize base url without trailing slash or /v1
 const cleanBase = (url: string) => {
