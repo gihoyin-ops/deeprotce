@@ -11,7 +11,6 @@ import {
   Folder,
   Loader2,
   MoreHorizontal,
-  Plus,
   Search,
   Trash2,
   X
@@ -72,8 +71,40 @@ interface MarqueeRect {
   currentY: number;
 }
 
-// Unique modern tuning/control nodes SVG (not a gear, not a hamburger)
-function LibrarySettingsSvg({ className = 'h-4 w-4' }: { className?: string }) {
+// Unique modern tuning/control nodes SVG with animated circular nodes
+function LibrarySettingsSvg({
+  className = 'h-4 w-4',
+  active = false,
+  hovered = false
+}: {
+  className?: string;
+  active?: boolean;
+  hovered?: boolean;
+}) {
+  const topCircleRef = useRef<SVGCircleElement | null>(null);
+  const bottomCircleRef = useRef<SVGCircleElement | null>(null);
+
+  useEffect(() => {
+    if (prefersReducedMotion()) return;
+    const topTarget = active ? 9 : hovered ? 11 : 14;
+    const bottomTarget = active ? 15 : hovered ? 13 : 10;
+
+    if (topCircleRef.current) {
+      gsap.to(topCircleRef.current, {
+        attr: { cx: topTarget },
+        duration: 0.42,
+        ease: 'elastic.out(1, 0.65)'
+      });
+    }
+    if (bottomCircleRef.current) {
+      gsap.to(bottomCircleRef.current, {
+        attr: { cx: bottomTarget },
+        duration: 0.42,
+        ease: 'elastic.out(1, 0.65)'
+      });
+    }
+  }, [active, hovered]);
+
   return (
     <svg
       aria-hidden="true"
@@ -85,12 +116,22 @@ function LibrarySettingsSvg({ className = 'h-4 w-4' }: { className?: string }) {
       strokeLinejoin="round"
       className={className}
     >
-      <path d="M4 7h7" />
-      <path d="M17 7h3" />
-      <circle cx="14" cy="7" r="2.25" />
-      <path d="M4 17h3" />
-      <path d="M13 17h7" />
-      <circle cx="10" cy="17" r="2.25" />
+      <line x1="4" y1="7" x2="20" y2="7" />
+      <circle
+        ref={topCircleRef}
+        cx="14"
+        cy="7"
+        r="2.35"
+        fill="var(--dc-surface)"
+      />
+      <line x1="4" y1="17" x2="20" y2="17" />
+      <circle
+        ref={bottomCircleRef}
+        cx="10"
+        cy="17"
+        r="2.35"
+        fill="var(--dc-surface)"
+      />
     </svg>
   );
 }
@@ -211,6 +252,7 @@ export default function LibraryPage() {
 
   const [isNewMenuOpen, setIsNewMenuOpen] = useState(false);
   const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
+  const [isSettingsHovered, setIsSettingsHovered] = useState(false);
   const [isTrashModalOpen, setIsTrashModalOpen] = useState(false);
   const [isNewFolderModalOpen, setIsNewFolderModalOpen] = useState(false);
 
@@ -274,21 +316,27 @@ export default function LibraryPage() {
     return () => ctx.revert();
   }, [isLoading]);
 
-  // Advanced GSAP fluid choreography for "+ New" dropdown
+  // Advanced GSAP fluid morph choreography for "New" pill & dropdown
   useEffect(() => {
     if (prefersReducedMotion()) return;
     if (newChevronRef.current) {
       gsap.to(newChevronRef.current, {
         rotation: isNewMenuOpen ? 180 : 0,
-        duration: 0.36,
-        ease: 'back.out(1.8)'
+        duration: 0.42,
+        ease: 'back.out(1.9)'
       });
     }
-    if (newBtnRef.current && isNewMenuOpen) {
+    if (newBtnRef.current) {
       gsap.fromTo(
         newBtnRef.current,
-        { scale: 0.96 },
-        { scale: 1, duration: 0.3, ease: 'back.out(2)', clearProps: 'transform' }
+        isNewMenuOpen ? { scaleX: 0.93, scaleY: 1.05 } : { scaleX: 1.03, scaleY: 0.97 },
+        {
+          scaleX: 1,
+          scaleY: 1,
+          duration: 0.48,
+          ease: 'elastic.out(1.05, 0.55)',
+          clearProps: 'transform'
+        }
       );
     }
     const menuEl = newMenuRef.current;
@@ -300,33 +348,34 @@ export default function LibraryPage() {
         menuEl,
         {
           opacity: 0,
-          y: -10,
-          scale: 0.92,
-          transformOrigin: 'top right',
-          clipPath: 'inset(0% 0% 100% 0% round 16px)'
+          y: -14,
+          scale: 0.78,
+          borderRadius: '999px',
+          transformOrigin: 'top right'
         },
         {
           opacity: 1,
           y: 0,
           scale: 1,
-          clipPath: 'inset(0% 0% 0% 0% round 16px)',
-          duration: 0.34,
+          borderRadius: '18px',
+          duration: 0.44,
           ease: 'expo.out',
-          clearProps: 'clipPath,transform'
+          clearProps: 'transform,borderRadius'
         }
       ).fromTo(
         menuEl.querySelectorAll('[data-new-item]'),
-        { opacity: 0, y: 8, scale: 0.96 },
+        { opacity: 0, y: 10, scale: 0.94, filter: 'blur(4px)' },
         {
           opacity: 1,
           y: 0,
           scale: 1,
-          duration: 0.28,
-          stagger: 0.055,
+          filter: 'blur(0px)',
+          duration: 0.34,
+          stagger: 0.06,
           ease: 'power3.out',
-          clearProps: 'transform'
+          clearProps: 'transform,filter'
         },
-        '-=0.22'
+        '-=0.28'
       );
     }, newMenuRef);
 
@@ -760,19 +809,33 @@ export default function LibraryPage() {
               <button
                 ref={newBtnRef}
                 type="button"
+                onMouseEnter={() => {
+                  if (newBtnRef.current && !prefersReducedMotion()) {
+                    gsap.to(newBtnRef.current, {
+                      scale: 1.03,
+                      duration: 0.28,
+                      ease: 'power2.out'
+                    });
+                  }
+                }}
+                onMouseLeave={() => {
+                  if (newBtnRef.current && !prefersReducedMotion()) {
+                    gsap.to(newBtnRef.current, {
+                      scale: 1,
+                      duration: 0.32,
+                      ease: 'power3.out'
+                    });
+                  }
+                }}
                 onClick={() => {
                   setIsSettingsMenuOpen(false);
                   setIsNewMenuOpen(prev => !prev);
                 }}
                 disabled={isUploading}
                 aria-expanded={isNewMenuOpen}
-                className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[var(--dc-invert)] px-4 text-xs font-medium text-[var(--dc-text-on-invert)] transition-opacity hover:opacity-92 active:scale-[0.97] disabled:opacity-60"
+                className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[var(--dc-invert)] px-4 text-xs font-medium text-[var(--dc-text-on-invert)] transition-opacity hover:opacity-92 disabled:opacity-60"
               >
-                {isUploading ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Plus className="h-3.5 w-3.5" />
-                )}
+                {isUploading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                 <span>{isUploading ? 'Uploading...' : 'New'}</span>
                 <span ref={newChevronRef} className="inline-flex">
                   <ChevronDown className="h-3.5 w-3.5 opacity-80" />
@@ -816,6 +879,8 @@ export default function LibraryPage() {
             <div ref={settingsMenuWrapRef} className="relative">
               <button
                 type="button"
+                onMouseEnter={() => setIsSettingsHovered(true)}
+                onMouseLeave={() => setIsSettingsHovered(false)}
                 onClick={() => {
                   setIsNewMenuOpen(false);
                   setIsSettingsMenuOpen(prev => !prev);
@@ -824,7 +889,11 @@ export default function LibraryPage() {
                 aria-label="Library options"
                 className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--dc-border-subtle)] bg-[var(--dc-surface)] text-[var(--dc-text-muted)] transition-colors hover:border-[var(--dc-border-strong)] hover:text-[var(--dc-text-strong)] active:scale-95"
               >
-                <LibrarySettingsSvg className="h-4 w-4" />
+                <LibrarySettingsSvg
+                  className="h-4 w-4"
+                  active={isSettingsMenuOpen}
+                  hovered={isSettingsHovered}
+                />
               </button>
 
               {isSettingsMenuOpen && (
