@@ -1,7 +1,11 @@
 import crypto from 'node:crypto';
 import { ensureTursoSchema, type DbPool } from '@/backend/db/connection';
 import type { BackendPlanId } from '@/backend/types';
-import { ACCOUNT_SESSION_TTL_SECONDS, issueAccountSessionCookie } from '@/lib/security/auth';
+import {
+  ACCOUNT_REMEMBER_TTL_SECONDS,
+  ACCOUNT_SESSION_TTL_SECONDS,
+  issueAccountSessionCookie
+} from '@/lib/security/auth';
 import { hashIp, hashToken } from '@/lib/security/crypto';
 
 export interface AccountRow {
@@ -36,13 +40,15 @@ export const findAccountByEmail = async (pool: DbPool, email: string): Promise<A
 export const createAccountSession = async (
   pool: DbPool,
   account: Pick<AccountRow, 'id' | 'email' | 'plan' | 'display_name'>,
-  meta: { userAgent: string | null; ip: string }
+  meta: { userAgent: string | null; ip: string; rememberMe?: boolean }
 ): Promise<{ cookieHeader: string; sessionId: string }> => {
+  const rememberMe = meta.rememberMe ?? true;
+  const ttlSeconds = rememberMe ? ACCOUNT_REMEMBER_TTL_SECONDS : ACCOUNT_SESSION_TTL_SECONDS;
   const sessionId = crypto.randomUUID();
   const rawToken = crypto.randomBytes(32).toString('hex');
   const tokenHash = hashToken(rawToken);
   const now = Date.now();
-  const expiresAt = now + ACCOUNT_SESSION_TTL_SECONDS * 1000;
+  const expiresAt = now + ttlSeconds * 1000;
 
   await pool.exec(
     `INSERT INTO auth_sessions (id, account_id, token_hash, user_agent, ip_hash, expires_at, created_at)
@@ -58,15 +64,25 @@ export const createAccountSession = async (
     ]
   );
 
-  const cookieHeader = issueAccountSessionCookie({
-    sub: account.id,
-    sid: sessionId,
-    email: account.email,
-    plan: account.plan,
-    name: account.display_name
-  });
+  const cookieHeader = issueAccountSessionCookie(
+    {
+      sub: account.id,
+      sid: sessionId,
+      email: account.email,
+      plan: account.plan,
+      name: account.display_name
+    },
+    { rememberMe }
+  );
 
   return { cookieHeader, sessionId };
+};
+
+export const revokeAllSessionsForAccount = async (
+  pool: DbPool,
+  accountId: string
+): Promise<void> => {
+  await pool.exec('DELETE FROM auth_sessions WHERE account_id = ?', [accountId]);
 };
 
 export const revokeSessionById = async (pool: DbPool, sessionId: string): Promise<void> => {

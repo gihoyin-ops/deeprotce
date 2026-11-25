@@ -16,6 +16,7 @@ export interface SendOtpEmailParams {
   toEmail: string;
   code: string;
   expiresMinutes: number;
+  purpose?: 'auth' | 'reset';
 }
 
 const BRAND_LOGO_URL = 'https://cdn.deepsia.my.id/brands/deepsia-with-name_pg.png';
@@ -24,12 +25,22 @@ const DEFAULT_SENDER = 'DeepChat <noreply@deepsia.my.id>';
 export const sendOtpEmail = async ({
   toEmail,
   code,
-  expiresMinutes
+  expiresMinutes,
+  purpose = 'auth'
 }: SendOtpEmailParams): Promise<{ provider: 'brevo' | 'dev-console' }> => {
   const rawFrom = process.env.EMAIL_FROM?.trim() || DEFAULT_SENDER;
-  const subject = `${code} is your DeepChat verification code`;
+  const isReset = purpose === 'reset';
+  const subject = isReset
+    ? `${code} is your DeepChat password reset code`
+    : `${code} is your DeepChat verification code`;
+  const heading = isReset ? 'Reset your DeepChat password' : 'Sign in to DeepChat';
+  const intro = isReset
+    ? 'Enter the verification code below to reset your password:'
+    : 'Enter the verification code below to continue:';
   const textContent = [
-    `Your DeepChat verification code is: ${code}`,
+    isReset
+      ? `Your DeepChat password reset code is: ${code}`
+      : `Your DeepChat verification code is: ${code}`,
     '',
     `This code expires in ${expiresMinutes} minutes.`,
     'If you did not request this code, you can safely ignore this email.'
@@ -40,8 +51,8 @@ export const sendOtpEmail = async ({
   const htmlContent = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 460px; margin: 0 auto; padding: 28px 24px; color: #111827; border: 1px solid #e5e7eb; border-radius: 16px;">
       ${logoBlock}
-      <h2 style="margin: 0 0 10px; font-size: 20px; font-weight: 600;">Sign in to DeepChat</h2>
-      <p style="margin: 0 0 20px; font-size: 14px; color: #4b5563;">Enter the verification code below to continue:</p>
+      <h2 style="margin: 0 0 10px; font-size: 20px; font-weight: 600;">${heading}</h2>
+      <p style="margin: 0 0 20px; font-size: 14px; color: #4b5563;">${intro}</p>
       <div style="background: #f3f4f6; border-radius: 12px; padding: 18px; text-align: center; letter-spacing: 6px; font-size: 28px; font-weight: 700; color: #111827;">
         ${code}
       </div>

@@ -800,7 +800,12 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     </div>
   );
 
-  const isStandalonePage = pathname === '/naughty' || pathname === '/pricing' || pathname === '/login';
+  const isStandalonePage =
+    pathname === '/naughty' ||
+    pathname === '/pricing' ||
+    pathname === '/login' ||
+    pathname === '/forgot-password' ||
+    pathname === '/verify';
 
   if (isStandalonePage) {
     // standalone guard page: intentionally outside the app chrome,

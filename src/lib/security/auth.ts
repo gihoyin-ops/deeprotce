@@ -7,6 +7,7 @@ import {
 export const SESSION_COOKIE_NAME = 'dc_session';
 export const ACCOUNT_COOKIE_NAME = 'dc_account';
 export const ACCOUNT_SESSION_TTL_SECONDS = 60 * 60 * 24 * 14; // 14 days
+export const ACCOUNT_REMEMBER_TTL_SECONDS = 60 * 60 * 24 * 30; // 30 days
 
 export const getCookieValue = (headers: Headers, cookieName: string): string | null => {
   const cookie = headers.get('cookie');
@@ -30,13 +31,19 @@ export const hasAccountCookie = (headers: Headers): boolean => getVerifiedAccoun
 
 export const isGuestRequest = (headers: Headers): boolean => !hasAccountCookie(headers);
 
-export const issueAccountSessionCookie = (claims: Omit<SignedAccountClaims, 'exp'>): string => {
+export const issueAccountSessionCookie = (
+  claims: Omit<SignedAccountClaims, 'exp'>,
+  options?: { rememberMe?: boolean }
+): string => {
+  const rememberMe = options?.rememberMe ?? true;
+  const ttlSeconds = rememberMe ? ACCOUNT_REMEMBER_TTL_SECONDS : ACCOUNT_SESSION_TTL_SECONDS;
   const token = signAccountClaims({
     ...claims,
-    exp: Date.now() + ACCOUNT_SESSION_TTL_SECONDS * 1000
+    exp: Date.now() + ttlSeconds * 1000
   });
   const secureFlag = process.env.NODE_ENV === 'production' ? ' Secure;' : '';
-  return `${ACCOUNT_COOKIE_NAME}=${token}; Path=/; HttpOnly; SameSite=Lax;${secureFlag} Max-Age=${ACCOUNT_SESSION_TTL_SECONDS}`;
+  const maxAgeAttr = rememberMe ? ` Max-Age=${ttlSeconds}` : '';
+  return `${ACCOUNT_COOKIE_NAME}=${token}; Path=/; HttpOnly; SameSite=Lax;${secureFlag}${maxAgeAttr}`;
 };
 
 export const clearAccountSessionCookie = (): string => {

@@ -4,8 +4,12 @@ import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
+import { gsap } from 'gsap';
 import toast from 'react-hot-toast';
 import { AUTH_SESSION_QUERY_KEY } from '@/lib/auth/guest';
+import { deepchatQueryKeys } from '@/lib/query-keys';
+import { prefersReducedMotion } from '@/components/mobile/gesture-utils';
+import { Check } from '@/components/ui/icons';
 import LoginShowcaseMedia from './LoginShowcaseMedia';
 import PlanetFaqSection from './PlanetFaqSection';
 
@@ -44,58 +48,101 @@ export default function LoginPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const passwordSectionRef = useRef<HTMLDivElement | null>(null);
+  const rememberBoxRef = useRef<HTMLSpanElement | null>(null);
+
   const [email, setEmail] = useState('');
-  const [otpCode, setOtpCode] = useState('');
-  const [step, setStep] = useState<'email' | 'otp'>('email');
-  const [resendCooldown, setResendCooldown] = useState(0);
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
+  const [step, setStep] = useState<'email' | 'password'>('email');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    if (resendCooldown <= 0) return;
-    const timer = window.setTimeout(() => {
-      setResendCooldown((prev) => Math.max(0, prev - 1));
-    }, 1000);
-    return () => window.clearTimeout(timer);
-  }, [resendCooldown]);
+    const el = passwordSectionRef.current;
+    if (!el || step !== 'password' || prefersReducedMotion()) return;
 
-  const handleOAuthClick = (provider: 'Google' | 'Apple') => {
-    toast(`${provider} OAuth is not configured yet. Please continue with email OTP.`);
-  };
-
-  const requestOtp = async (targetEmail: string) => {
-    setIsSubmitting(true);
-    try {
-      const res = await fetch('/api/auth/otp/send', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        credentials: 'same-origin',
-        body: JSON.stringify({ email: targetEmail })
-      });
-      const data = (await res.json().catch(() => ({}))) as {
-        error?: string;
-        resendAfterSeconds?: number;
-        retryAfterSeconds?: number;
-      };
-      if (!res.ok) {
-        if (typeof data.retryAfterSeconds === 'number' && data.retryAfterSeconds > 0) {
-          setResendCooldown(data.retryAfterSeconds);
+    const ctx = gsap.context(() => {
+      gsap.fromTo(
+        el,
+        { height: 0, opacity: 0, y: -6 },
+        {
+          height: 'auto',
+          opacity: 1,
+          y: 0,
+          duration: 0.36,
+          ease: 'power3.out',
+          clearProps: 'height',
         }
-        toast.error(data.error || 'Failed to send verification code.');
-        return;
-      }
-      setStep('otp');
-      setResendCooldown(typeof data.resendAfterSeconds === 'number' ? data.resendAfterSeconds : 45);
-      setStatusMessage(`We sent a 6-digit code to ${targetEmail}`);
-      toast.success('Verification code sent to your email.');
-    } catch {
-      toast.error('Network error while sending verification code.');
-    } finally {
-      setIsSubmitting(false);
+      );
+      gsap.fromTo(
+        el.querySelectorAll('[data-gsap-stagger]'),
+        { opacity: 0, y: 6 },
+        {
+          opacity: 1,
+          y: 0,
+          duration: 0.28,
+          stagger: 0.05,
+          delay: 0.06,
+          ease: 'power2.out',
+        }
+      );
+    }, passwordSectionRef);
+
+    return () => ctx.revert();
+  }, [step]);
+
+  const handleToggleRemember = () => {
+    setRememberMe((prev) => !prev);
+    if (rememberBoxRef.current && !prefersReducedMotion()) {
+      gsap.fromTo(
+        rememberBoxRef.current,
+        { scale: 0.82 },
+        { scale: 1, duration: 0.28, ease: 'back.out(2.2)' }
+      );
     }
   };
 
-  const handleEmailSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleOAuthClick = (provider: 'Google' | 'Apple') => {
+    toast(`${provider} OAuth is not configured yet. Please continue with email.`);
+  };
+
+  const sendOtpAndRedirect = async (targetEmail: string, isNewAccount: boolean) => {
+    const res = await fetch('/api/auth/otp/send', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ email: targetEmail }),
+    });
+    const data = (await res.json().catch(() => ({}))) as {
+      error?: string;
+      resendAfterSeconds?: number;
+      retryAfterSeconds?: number;
+    };
+
+    if (!res.ok && res.status !== 429) {
+      toast.error(data.error || 'Failed to send verification code.');
+      return;
+    }
+
+    if (res.status === 429 && data.error) {
+      toast(data.error);
+    } else {
+      toast.success('Verification code sent. Check your inbox or spam folder.');
+    }
+
+    const params = new URLSearchParams({ email: targetEmail });
+    if (isNewAccount) params.set('new', '1');
+    if (typeof data.resendAfterSeconds === 'number') {
+      params.set('cooldown', String(data.resendAfterSeconds));
+    } else if (typeof data.retryAfterSeconds === 'number') {
+      params.set('cooldown', String(data.retryAfterSeconds));
+    }
+    router.push(`/verify?${params.toString()}`);
+  };
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const trimmed = email.trim().toLowerCase();
     if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
@@ -104,36 +151,80 @@ export default function LoginPage() {
     }
 
     if (step === 'email') {
-      await requestOtp(trimmed);
+      setIsSubmitting(true);
+      setStatusMessage(null);
+      try {
+        const res = await fetch('/api/auth/check-email', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({ email: trimmed }),
+        });
+        const data = (await res.json().catch(() => ({}))) as {
+          exists?: boolean;
+          hasPassword?: boolean;
+          error?: string;
+        };
+
+        if (!res.ok) {
+          toast.error(data.error || 'Unable to verify email.');
+          return;
+        }
+
+        if (data.exists && data.hasPassword) {
+          setStep('password');
+          setStatusMessage('Welcome back! Enter your password to sign in.');
+          return;
+        }
+
+        await sendOtpAndRedirect(trimmed, !data.exists);
+      } catch {
+        toast.error('Network error while checking account.');
+      } finally {
+        setIsSubmitting(false);
+      }
       return;
     }
 
-    const cleanCode = otpCode.trim();
-    if (!/^\d{6}$/.test(cleanCode)) {
-      toast.error('Please enter the 6-digit code.');
+    if (!password) {
+      toast.error('Please enter your password.');
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const res = await fetch('/api/auth/otp/verify', {
+      const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         credentials: 'same-origin',
-        body: JSON.stringify({ email: trimmed, code: cleanCode })
+        body: JSON.stringify({ email: trimmed, password, rememberMe }),
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) {
-        toast.error(data.error || 'Invalid or expired code.');
+        toast.error(data.error || 'Invalid email or password.');
         return;
       }
 
-      await queryClient.invalidateQueries({ queryKey: AUTH_SESSION_QUERY_KEY });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: AUTH_SESSION_QUERY_KEY }),
+        queryClient.invalidateQueries({ queryKey: deepchatQueryKeys.profile }),
+      ]);
       toast.success(`Signed in as ${trimmed}`);
       router.push('/');
       router.refresh();
     } catch {
-      toast.error('Network error while verifying code.');
+      toast.error('Network error while signing in.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleUseCodeInstead = async () => {
+    const trimmed = email.trim().toLowerCase();
+    if (!trimmed) return;
+    setIsSubmitting(true);
+    try {
+      await sendOtpAndRedirect(trimmed, false);
     } finally {
       setIsSubmitting(false);
     }
@@ -214,8 +305,8 @@ export default function LoginPage() {
                   <div className="h-px flex-1 bg-[var(--dc-border-subtle)]" />
                 </div>
 
-                <form onSubmit={handleEmailSubmit} className="space-y-2.5" noValidate>
-                  <div>
+                <form onSubmit={handleSubmit} className="space-y-3" noValidate>
+                  <div className="relative">
                     <label htmlFor="login-email" className="sr-only">
                       Email address
                     </label>
@@ -224,71 +315,119 @@ export default function LoginPage() {
                       name="email"
                       type="email"
                       autoComplete="email"
-                      disabled={step === 'otp' || isSubmitting}
+                      readOnly={step === 'password'}
                       value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      onChange={(e) => {
+                        setEmail(e.target.value);
+                        if (step === 'password') {
+                          setStep('email');
+                          setPassword('');
+                          setStatusMessage(null);
+                        }
+                      }}
                       placeholder="Enter your email"
-                      className="h-11 w-full rounded-xl border border-[var(--dc-border-subtle)] bg-[var(--dc-surface-input)] px-3.5 text-sm text-[var(--dc-text-strong)] placeholder:text-[var(--dc-text-placeholder)] transition-colors focus:border-[var(--deepchat-accent)] focus:ring-2 focus:ring-[var(--deepchat-accent)]/20 focus:outline-none disabled:opacity-60"
+                      className={`h-11 w-full rounded-xl border border-[var(--dc-border-subtle)] bg-[var(--dc-surface-input)] px-3.5 text-sm text-[var(--dc-text-strong)] placeholder:text-[var(--dc-text-placeholder)] transition-colors focus:border-[var(--deepchat-accent)] focus:ring-2 focus:ring-[var(--deepchat-accent)]/20 focus:outline-none ${
+                        step === 'password' ? 'pr-20 opacity-85' : ''
+                      }`}
                     />
+                    {step === 'password' && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setStep('email');
+                          setPassword('');
+                          setStatusMessage(null);
+                        }}
+                        className="absolute top-1/2 right-2.5 -translate-y-1/2 rounded-lg px-2 py-1 text-xs font-medium text-[var(--dc-text-muted)] transition-colors hover:bg-[var(--dc-surface-hover)] hover:text-[var(--dc-text-strong)]"
+                      >
+                        Change
+                      </button>
+                    )}
                   </div>
 
-                  {step === 'otp' && (
-                    <div>
-                      <label htmlFor="login-otp" className="sr-only">
-                        6-digit verification code
-                      </label>
-                      <input
-                        id="login-otp"
-                        name="otp"
-                        type="text"
-                        inputMode="numeric"
-                        autoComplete="one-time-code"
-                        maxLength={6}
-                        value={otpCode}
-                        onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                        placeholder="Enter 6-digit code"
-                        className="h-11 w-full rounded-xl border border-[var(--dc-border-subtle)] bg-[var(--dc-surface-input)] px-3.5 text-center text-base font-semibold tracking-[0.35em] text-[var(--dc-text-strong)] placeholder:tracking-normal placeholder:font-normal placeholder:text-sm placeholder:text-[var(--dc-text-placeholder)] transition-colors focus:border-[var(--deepchat-accent)] focus:ring-2 focus:ring-[var(--deepchat-accent)]/20 focus:outline-none"
-                      />
+                  {step === 'password' && (
+                    <div ref={passwordSectionRef} className="overflow-hidden space-y-3">
+                      <div data-gsap-stagger="" className="relative">
+                        <label htmlFor="login-password" className="sr-only">
+                          Password
+                        </label>
+                        <input
+                          id="login-password"
+                          name="password"
+                          type={showPassword ? 'text' : 'password'}
+                          autoComplete="current-password"
+                          autoFocus
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          placeholder="Enter your password"
+                          className="h-11 w-full rounded-xl border border-[var(--dc-border-subtle)] bg-[var(--dc-surface-input)] px-3.5 pr-16 text-sm text-[var(--dc-text-strong)] placeholder:text-[var(--dc-text-placeholder)] transition-colors focus:border-[var(--deepchat-accent)] focus:ring-2 focus:ring-[var(--deepchat-accent)]/20 focus:outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword((prev) => !prev)}
+                          className="absolute top-1/2 right-2.5 -translate-y-1/2 rounded-lg px-2 py-1 text-xs font-medium text-[var(--dc-text-muted)] transition-colors hover:text-[var(--dc-text-strong)]"
+                        >
+                          {showPassword ? 'Hide' : 'Show'}
+                        </button>
+                      </div>
+
+                      <div
+                        data-gsap-stagger=""
+                        className="flex items-center justify-between gap-2 px-0.5 text-xs"
+                      >
+                        <button
+                          type="button"
+                          role="checkbox"
+                          aria-checked={rememberMe}
+                          onClick={handleToggleRemember}
+                          className="group inline-flex items-center gap-2 text-[var(--dc-text-muted)] transition-colors hover:text-[var(--dc-text-strong)]"
+                        >
+                          <span
+                            ref={rememberBoxRef}
+                            className={`flex h-4 w-4 items-center justify-center rounded-[5px] border transition-colors ${
+                              rememberMe
+                                ? 'border-[var(--dc-invert)] bg-[var(--dc-invert)] text-[var(--dc-text-on-invert)]'
+                                : 'border-[var(--dc-border-strong)] bg-[var(--dc-surface-input)]'
+                            }`}
+                          >
+                            {rememberMe && <Check className="h-3 w-3" strokeWidth={2.5} />}
+                          </span>
+                          <span>Remember me</span>
+                        </button>
+
+                        <Link
+                          href={`/forgot-password?email=${encodeURIComponent(email.trim().toLowerCase())}`}
+                          className="font-medium text-[var(--dc-text-muted)] transition-colors hover:text-[var(--dc-text-strong)]"
+                        >
+                          Forgot password?
+                        </Link>
+                      </div>
                     </div>
                   )}
 
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="flex h-11 w-full items-center justify-center rounded-xl bg-[var(--dc-invert)] px-4 text-sm font-medium text-[var(--dc-text-on-invert)] transition-colors hover:bg-[var(--dc-invert-hover)] disabled:cursor-not-allowed disabled:opacity-60"
+                    className="flex h-11 w-full items-center justify-center rounded-xl bg-[var(--dc-invert)] px-4 text-sm font-medium text-[var(--dc-text-on-invert)] transition-all hover:bg-[var(--dc-invert-hover)] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {isSubmitting
-                      ? step === 'otp'
-                        ? 'Verifying...'
-                        : 'Sending code...'
-                      : step === 'otp'
-                        ? 'Verify & Sign in'
+                      ? step === 'password'
+                        ? 'Signing in...'
+                        : 'Checking...'
+                      : step === 'password'
+                        ? 'Sign in'
                         : 'Continue with email'}
                   </button>
 
-                  {step === 'otp' && (
-                    <div className="flex items-center justify-between pt-1 text-xs text-[var(--dc-text-muted)]">
-                      <button
-                        type="button"
-                        disabled={isSubmitting}
-                        onClick={() => {
-                          setStep('email');
-                          setOtpCode('');
-                          setStatusMessage(null);
-                        }}
-                        className="underline-offset-2 hover:text-[var(--dc-text-strong)] hover:underline disabled:opacity-50"
-                      >
-                        Change email
-                      </button>
-                      <button
-                        type="button"
-                        disabled={isSubmitting || resendCooldown > 0}
-                        onClick={() => requestOtp(email.trim().toLowerCase())}
-                        className="underline-offset-2 hover:text-[var(--dc-text-strong)] hover:underline disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        {resendCooldown > 0 ? `Resend code (${resendCooldown}s)` : 'Resend code'}
-                      </button>
-                    </div>
+                  {step === 'password' && (
+                    <button
+                      type="button"
+                      disabled={isSubmitting}
+                      onClick={handleUseCodeInstead}
+                      className="w-full pt-1 text-center text-xs font-medium text-[var(--dc-text-muted)] transition-colors hover:text-[var(--dc-text-strong)] disabled:opacity-50"
+                    >
+                      Sign in with email verification code instead
+                    </button>
                   )}
                 </form>
 

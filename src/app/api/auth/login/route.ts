@@ -11,10 +11,12 @@ export async function POST(req: Request) {
     const body = (await req.json()) as {
       email?: unknown;
       password?: unknown;
+      rememberMe?: unknown;
     };
 
     const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
     const password = typeof body.password === 'string' ? body.password : '';
+    const rememberMe = typeof body.rememberMe === 'boolean' ? body.rememberMe : true;
 
     if (!email || !password) {
       return NextResponse.json({ error: 'Email and password are required.' }, { status: 400 });
@@ -35,7 +37,7 @@ export async function POST(req: Request) {
     const { cookieHeader } = await createAccountSession(
       pool,
       account,
-      { userAgent: req.headers.get('user-agent'), ip: getClientIp(req) }
+      { userAgent: req.headers.get('user-agent'), ip: getClientIp(req), rememberMe }
     );
 
     const res = NextResponse.json({

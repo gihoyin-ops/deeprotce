@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { verifyEmailOtp } from '@/backend/auth/otp';
 import { createAccountSession, findAccountByEmail, requireDbPool } from '@/backend/auth/turso-auth';
 import { buildDefaultAvatarUrl } from '@/lib/avatar';
+import { hashPassword } from '@/lib/security/crypto';
 import { getClientIp } from '@/lib/security/rate-limit';
 
 export const runtime = 'nodejs';
@@ -15,14 +16,22 @@ export async function POST(req: Request) {
       email?: unknown;
       code?: unknown;
       displayName?: unknown;
+      password?: unknown;
     };
 
     const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
     const code = typeof body.code === 'string' ? body.code.trim() : '';
     const rawName = typeof body.displayName === 'string' ? body.displayName.trim() : '';
+    const password = typeof body.password === 'string' ? body.password : '';
 
     if (!EMAIL_RE.test(email) || email.length > 254) {
       return NextResponse.json({ error: 'Please enter a valid email address.' }, { status: 400 });
+    }
+    if (password && (password.length < 8 || password.length > 128)) {
+      return NextResponse.json(
+        { error: 'Password must be between 8 and 128 characters.' },
+        { status: 400 }
+      );
     }
 
     const pool = await requireDbPool();
@@ -33,6 +42,7 @@ export async function POST(req: Request) {
 
     let account = await findAccountByEmail(pool, email);
     const nowIso = new Date().toISOString();
+    const passwordHash = password ? await hashPassword(password) : null;
 
     if (!account) {
       const accountId = crypto.randomUUID();
@@ -41,8 +51,8 @@ export async function POST(req: Request) {
 
       await pool.exec(
         `INSERT INTO accounts (id, email, username, password_hash, display_name, avatar_url, plan, email_verified, created_at, updated_at)
-         VALUES (?, ?, NULL, NULL, ?, ?, 'free', 1, ?, ?)`,
-        [accountId, email, displayName, avatarUrl, nowIso, nowIso]
+         VALUES (?, ?, NULL, ?, ?, ?, 'free', 1, ?, ?)`,
+        [accountId, email, passwordHash, displayName, avatarUrl, nowIso, nowIso]
       );
 
       await pool.exec(
@@ -55,7 +65,7 @@ export async function POST(req: Request) {
         id: accountId,
         email,
         username: null,
-        password_hash: null,
+        password_hash: passwordHash,
         display_name: displayName,
         avatar_url: avatarUrl,
         plan: 'free',
@@ -63,13 +73,17 @@ export async function POST(req: Request) {
         created_at: nowIso,
         updated_at: nowIso
       };
-    } else if (!account.email_verified) {
+    } else {
       const nextAvatar = account.avatar_url || buildDefaultAvatarUrl(account.id);
-      await pool.exec(
-        'UPDATE accounts SET email_verified = 1, avatar_url = ?, updated_at = ? WHERE id = ?',
-        [nextAvatar, nowIso, account.id]
-      );
-      account.avatar_url = nextAvatar;
+      const nextPasswordHash = !account.password_hash && passwordHash ? passwordHash : account.password_hash;
+      if (!account.email_verified || !account.avatar_url || nextPasswordHash !== account.password_hash) {
+        await pool.exec(
+          'UPDATE accounts SET email_verified = 1, avatar_url = ?, password_hash = ?, updated_at = ? WHERE id = ?',
+          [nextAvatar, nextPasswordHash, nowIso, account.id]
+        );
+        account.avatar_url = nextAvatar;
+        account.password_hash = nextPasswordHash;
+      }
     }
 
     const { cookieHeader } = await createAccountSession(

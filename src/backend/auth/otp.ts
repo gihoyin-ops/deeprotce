@@ -6,7 +6,7 @@ export const OTP_TTL_MS = 10 * 60 * 1000; // 10 minutes
 export const OTP_HISTORY_WINDOW_MS = 60 * 60 * 1000; // 1 hour window for resend escalation
 export const OTP_MAX_ATTEMPTS = 5;
 
-export type OtpPurpose = 'auth';
+export type OtpPurpose = 'auth' | 'reset';
 
 const hashOtpCode = (email: string, purpose: OtpPurpose, code: string): string =>
   hashToken(`${email.trim().toLowerCase()}:${purpose}:${code.trim()}`);
