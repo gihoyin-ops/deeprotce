@@ -356,7 +356,8 @@ const updateMessageVersion = (
   readSources: SearchSource[] = [],
   thinkingSteps: ThinkingStep[] = [],
   clarification?: AgentClarification,
-  generationMode?: GenerationMode
+  generationMode?: GenerationMode,
+  isError = false
 ) => {
   const updated = {
     ...message,
@@ -368,7 +369,8 @@ const updateMessageVersion = (
     readSources,
     thinkingSteps,
     clarification,
-    generationMode
+    generationMode,
+    isError
   };
 
   if (updated.versions && updated.currentVersionIndex !== undefined) {
@@ -383,7 +385,8 @@ const updateMessageVersion = (
       readSources,
       thinkingSteps,
       clarification,
-      generationMode
+      generationMode,
+      isError
     };
   }
 
@@ -415,7 +418,8 @@ const saveFinalMessage = async (task: ChatGenerationTask, options: { isError?: b
       task.readSources,
       task.thinkingSteps,
       clarification,
-      task.generationMode
+      task.generationMode,
+      options.isError === true
     ),
     isStreaming: false,
     isError: options.isError === true,

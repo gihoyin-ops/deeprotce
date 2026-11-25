@@ -77,6 +77,7 @@ type MessageVersion = {
   clarificationAnswer?: AgentClarificationAnswer;
   versionIndex?: number;
   generationMode?: GenerationMode;
+  isError?: boolean;
   [key: string]: unknown;
 };
 
@@ -775,14 +776,20 @@ export default function ChatView({ chatId }: { chatId: string }) {
       thinkingSteps: assistantMsg.thinkingSteps,
       clarification: assistantMsg.clarification,
       clarificationAnswer: assistantMsg.clarificationAnswer,
-      generationMode: assistantMsg.generationMode
+      generationMode: assistantMsg.generationMode,
+      isError: assistantMsg.isError === true
     }]);
+
+    const prevIdx = assistantMsg.currentVersionIndex ?? currentVersions.length - 1;
+    if (assistantMsg.isError === true && currentVersions[prevIdx] && currentVersions[prevIdx].isError === undefined) {
+      currentVersions[prevIdx] = { ...currentVersions[prevIdx], isError: true };
+    }
 
     const newVersionIndex = currentVersions.length;
 
     const updatedAssistantMessage = {
       ...assistantMsg,
-      versions: [...currentVersions, { content: '', reasoning: '', versionIndex: newVersionIndex + 1, generationMode }],
+      versions: [...currentVersions, { content: '', reasoning: '', versionIndex: newVersionIndex + 1, generationMode, isError: false }],
       currentVersionIndex: newVersionIndex,
       content: '',
       reasoning: '',
@@ -926,7 +933,7 @@ export default function ChatView({ chatId }: { chatId: string }) {
       clarification: version.clarification,
       clarificationAnswer: version.clarificationAnswer,
       generationMode: version.generationMode,
-      isError: false
+      isError: version.isError === true
     };
 
     setMessages(prev => prev.map(m => m.id === msgId ? updatedMessage : m));
