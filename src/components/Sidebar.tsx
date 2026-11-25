@@ -7,6 +7,7 @@ import Image from 'next/image';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getChats, getUserProfile, togglePinChat, archiveChat, deleteChat, updateChatTitle, shareChat } from '@/app/actions';
 import { DEFAULT_GUEST_AVATAR } from '@/lib/avatar';
+import { getCachedUserProfileSync } from '@/lib/storage/client-storage';
 import toast from 'react-hot-toast';
 import {
   ChevronDown, ChevronRight, FileText, User, Brain,
@@ -69,9 +70,13 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
     queryKey: deepchatQueryKeys.chats,
     queryFn: async () => getChats() as Promise<ChatItem[]>
   });
-  const { data: profile = { name: 'Guest', avatar: DEFAULT_GUEST_AVATAR, plan: '' } } = useQuery({
+  const {
+    data: profile = { name: 'Guest', avatar: DEFAULT_GUEST_AVATAR, plan: '' },
+    isPending: isProfilePending
+  } = useQuery({
     queryKey: deepchatQueryKeys.profile,
-    queryFn: async () => getUserProfile() as Promise<UserProfileData>
+    queryFn: async () => getUserProfile() as Promise<UserProfileData>,
+    initialData: () => getCachedUserProfileSync() ?? undefined
   });
 
   const togglePinned = () => {
@@ -215,14 +220,19 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
             aria-label="Open profile menu"
           >
             {!isGuest && (
-              <Image
-                src={avatarSrc}
-                alt="User"
-                width={32}
-                height={32}
-                unoptimized
-                className="h-8 w-8 shrink-0 rounded-full border border-[var(--dc-border)] bg-[var(--dc-surface)] object-cover"
-              />
+              isProfilePending ? (
+                <div className="h-8 w-8 shrink-0 animate-pulse rounded-full border border-[var(--dc-border)] bg-[var(--dc-surface)]" />
+              ) : (
+                <Image
+                  src={avatarSrc}
+                  alt="User"
+                  width={32}
+                  height={32}
+                  unoptimized
+                  loading="lazy"
+                  className="h-8 w-8 shrink-0 rounded-full border border-[var(--dc-border)] bg-[var(--dc-surface)] object-cover"
+                />
+              )
             )}
             <div className="min-w-0 flex-1">
               <p className="truncate text-[14px] font-medium leading-tight text-[var(--dc-text-strong)]">
@@ -293,7 +303,7 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
                 onClick={() => {
                   setProfileMenuOpen(false);
                   setHelpMenuOpen(false);
-                  router.push('/profile');
+                  router.push(profile.username ? `/u/${encodeURIComponent(profile.username)}` : '/profile');
                 }}
                 className="flex w-full items-center justify-between gap-2.5 rounded-xl px-2.5 py-2 text-left transition-colors hover:bg-[var(--dc-surface-hover)]"
               >
@@ -344,7 +354,7 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
                 type="button"
                 onClick={() => {
                   setProfileMenuOpen(false);
-                  router.push('/profile');
+                  router.push(profile.username ? `/u/${encodeURIComponent(profile.username)}` : '/profile');
                 }}
                 className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm font-medium text-[var(--dc-text)] transition-colors hover:bg-[var(--dc-surface-hover)]"
               >

@@ -38,6 +38,7 @@ import { normalizeSourceUrl } from '@/lib/search/source-display';
 import { assertEgressUrl } from '@/lib/security/url-guard';
 import { MAX_ATTACHMENT_BYTES, MAX_MESSAGE_CHARS, validateChatBody } from '@/lib/security/limits';
 import { checkUsageBudget, recordTokens } from '@/lib/security/usage';
+import { recordAccountModelUsage } from '@/backend/profile/stats';
 import { completeChatTokens, estimateChatPromptTokens, meterSseBody } from '@/lib/security/usage-meter';
 import { getClientIp } from '@/lib/security/rate-limit';
 import { getVerifiedAccount } from '@/lib/security/auth';
@@ -1358,6 +1359,9 @@ export async function POST(req: Request) {
       logAiExchange({ ...aiLogPayload, output });
       // image call still eats a prompt, go with that
       recordTokens(identityKey, imagePromptTokens);
+      if (verifiedAccount) {
+        void recordAccountModelUsage(verifiedAccount.sub, selectedModel || conn.model || 'image', imagePromptTokens);
+      }
       return singleSseResponse(p, { choices: [{ delta: { content: output } }] }, integrationEvents);
     }
 
@@ -1392,7 +1396,15 @@ export async function POST(req: Request) {
       const data = await res.json();
       const message = getOpenAiCompatibleMessage(data);
       logAiExchange({ ...aiLogPayload, output: [message.reasoning_content, message.content].filter(Boolean).join('\n') });
-      recordTokens(identityKey, completeChatTokens(data, promptTokens, [message.reasoning_content, message.content].filter(Boolean).join('\n')));
+      const totalNonStreamTokens = completeChatTokens(
+        data,
+        promptTokens,
+        [message.reasoning_content, message.content].filter(Boolean).join('\n')
+      );
+      recordTokens(identityKey, totalNonStreamTokens);
+      if (verifiedAccount) {
+        void recordAccountModelUsage(verifiedAccount.sub, selectedModel || conn.model, totalNonStreamTokens);
+      }
       return singleSseResponse(p, {
         choices: [{
           delta: {
@@ -1405,6 +1417,9 @@ export async function POST(req: Request) {
 
     const streamBody = isAiLogEnabled() ? streamWithAiLog(res.body, aiLogPayload) : res.body;
     const meteredBody = meterSseBody(streamBody, identityKey, promptTokens);
+    if (verifiedAccount) {
+      void recordAccountModelUsage(verifiedAccount.sub, selectedModel || conn.model, promptTokens);
+    }
     return new Response(prependSseEvents(meteredBody, integrationEvents), {
       headers: streamHeaders(p)
     });

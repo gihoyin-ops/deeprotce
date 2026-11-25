@@ -169,6 +169,29 @@ export const TURSO_SCHEMA_STATEMENTS: string[] = [
     created_at TEXT NOT NULL
   )`,
 
+  `CREATE TABLE IF NOT EXISTS user_daily_tokens (
+    account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+    day TEXT NOT NULL,
+    tokens INTEGER NOT NULL DEFAULT 0,
+    requests INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (account_id, day)
+  )`,
+
+  `CREATE TABLE IF NOT EXISTS user_model_usage (
+    account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+    model_id TEXT NOT NULL,
+    tokens INTEGER NOT NULL DEFAULT 0,
+    requests INTEGER NOT NULL DEFAULT 0,
+    last_used_at TEXT NOT NULL,
+    PRIMARY KEY (account_id, model_id)
+  )`,
+
+  `CREATE TABLE IF NOT EXISTS user_profile_settings (
+    account_id TEXT PRIMARY KEY REFERENCES accounts(id) ON DELETE CASCADE,
+    is_public INTEGER NOT NULL DEFAULT 0,
+    updated_at TEXT NOT NULL
+  )`,
+
   `CREATE INDEX IF NOT EXISTS idx_auth_sessions_account ON auth_sessions(account_id)`,
   `CREATE INDEX IF NOT EXISTS idx_chats_account_updated ON chats(account_id, updated_at)`,
   `CREATE INDEX IF NOT EXISTS idx_messages_chat_idx ON messages(chat_id, chat_index)`,

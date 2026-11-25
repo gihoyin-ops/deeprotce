@@ -77,6 +77,7 @@ export async function PATCH(req: Request) {
       displayName?: unknown;
       username?: unknown;
       avatarUrl?: unknown;
+      isPublic?: unknown;
     };
 
     const pool = await requireDbPool();
@@ -153,6 +154,19 @@ export async function PATCH(req: Request) {
       [nextDisplayName, nextUsername, nextAvatarUrl, nowIso, current.id]
     );
 
+    let nextIsPublic: boolean | undefined;
+    if (typeof body.isPublic === 'boolean') {
+      nextIsPublic = body.isPublic;
+      await pool.exec(
+        `INSERT INTO user_profile_settings (account_id, is_public, updated_at)
+         VALUES (?, ?, ?)
+         ON CONFLICT(account_id) DO UPDATE SET
+           is_public = excluded.is_public,
+           updated_at = excluded.updated_at`,
+        [current.id, nextIsPublic ? 1 : 0, nowIso]
+      );
+    }
+
     const cookieHeader = issueAccountSessionCookie({
       sub: current.id,
       sid: verified.sid,
@@ -170,6 +184,7 @@ export async function PATCH(req: Request) {
         username: nextUsername,
         avatarUrl: nextAvatarUrl,
         plan: current.plan,
+        ...(typeof nextIsPublic === 'boolean' ? { isPublic: nextIsPublic } : {}),
         needsOnboarding: !nextUsername
       }
     });

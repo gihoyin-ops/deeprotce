@@ -43,8 +43,9 @@ export default function GetStartedPage() {
   const usernameInputRef = useRef<HTMLInputElement | null>(null);
 
   const [name, setName] = useState('');
-  const [username, setUsername] = useState(() => generateRandomUsername());
-  const [avatarSeed, setAvatarSeed] = useState(() => generateRandomUsername());
+  const [username, setUsername] = useState('');
+  const [avatarSeed, setAvatarSeed] = useState('');
+  const [isHydrated, setIsHydrated] = useState(false);
   const [accountId, setAccountId] = useState<string>('default');
   const [accountPlan, setAccountPlan] = useState<string>('');
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
@@ -88,6 +89,7 @@ export default function GetStartedPage() {
             setUsername(generated);
             setAvatarSeed(generated);
           }
+          setIsHydrated(true);
           return;
         }
       } catch {
@@ -99,13 +101,14 @@ export default function GetStartedPage() {
       if (local.name && local.name !== 'Guest') {
         setName(local.name);
       }
-      if (local.username) {
-        setUsername(local.username);
-        setAvatarSeed(local.username);
-      }
+      const nextUsername = local.username || generateRandomUsername();
+      setUsername(nextUsername);
       if (local.avatar && !isLegacyDefaultAvatar(local.avatar)) {
         setAvatarSeed(local.username || local.name || 'deepchat-user');
+      } else {
+        setAvatarSeed(nextUsername);
       }
+      setIsHydrated(true);
     })();
 
     return () => {
@@ -335,26 +338,33 @@ export default function GetStartedPage() {
 
       <main className="mx-auto flex min-h-[calc(100dvh-4rem)] max-w-6xl items-center justify-center px-6 pb-14 pt-4">
         <div ref={containerRef} className="w-full max-w-[420px]">
-          {/* Avatar preview with subtle shuffle */}
+          {/* Avatar preview with subtle shuffle & lazy skeleton */}
           <div data-gs-stagger className="mb-7 flex items-center gap-4">
             <div ref={avatarWrapRef} className="relative h-16 w-16 shrink-0">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={avatarUrl}
-                alt="Your avatar"
-                className="h-16 w-16 rounded-full border border-[var(--dc-border-subtle)] bg-[var(--dc-surface)] object-cover shadow-xs transition-opacity duration-200"
-              />
-              <button
-                type="button"
-                onClick={handleShuffleAvatar}
-                title="Change avatar look"
-                aria-label="Change avatar look"
-                className="absolute -bottom-0.5 -right-0.5 flex h-6 w-6 items-center justify-center rounded-full border border-[var(--dc-border-subtle)] bg-[var(--dc-canvas)] text-[var(--dc-text-muted)] shadow-xs transition-all duration-200 hover:border-[var(--dc-border-strong)] hover:text-[var(--dc-text-strong)] active:scale-90"
-              >
-                <span ref={avatarShuffleIconRef} className="inline-flex">
-                  <RefreshCw className="h-3 w-3" />
-                </span>
-              </button>
+              {!isHydrated ? (
+                <div className="h-16 w-16 animate-pulse rounded-full border border-[var(--dc-border-subtle)] bg-[var(--dc-surface)]" />
+              ) : (
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={avatarUrl}
+                    alt="Your avatar"
+                    loading="lazy"
+                    className="h-16 w-16 rounded-full border border-[var(--dc-border-subtle)] bg-[var(--dc-surface)] object-cover shadow-xs transition-opacity duration-300"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleShuffleAvatar}
+                    title="Change avatar look"
+                    aria-label="Change avatar look"
+                    className="absolute -bottom-0.5 -right-0.5 flex h-6 w-6 items-center justify-center rounded-full border border-[var(--dc-border-subtle)] bg-[var(--dc-canvas)] text-[var(--dc-text-muted)] shadow-xs transition-all duration-200 hover:border-[var(--dc-border-strong)] hover:text-[var(--dc-text-strong)] active:scale-90"
+                  >
+                    <span ref={avatarShuffleIconRef} className="inline-flex">
+                      <RefreshCw className="h-3 w-3" />
+                    </span>
+                  </button>
+                </>
+              )}
             </div>
           </div>
 

@@ -896,7 +896,7 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
           onOpenTab={openMobileTab}
           onOpenProfilePage={() => {
             onClose();
-            router.push('/profile');
+            router.push(profile.username ? `/u/${encodeURIComponent(profile.username)}` : '/profile');
           }}
           hidden={isMobileDetailOpen && !isMobileDetailClosing}
         />
@@ -929,7 +929,7 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
                   type="button"
                   onClick={() => {
                     onClose();
-                    router.push('/profile');
+                    router.push(profile.username ? `/u/${encodeURIComponent(profile.username)}` : '/profile');
                   }}
                   className="group flex w-full items-center justify-between gap-2.5 rounded-xl px-2 py-2 text-left transition-colors hover:bg-[var(--dc-surface-hover)]"
                 >

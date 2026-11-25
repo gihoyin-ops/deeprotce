@@ -37,6 +37,7 @@ import {
 } from '@/app/actions';
 import { deepchatQueryKeys } from '@/lib/query-keys';
 import { DEFAULT_GUEST_AVATAR } from '@/lib/avatar';
+import { getCachedUserProfileSync } from '@/lib/storage/client-storage';
 import { safeAvatarSource } from '@/lib/utils';
 import { useGuestStatus } from '@/lib/auth/guest';
 import { loadComposerToolState, saveComposerToolState } from '@/lib/agent/composer-tool-state';
@@ -95,6 +96,7 @@ const MobileSidebarDrawer = forwardRef<MobileDrawerHandle, MobileSidebarDrawerPr
     } = useQuery({
       queryKey: deepchatQueryKeys.profile,
       queryFn: async () => getUserProfile() as Promise<UserProfileData>,
+      initialData: () => getCachedUserProfileSync() ?? undefined,
     });
 
     const [filterQuery, setFilterQuery] = useState('');

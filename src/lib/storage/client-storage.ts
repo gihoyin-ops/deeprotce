@@ -421,6 +421,30 @@ const readLocalUserProfile = async (): Promise<UserProfileData> => {
   };
 };
 
+export const getCachedUserProfileSync = (): UserProfileData | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem('deepchat-user-profile');
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<UserProfileData>;
+    const id = parsed.id || 'default';
+    const name = parsed.name || 'Guest';
+    const avatar = isLegacyDefaultAvatar(parsed.avatar)
+      ? buildDefaultAvatarUrl(id !== 'default' ? id : name)
+      : (parsed.avatar as string);
+    return {
+      id,
+      name,
+      username: parsed.username || '',
+      avatar,
+      plan: parsed.plan || '',
+      age: parsed.age || '18 or older'
+    };
+  } catch {
+    return null;
+  }
+};
+
 export const getUserProfileClient = async (): Promise<UserProfileData> => {
   const local = await readLocalUserProfile();
   if (typeof window === 'undefined') return local;

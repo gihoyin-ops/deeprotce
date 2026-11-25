@@ -2,6 +2,7 @@ import { DatabaseSync } from 'node:sqlite';
 import path from 'path';
 import { DATA_DIR, ensureDataDirectoriesSync, isServerless } from '@/lib/data-directories';
 import { DEFAULT_PLAN, getPlan, isUnlimitedPlan, parsePlan, type PlanId } from './plans';
+import { recordAccountDailyTokens } from '@/backend/profile/stats';
 
 // Per-identity ledger, one row per identity, two windows per row
 // Local-first, no account system, so identity is the IP the
@@ -203,11 +204,15 @@ export const checkUsageBudget = (identityKey: string): UsageGate => {
 
 /** add spent tokens to both windows in one atomic statement */
 export const recordTokens = (identityKey: string, tokens: number): void => {
-  const database = getDb();
-  if (!database) return;
-
   const amount = Math.max(0, Math.floor(Number.isFinite(tokens) ? tokens : 0));
   if (amount === 0) return;
+
+  if (identityKey.startsWith('acc:')) {
+    void recordAccountDailyTokens(identityKey.slice(4), amount);
+  }
+
+  const database = getDb();
+  if (!database) return;
 
   const now = Date.now();
   const nowIso = new Date(now).toISOString();
