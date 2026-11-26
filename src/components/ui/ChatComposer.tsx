@@ -115,7 +115,7 @@ interface SpeechRecognitionInstance {
   interimResults: boolean;
   onresult: ((event: SpeechRecognitionEventLike) => void) | null;
   onend: (() => void) | null;
-  onerror: (() => void) | null;
+  onerror: ((event?: { error?: string }) => void) | null;
   start: () => void;
   stop: () => void;
   abort: () => void;
@@ -256,6 +256,7 @@ export default function ChatComposer({
 
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [isDictating, setIsDictating] = useState(false);
+  const [dictationActivityTick, setDictationActivityTick] = useState(0);
   const [isAttachMenuOpen, setIsAttachMenuOpen] = useState(false);
   const [isAttachMenuRendered, setIsAttachMenuRendered] = useState(false);
   const [isDictationEnabled, setIsDictationEnabled] = useState(
@@ -690,7 +691,7 @@ export default function ChatComposer({
     }
     const Recognition = getSpeechRecognitionConstructor();
     if (!Recognition) {
-      toast.error('Voice dictation is not supported in this browser.');
+      toast.error('Voice dictation requires Chrome, Edge, or Safari.');
       return;
     }
     const recognition = new Recognition();
@@ -714,18 +715,31 @@ export default function ChatComposer({
       const base = dictationBaseRef.current.trimEnd();
       const spokenText = `${finalTranscript}${interimTranscript}`.trimStart();
       onChange(spokenText ? `${base}${base ? ' ' : ''}${spokenText}` : base);
+      setDictationActivityTick((t) => t + 1);
     };
     recognition.onend = () => {
       recognitionRef.current = null;
       setIsDictating(false);
     };
-    recognition.onerror = () => {
+    recognition.onerror = (event?: { error?: string }) => {
+      const code = event?.error;
+      if (code === 'not-allowed' || code === 'service-not-allowed') {
+        toast.error('Microphone permission denied.');
+      } else if (code === 'audio-capture') {
+        toast.error('No microphone detected.');
+      }
       recognitionRef.current = null;
       setIsDictating(false);
     };
     recognitionRef.current = recognition;
     setIsDictating(true);
-    recognition.start();
+    try {
+      recognition.start();
+    } catch {
+      recognitionRef.current = null;
+      setIsDictating(false);
+      toast.error('Could not start voice dictation.');
+    }
   };
 
   useEffect(() => {
@@ -869,7 +883,11 @@ export default function ChatComposer({
             shortcut={shortcuts.dictation.join('+')}
             onClick={toggleDictation}
           >
-            <DictateAbstractOrb isDictating={isDictating} className="h-5 w-5" />
+            <DictateAbstractOrb
+              isDictating={isDictating}
+              activityTick={dictationActivityTick}
+              className="h-5 w-5"
+            />
           </IconButton>
         </div>
       )}
@@ -885,7 +903,11 @@ export default function ChatComposer({
               : 'text-[var(--dc-text-body)] hover:bg-black/[0.06] dark:hover:bg-white/[0.08]'
           }`}
         >
-          <DictateAbstractOrb isDictating={isDictating} className="h-[19px] w-[19px]" />
+          <DictateAbstractOrb
+            isDictating={isDictating}
+            activityTick={dictationActivityTick}
+            className="h-[19px] w-[19px]"
+          />
         </button>
       )}
       <Tooltip
