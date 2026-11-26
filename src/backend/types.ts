@@ -8,6 +8,8 @@
 
 export type BackendPlanId = 'free' | 'supporters' | 'cool' | 'staff';
 
+export type AccountRole = 'user' | 'staff' | 'manager_staff';
+
 // valid_until is null for recurring grants, set for boxes
 export interface BackendPlanGrant {
   account_id: string;
@@ -22,6 +24,7 @@ export interface Account {
   email: string;
   display_name: string;
   plan: BackendPlanId;
+  role?: AccountRole;
   created_at: string;
   updated_at: string;
 }

@@ -809,7 +809,9 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     pathname === '/login' ||
     pathname === '/forgot-password' ||
     pathname === '/verify' ||
-    pathname === '/get-started';
+    pathname === '/get-started' ||
+    pathname === '/admin' ||
+    pathname.startsWith('/admin/');
 
   if (isStandalonePage) {
     // standalone guard page: intentionally outside the app chrome,

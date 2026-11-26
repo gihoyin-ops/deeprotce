@@ -24,10 +24,12 @@ import {
   Pin,
   Search,
   Settings,
+  ShieldAlert,
   SquarePen,
   Trash2,
   X,
 } from '@/components/ui/icons';
+import { isStaffRole } from '@/lib/security/roles';
 import {
   archiveChat,
   deleteChat,
@@ -68,6 +70,7 @@ interface UserProfileData {
   username?: string;
   avatar: string;
   plan?: string;
+  role?: string;
 }
 
 interface MobileSidebarDrawerProps {
@@ -781,9 +784,11 @@ const MobileSidebarDrawer = forwardRef<MobileDrawerHandle, MobileSidebarDrawerPr
                       </p>
                       {!isGuest && (
                         <p className="mt-0.5 truncate text-[11.5px] font-medium leading-tight text-[var(--dc-text-muted)]">
-                          {profile.plan
-                            ? profile.plan.trim().charAt(0).toUpperCase() + profile.plan.trim().slice(1).toLowerCase()
-                            : 'Personal'}
+                          {isStaffRole(profile.role)
+                            ? 'Staff'
+                            : profile.plan
+                              ? profile.plan.trim().charAt(0).toUpperCase() + profile.plan.trim().slice(1).toLowerCase()
+                              : 'Personal'}
                         </p>
                       )}
                     </>
@@ -823,6 +828,20 @@ const MobileSidebarDrawer = forwardRef<MobileDrawerHandle, MobileSidebarDrawerPr
                 </button>
               )}
             </div>
+
+            {!isAuthLoading && !isGuest && isStaffRole(profile.role) && (
+              <button
+                type="button"
+                onClick={() => {
+                  snapClose();
+                  router.push('/admin');
+                }}
+                className="mt-2 flex w-full items-center gap-2.5 rounded-2xl border border-[var(--dc-border-subtle)] bg-[var(--dc-surface-subtle)] px-3.5 py-2.5 text-left text-[13.5px] font-medium text-[var(--dc-text-strong)] transition-transform active:scale-[0.99] hover:bg-[var(--dc-fill)]"
+              >
+                <ShieldAlert className="h-[17px] w-[17px] text-[var(--dc-text-strong)]" strokeWidth={2} />
+                <span>Admin Panel</span>
+              </button>
+            )}
           </div>
         </aside>
 

@@ -34,6 +34,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid email or password.' }, { status: 401 });
     }
 
+    if (Number(account.is_banned) === 1) {
+      const reason = account.ban_reason?.trim();
+      return NextResponse.json(
+        {
+          error: reason
+            ? `Your account has been suspended: ${reason}`
+            : 'Your account has been suspended.'
+        },
+        { status: 403 }
+      );
+    }
+
     const { cookieHeader } = await createAccountSession(
       pool,
       account,
@@ -49,6 +61,7 @@ export async function POST(req: Request) {
         username: account.username,
         avatarUrl: account.avatar_url || buildDefaultAvatarUrl(account.id),
         plan: account.plan,
+        role: account.role ?? 'user',
         needsOnboarding: !account.username
       }
     });

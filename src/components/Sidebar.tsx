@@ -11,8 +11,9 @@ import { getCachedUserProfileSync } from '@/lib/storage/client-storage';
 import toast from 'react-hot-toast';
 import {
   ChevronDown, ChevronRight, FileText, User, Brain,
-  Settings, PanelLeft, SquarePen, Search, Ellipsis, Library, Image as ImageIcon, Folder, Plus, X, Check
+  Settings, PanelLeft, SquarePen, Search, Ellipsis, Library, Image as ImageIcon, Folder, Plus, X, Check, ShieldAlert
 } from '@/components/ui/icons';
+import { isStaffRole } from '@/lib/security/roles';
 import { useShortcutLabels } from './shortcuts';
 import Tooltip from './ui/Tooltip';
 import { AnimatedChatTitle } from './ui/AnimatedChatTitle';
@@ -47,6 +48,7 @@ interface UserProfileData {
   username?: string;
   avatar: string;
   plan?: string;
+  role?: string;
 }
 
 interface ChatItem {
@@ -90,13 +92,13 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
     staleTime: 5 * 60 * 1000
   });
 
-  const isStaffPlan = (profile.plan || '').trim().toLowerCase() === 'staff';
+  const isStaff = isStaffRole(profile.role) || (profile.plan || '').trim().toLowerCase() === 'staff';
   const formatPlanLabel = (raw?: string) => {
     const trimmed = (raw || '').trim();
     if (!trimmed) return 'Free';
     return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
   };
-  const displayPlanLabel = formatPlanLabel(profile.plan);
+  const displayPlanLabel = isStaff ? 'Staff' : formatPlanLabel(profile.plan);
 
   const togglePinned = () => {
     const val = !isPinnedOpen;
@@ -283,7 +285,7 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
             </div>
           </button>
 
-          {!isGuest && !isStaffPlan && (
+          {!isGuest && !isStaff && (
             <a
               href="/pricing"
               target="_blank"
@@ -367,7 +369,7 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
 
               <div className="my-1 border-t border-[var(--dc-border-subtle)]" />
 
-              {!isStaffPlan && (
+              {!isStaff && (
                 <a
                   href="/pricing"
                   target="_blank"
@@ -411,6 +413,21 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
             <IconMask icon="/icons/settings.svg" className="h-4 w-4 shrink-0" />
             <span>Settings</span>
           </button>
+
+          {!isGuest && isStaff && (
+            <button
+              type="button"
+              onClick={() => {
+                setProfileMenuOpen(false);
+                setMobileOpen(false);
+                router.push('/admin');
+              }}
+              className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm font-medium text-[var(--dc-text)] transition-colors hover:bg-[var(--dc-surface-hover)]"
+            >
+              <ShieldAlert className="h-4 w-4 shrink-0 text-[var(--dc-text-strong)]" strokeWidth={1.9} />
+              <span>Admin Panel</span>
+            </button>
+          )}
 
           <div className="my-1 border-t border-[var(--dc-border-subtle)]" />
 
@@ -541,6 +558,11 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
             <CollapsedSidebarButton label="Settings" onClick={() => handleOpenSettings()}>
               <Settings className="h-[19px] w-[19px]" strokeWidth={1.9} />
             </CollapsedSidebarButton>
+            {!isGuest && isStaff && (
+              <CollapsedSidebarButton label="Admin Panel" onClick={() => router.push('/admin')}>
+                <ShieldAlert className="h-[19px] w-[19px]" strokeWidth={1.9} />
+              </CollapsedSidebarButton>
+            )}
             <button
               type="button"
               onClick={(e) => {

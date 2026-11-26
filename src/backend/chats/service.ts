@@ -328,7 +328,32 @@ export async function getSharedAccountChat(
   );
   if (rows.length === 0) return null;
   const hydrated = await hydrateChats(pool, rows);
-  return hydrated[0] || null;
+  const chat = hydrated[0];
+  if (!chat) return null;
+
+  const ownerRows = await pool.query<{
+    id: string;
+    display_name: string;
+    avatar_url: string | null;
+    plan: string;
+    role: string | null;
+  }>(
+    'SELECT id, display_name, avatar_url, plan, role FROM accounts WHERE id = ? LIMIT 1',
+    [rows[0].account_id]
+  );
+  const owner = ownerRows[0];
+  if (owner) {
+    const ownerRole = (owner.role || '').trim().toLowerCase();
+    const isStaff = ownerRole === 'staff' || ownerRole === 'manager_staff';
+    chat.ownerProfile = {
+      id: owner.id,
+      name: owner.display_name,
+      avatar: owner.avatar_url || '',
+      plan: isStaff ? 'staff' : owner.plan || 'free'
+    };
+  }
+
+  return chat;
 }
 
 export async function createAccountChat(

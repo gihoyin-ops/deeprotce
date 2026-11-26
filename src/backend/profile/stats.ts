@@ -1,6 +1,7 @@
 import { ensureTursoSchema, type DbPool } from '@/backend/db/connection';
 import type { AccountRow } from '@/backend/auth/turso-auth';
 import { buildDefaultAvatarUrl, isLegacyDefaultAvatar } from '@/lib/avatar';
+import { isStaffRole } from '@/lib/security/roles';
 
 export interface DailyTokenPoint {
   day: string;
@@ -138,9 +139,9 @@ export const getAccountProfileAndStats = async (
   }
 
   const accountRows = await pool.query<
-    Pick<AccountRow, 'id' | 'username' | 'display_name' | 'avatar_url' | 'plan'>
+    Pick<AccountRow, 'id' | 'username' | 'display_name' | 'avatar_url' | 'plan' | 'role'>
   >(
-    'SELECT id, username, display_name, avatar_url, plan FROM accounts WHERE LOWER(username) = ? OR id = ? LIMIT 1',
+    'SELECT id, username, display_name, avatar_url, plan, role FROM accounts WHERE LOWER(username) = ? OR id = ? LIMIT 1',
     [cleanHandle, usernameParam.trim()]
   );
 
@@ -161,12 +162,14 @@ export const getAccountProfileAndStats = async (
       ? account.avatar_url
       : buildDefaultAvatarUrl(account.username || account.id);
 
+  const publicPlanBadge = isStaffRole(account.role) ? 'staff' : account.plan || 'free';
+
   const profileSummary = {
     id: account.id,
     name: account.display_name,
     username: account.username || cleanHandle,
     avatar,
-    plan: account.plan || 'free',
+    plan: publicPlanBadge,
     isPublic
   };
 

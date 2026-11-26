@@ -55,6 +55,7 @@ export type UserProfileData = {
   username?: string;
   avatar: string;
   plan: string;
+  role?: string;
   age?: string;
 };
 

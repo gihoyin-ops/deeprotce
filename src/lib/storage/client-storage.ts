@@ -530,6 +530,7 @@ interface MeAccountPayload {
     username?: string | null;
     avatarUrl?: string;
     plan?: string;
+    role?: string;
   };
 }
 
@@ -649,6 +650,7 @@ export const getUserProfileClient = async (): Promise<UserProfileData> => {
       username: acc.username ?? (local.id === acc.id ? local.username : '') ?? '',
       avatar: nextAvatar,
       plan: acc.plan || local.plan || '',
+      role: acc.role || local.role || 'user',
       age: local.age || '18 or older'
     };
     const changed =
@@ -656,7 +658,8 @@ export const getUserProfileClient = async (): Promise<UserProfileData> => {
       synced.name !== local.name ||
       synced.username !== local.username ||
       synced.avatar !== local.avatar ||
-      synced.plan !== local.plan;
+      synced.plan !== local.plan ||
+      synced.role !== local.role;
     try {
       localStorage.setItem('deepchat-auth-hint', '1');
       window.dispatchEvent(new Event('deepchat:auth-hint'));

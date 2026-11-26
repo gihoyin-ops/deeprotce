@@ -19,7 +19,7 @@ export async function GET(req: Request) {
 
   let dbAccount: Pick<
     AccountRow,
-    'id' | 'email' | 'username' | 'display_name' | 'avatar_url' | 'plan'
+    'id' | 'email' | 'username' | 'display_name' | 'avatar_url' | 'plan' | 'role' | 'is_banned'
   > | null = null;
 
   try {
@@ -33,12 +33,20 @@ export async function GET(req: Request) {
       }
 
       const rows = await pool.query<
-        Pick<AccountRow, 'id' | 'email' | 'username' | 'display_name' | 'avatar_url' | 'plan'>
+        Pick<
+          AccountRow,
+          'id' | 'email' | 'username' | 'display_name' | 'avatar_url' | 'plan' | 'role' | 'is_banned'
+        >
       >(
-        'SELECT id, email, username, display_name, avatar_url, plan FROM accounts WHERE id = ? LIMIT 1',
+        'SELECT id, email, username, display_name, avatar_url, plan, role, is_banned FROM accounts WHERE id = ? LIMIT 1',
         [verified.sub]
       );
       dbAccount = rows[0] ?? null;
+      if (dbAccount && Number(dbAccount.is_banned) === 1) {
+        const res = NextResponse.json({ authenticated: false, guest: true, banned: true });
+        res.headers.append('set-cookie', clearAccountSessionCookie());
+        return res;
+      }
     }
   } catch {
     // If DB check fails transiently, fall back to cryptographically verified claims
@@ -62,6 +70,7 @@ export async function GET(req: Request) {
       username,
       avatarUrl,
       plan: dbAccount?.plan || verified.plan,
+      role: dbAccount?.role || verified.role || 'user',
       needsOnboarding: dbAccount ? !dbAccount.username : false
     }
   });
@@ -90,9 +99,9 @@ export async function PATCH(req: Request) {
     }
 
     const rows = await pool.query<
-      Pick<AccountRow, 'id' | 'email' | 'username' | 'display_name' | 'avatar_url' | 'plan'>
+      Pick<AccountRow, 'id' | 'email' | 'username' | 'display_name' | 'avatar_url' | 'plan' | 'role'>
     >(
-      'SELECT id, email, username, display_name, avatar_url, plan FROM accounts WHERE id = ? LIMIT 1',
+      'SELECT id, email, username, display_name, avatar_url, plan, role FROM accounts WHERE id = ? LIMIT 1',
       [verified.sub]
     );
     const current = rows[0];
@@ -173,6 +182,7 @@ export async function PATCH(req: Request) {
       sid: verified.sid,
       email: current.email,
       plan: current.plan,
+      role: current.role ?? 'user',
       name: nextDisplayName
     });
 
@@ -185,6 +195,7 @@ export async function PATCH(req: Request) {
         username: nextUsername,
         avatarUrl: nextAvatarUrl,
         plan: current.plan,
+        role: current.role ?? 'user',
         ...(typeof nextIsPublic === 'boolean' ? { isPublic: nextIsPublic } : {}),
         needsOnboarding: !nextUsername
       }

@@ -60,7 +60,7 @@ export async function POST(req: Request) {
 
     const { cookieHeader } = await createAccountSession(
       pool,
-      { id: accountId, email, plan: 'free', display_name: displayName },
+      { id: accountId, email, plan: 'free', role: 'user', display_name: displayName },
       { userAgent: req.headers.get('user-agent'), ip: getClientIp(req) }
     );
 
@@ -72,7 +72,8 @@ export async function POST(req: Request) {
           email,
           displayName,
           avatarUrl,
-          plan: 'free'
+          plan: 'free',
+          role: 'user'
         }
       },
       { status: 201 }

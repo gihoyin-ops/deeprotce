@@ -1,11 +1,12 @@
 import crypto from 'node:crypto';
-import type { BackendPlanId } from '@/backend/types';
+import type { AccountRole, BackendPlanId } from '@/backend/types';
 
 export interface SignedAccountClaims {
   sub: string; // account_id
   sid: string; // auth_sessions.id
   email: string;
   plan: BackendPlanId;
+  role?: AccountRole;
   name: string;
   exp: number; // unix ms
 }

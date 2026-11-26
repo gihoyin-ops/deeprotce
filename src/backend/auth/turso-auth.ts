@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import { ensureTursoSchema, type DbPool } from '@/backend/db/connection';
-import type { BackendPlanId } from '@/backend/types';
+import type { AccountRole, BackendPlanId } from '@/backend/types';
 import {
   ACCOUNT_REMEMBER_TTL_SECONDS,
   ACCOUNT_SESSION_TTL_SECONDS,
@@ -16,6 +16,11 @@ export interface AccountRow {
   display_name: string;
   avatar_url: string | null;
   plan: BackendPlanId;
+  role: AccountRole;
+  is_banned: number;
+  ban_reason: string | null;
+  banned_at: string | null;
+  banned_by: string | null;
   email_verified: number;
   created_at: string;
   updated_at: string;
@@ -31,7 +36,7 @@ export const requireDbPool = async (): Promise<DbPool> => {
 
 export const findAccountByEmail = async (pool: DbPool, email: string): Promise<AccountRow | null> => {
   const rows = await pool.query<AccountRow>(
-    'SELECT id, email, username, password_hash, display_name, avatar_url, plan, email_verified, created_at, updated_at FROM accounts WHERE email = ? LIMIT 1',
+    'SELECT id, email, username, password_hash, display_name, avatar_url, plan, role, is_banned, ban_reason, banned_at, banned_by, email_verified, created_at, updated_at FROM accounts WHERE LOWER(email) = ? LIMIT 1',
     [email.trim().toLowerCase()]
   );
   return rows[0] ?? null;
@@ -39,7 +44,7 @@ export const findAccountByEmail = async (pool: DbPool, email: string): Promise<A
 
 export const createAccountSession = async (
   pool: DbPool,
-  account: Pick<AccountRow, 'id' | 'email' | 'plan' | 'display_name'>,
+  account: Pick<AccountRow, 'id' | 'email' | 'plan' | 'role' | 'display_name'>,
   meta: { userAgent: string | null; ip: string; rememberMe?: boolean }
 ): Promise<{ cookieHeader: string; sessionId: string }> => {
   const rememberMe = meta.rememberMe ?? true;
@@ -70,6 +75,7 @@ export const createAccountSession = async (
       sid: sessionId,
       email: account.email,
       plan: account.plan,
+      role: account.role ?? 'user',
       name: account.display_name
     },
     { rememberMe }
@@ -90,13 +96,17 @@ export const revokeSessionById = async (pool: DbPool, sessionId: string): Promis
 };
 
 export const isSessionActiveInDb = async (pool: DbPool, sessionId: string): Promise<boolean> => {
-  const rows = await pool.query<{ id: string; expires_at: number }>(
-    'SELECT id, expires_at FROM auth_sessions WHERE id = ? LIMIT 1',
+  const rows = await pool.query<{ id: string; expires_at: number; is_banned: number | null }>(
+    `SELECT s.id, s.expires_at, a.is_banned
+     FROM auth_sessions s
+     JOIN accounts a ON a.id = s.account_id
+     WHERE s.id = ?
+     LIMIT 1`,
     [sessionId]
   );
   const row = rows[0];
   if (!row) return false;
-  if (Date.now() > Number(row.expires_at)) {
+  if (Number(row.is_banned) === 1 || Date.now() > Number(row.expires_at)) {
     await revokeSessionById(pool, sessionId).catch(() => undefined);
     return false;
   }

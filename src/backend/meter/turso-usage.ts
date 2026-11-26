@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import { ensureTursoSchema, type DbPool } from '@/backend/db/connection';
 import { DEFAULT_PLAN, getPlan, isUnlimitedPlan, parsePlan, type PlanId } from '@/lib/security/plans';
+import { isStaffRole } from '@/lib/security/roles';
 import type { UsageGate, UsageSnapshot, UsageWindowSnapshot } from '@/lib/security/usage';
 
 const FIVE_HOUR_MS = 5 * 60 * 60 * 1000;
@@ -75,16 +76,16 @@ export const getAccountUsageSnapshot = async (accountId: string): Promise<UsageS
     const pool = await ensureTursoSchema();
     if (!pool) return null;
 
-    const accRows = await pool.query<{ plan: string }>(
-      'SELECT plan FROM accounts WHERE id = ? LIMIT 1',
+    const accRows = await pool.query<{ plan: string; role: string | null }>(
+      'SELECT plan, role FROM accounts WHERE id = ? LIMIT 1',
       [accountId]
     );
     if (!accRows[0]) return null;
 
     const planId = parsePlan(accRows[0].plan) ?? DEFAULT_PLAN;
     const planMeta = getPlan(planId);
-    const limit = planMeta.limitTokens;
-    const unlimited = isUnlimitedPlan(planId);
+    const unlimited = isStaffRole(accRows[0].role) || isUnlimitedPlan(planId);
+    const limit = unlimited ? Infinity : planMeta.limitTokens;
 
     const existingRows = await pool.query<UsageWindowRow>(
       'SELECT id, account_id, window_type, limit_tokens, used_tokens, window_start, window_end FROM usage_windows WHERE account_id = ?',

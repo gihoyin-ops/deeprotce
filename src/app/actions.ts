@@ -159,6 +159,17 @@ export async function shareChat(chatId: string) {
 
 export async function getSharedChat(shareId: string): Promise<StoredChat | null> {
   if (typeof window !== 'undefined') {
+    try {
+      const res = await fetch(`/api/chats/share/${encodeURIComponent(shareId)}`, {
+        credentials: 'same-origin'
+      });
+      if (res.ok) {
+        const data = (await res.json()) as { chat?: StoredChat };
+        if (data.chat) return data.chat;
+      }
+    } catch {
+      // Fallback to local snapshot when offline or guest-only
+    }
     const localShared = await getSharedSnapshot(shareId);
     if (localShared) return localShared;
   }
@@ -179,11 +190,12 @@ export async function forkSharedChat(sharedChat: StoredChat): Promise<string> {
     : 'Shared Chat';
   const newChatId = await createChat(title);
   const messages = Array.isArray(sharedChat.messages) ? sharedChat.messages : [];
+  const batchToken = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   for (let i = 0; i < messages.length; i += 1) {
     const msg = messages[i];
     await saveMessage(newChatId, {
       ...msg,
-      id: typeof msg.id === 'string' && msg.id ? msg.id : `fork_${Date.now()}_${i}`,
+      id: `fork_${batchToken}_${i}`,
       chatId: newChatId,
       chatIndex: i,
       isStreaming: false,

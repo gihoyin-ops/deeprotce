@@ -229,13 +229,41 @@ export const getDbPool = (): DbPool | null => {
   return cachedPool;
 };
 
+const ensureAccountSecurityColumns = async (pool: DbPool): Promise<void> => {
+  const migrations = [
+    `ALTER TABLE accounts ADD COLUMN role TEXT NOT NULL DEFAULT 'user'`,
+    `ALTER TABLE accounts ADD COLUMN is_banned INTEGER NOT NULL DEFAULT 0`,
+    `ALTER TABLE accounts ADD COLUMN ban_reason TEXT`,
+    `ALTER TABLE accounts ADD COLUMN banned_at TEXT`,
+    `ALTER TABLE accounts ADD COLUMN banned_by TEXT`
+  ];
+  for (const sql of migrations) {
+    try {
+      await pool.exec(sql);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (!/duplicate column|already exists/i.test(msg)) {
+        throw err;
+      }
+    }
+  }
+};
+
 const ensureStaffAccountsAndPlans = async (pool: DbPool): Promise<void> => {
-  await pool.exec(`UPDATE accounts SET plan = 'staff' WHERE LOWER(plan) = 'owner'`);
-  await pool.exec(`UPDATE plan_grants SET plan = 'staff' WHERE LOWER(plan) = 'owner'`);
+  await ensureAccountSecurityColumns(pool);
+
+  // Migrate legacy plan='owner' / plan='staff' into role='staff'
+  await pool.exec(
+    `UPDATE accounts SET role = 'staff' WHERE LOWER(plan) IN ('owner', 'staff') AND (role IS NULL OR LOWER(role) = 'user')`
+  );
+  await pool.exec(
+    `UPDATE accounts SET plan = 'cool' WHERE LOWER(plan) IN ('owner', 'staff')`
+  );
+  await pool.exec(`UPDATE plan_grants SET plan = 'cool' WHERE LOWER(plan) IN ('owner', 'staff')`);
 
   const staffEmail = 'revaldo@deepsia.my.id';
-  const existing = await pool.query<{ id: string; plan: string }>(
-    'SELECT id, plan FROM accounts WHERE LOWER(email) = ? LIMIT 1',
+  const existing = await pool.query<{ id: string; plan: string; role: string }>(
+    'SELECT id, plan, role FROM accounts WHERE LOWER(email) = ? LIMIT 1',
     [staffEmail]
   );
 
@@ -245,26 +273,21 @@ const ensureStaffAccountsAndPlans = async (pool: DbPool): Promise<void> => {
     const passwordHash = await hashPassword('Faldoraja2026');
     const avatarUrl = buildDefaultAvatarUrl(accountId);
     await pool.exec(
-      `INSERT OR IGNORE INTO accounts (id, email, username, password_hash, display_name, avatar_url, plan, email_verified, created_at, updated_at)
-       VALUES (?, ?, 'revaldo', ?, 'Revaldo', ?, 'staff', 1, ?, ?)`,
+      `INSERT OR IGNORE INTO accounts (id, email, username, password_hash, display_name, avatar_url, plan, role, is_banned, email_verified, created_at, updated_at)
+       VALUES (?, ?, 'revaldo', ?, 'Revaldo', ?, 'cool', 'manager_staff', 0, 1, ?, ?)`,
       [accountId, staffEmail, passwordHash, avatarUrl, nowIso, nowIso]
     );
     await pool.exec(
       `INSERT OR IGNORE INTO plan_grants (id, account_id, plan, granted_by, valid_from, valid_until)
-       VALUES (?, ?, 'staff', 'admin', ?, NULL)`,
+       VALUES (?, ?, 'cool', 'admin', ?, NULL)`,
       [crypto.randomUUID(), accountId, nowIso]
     );
-  } else if (existing[0].plan?.toLowerCase() !== 'staff') {
-    await pool.exec('UPDATE accounts SET plan = ?, updated_at = ? WHERE id = ?', [
-      'staff',
+  } else if (existing[0].role?.toLowerCase() !== 'manager_staff') {
+    await pool.exec('UPDATE accounts SET role = ?, updated_at = ? WHERE id = ?', [
+      'manager_staff',
       nowIso,
       existing[0].id
     ]);
-    await pool.exec(
-      `INSERT INTO plan_grants (id, account_id, plan, granted_by, valid_from, valid_until)
-       VALUES (?, ?, 'staff', 'admin', ?, NULL)`,
-      [crypto.randomUUID(), existing[0].id, nowIso]
-    );
   }
 };
 

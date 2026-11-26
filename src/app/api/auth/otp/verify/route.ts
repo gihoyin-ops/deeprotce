@@ -69,11 +69,26 @@ export async function POST(req: Request) {
         display_name: displayName,
         avatar_url: avatarUrl,
         plan: 'free',
+        role: 'user',
+        is_banned: 0,
+        ban_reason: null,
+        banned_at: null,
+        banned_by: null,
         email_verified: 1,
         created_at: nowIso,
         updated_at: nowIso
       };
     } else {
+      if (Number(account.is_banned) === 1) {
+        return NextResponse.json(
+          {
+            error: account.ban_reason
+              ? `Your account has been suspended: ${account.ban_reason}`
+              : 'Your account has been suspended.'
+          },
+          { status: 403 }
+        );
+      }
       const nextAvatar = account.avatar_url || buildDefaultAvatarUrl(account.id);
       const nextPasswordHash = !account.password_hash && passwordHash ? passwordHash : account.password_hash;
       if (!account.email_verified || !account.avatar_url || nextPasswordHash !== account.password_hash) {
@@ -101,6 +116,7 @@ export async function POST(req: Request) {
         username: account.username,
         avatarUrl: account.avatar_url || buildDefaultAvatarUrl(account.id),
         plan: account.plan,
+        role: account.role ?? 'user',
         needsOnboarding: !account.username
       }
     });

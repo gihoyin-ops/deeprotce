@@ -21,6 +21,7 @@ export interface UserProfile {
   username?: string;
   avatar: string;
   plan: string;
+  role?: string;
   age?: string;
 }
 

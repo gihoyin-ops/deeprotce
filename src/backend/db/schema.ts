@@ -12,6 +12,11 @@ export const TURSO_SCHEMA_STATEMENTS: string[] = [
     display_name TEXT NOT NULL,
     avatar_url TEXT,
     plan TEXT NOT NULL DEFAULT 'free',
+    role TEXT NOT NULL DEFAULT 'user',
+    is_banned INTEGER NOT NULL DEFAULT 0,
+    ban_reason TEXT,
+    banned_at TEXT,
+    banned_by TEXT,
     email_verified INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
@@ -217,11 +222,25 @@ export const TURSO_SCHEMA_STATEMENTS: string[] = [
     updated_at TEXT NOT NULL
   )`,
 
+  `CREATE TABLE IF NOT EXISTS admin_audit_logs (
+    id TEXT PRIMARY KEY,
+    actor_id TEXT NOT NULL,
+    actor_email TEXT NOT NULL,
+    actor_role TEXT NOT NULL,
+    action TEXT NOT NULL,
+    target_account_id TEXT,
+    target_email TEXT,
+    reason TEXT NOT NULL,
+    metadata_json TEXT,
+    created_at TEXT NOT NULL
+  )`,
+
   `CREATE INDEX IF NOT EXISTS idx_auth_sessions_account ON auth_sessions(account_id)`,
   `CREATE INDEX IF NOT EXISTS idx_chats_account_updated ON chats(account_id, updated_at)`,
   `CREATE INDEX IF NOT EXISTS idx_messages_chat_idx ON messages(chat_id, chat_index)`,
   `CREATE INDEX IF NOT EXISTS idx_memories_account ON saved_memories(account_id)`,
   `CREATE INDEX IF NOT EXISTS idx_email_otps_lookup ON email_otps(email, purpose, expires_at)`,
   `CREATE INDEX IF NOT EXISTS idx_library_folders_account ON library_folders(account_id)`,
-  `CREATE INDEX IF NOT EXISTS idx_library_items_account ON library_items(account_id, trashed_at, created_at)`
+  `CREATE INDEX IF NOT EXISTS idx_library_items_account ON library_items(account_id, trashed_at, created_at)`,
+  `CREATE INDEX IF NOT EXISTS idx_admin_audit_logs_created ON admin_audit_logs(created_at DESC)`
 ];
