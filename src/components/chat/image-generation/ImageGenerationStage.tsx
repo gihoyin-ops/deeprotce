@@ -9,12 +9,6 @@ import { type ExtractedGeneratedImage } from '@/lib/images/image-generation';
 import { type ImageAspectRatio } from '@/lib/images/image-aspect-ratio';
 import { downloadImageSrc, type ImageStudioMode } from './image-studio-export';
 import AbstractStudioCanvas from './AbstractStudioCanvas';
-import ZenSnakeCanvas from './ZenSnakeCanvas';
-
-export type ImageGenerationVisualMode = 'abstract-text' | 'abstract-pure' | 'zen-snake';
-
-export const IMAGE_GEN_SNAKE_PROBABILITY = 0.0000001; // 0.00001%
-export const IMAGE_GEN_ABSTRACT_TEXT_PROBABILITY = 0.95; // 95% (remainder ~5% -> abstract-pure)
 
 export interface ImageGenerationStageProps {
   isGenerating: boolean;
@@ -35,26 +29,6 @@ interface BoxSize {
 interface MorphBoxes {
   from: BoxSize;
   to: BoxSize;
-}
-
-function getHighPrecisionRandom(): number {
-  if (typeof window !== 'undefined' && window.crypto?.getRandomValues) {
-    const words = new Uint32Array(2);
-    window.crypto.getRandomValues(words);
-    const high = words[0] >>> 5; // 27 bits
-    const low = words[1] >>> 6; // 26 bits
-    return (high * 67108864 + low) / 9007199254740992; // 2^53
-  }
-  return Math.random();
-}
-
-export function pickImageGenerationVisualMode(): ImageGenerationVisualMode {
-  const r = getHighPrecisionRandom();
-  if (r < IMAGE_GEN_SNAKE_PROBABILITY) return 'zen-snake';
-  if (r < IMAGE_GEN_SNAKE_PROBABILITY + IMAGE_GEN_ABSTRACT_TEXT_PROBABILITY) {
-    return 'abstract-text';
-  }
-  return 'abstract-pure';
 }
 
 function createCubicBezierEase(x1: number, y1: number, x2: number, y2: number) {
@@ -178,7 +152,6 @@ export default function ImageGenerationStage({
   const imageLayerRef = useRef<HTMLDivElement>(null);
   const sheenRef = useRef<HTMLDivElement>(null);
 
-  const [visualMode] = useState<ImageGenerationVisualMode>(pickImageGenerationVisualMode);
   const [phase, setPhase] = useState<'generating' | 'morphing' | 'settled'>(() =>
     images.length > 0 && !isGenerating ? 'settled' : 'generating'
   );
@@ -476,15 +449,7 @@ export default function ImageGenerationStage({
             ref={waitingLayerRef}
             className="absolute inset-0 z-10 h-full w-full"
           >
-            {visualMode === 'zen-snake' ? (
-              <ZenSnakeCanvas isExiting={phase === 'morphing'} />
-            ) : (
-              <AbstractStudioCanvas
-                variant={visualMode}
-                requestedAspectRatio={requestedAspectRatio}
-                isExiting={phase === 'morphing'}
-              />
-            )}
+            <AbstractStudioCanvas isExiting={phase === 'morphing'} />
           </div>
         )}
 
