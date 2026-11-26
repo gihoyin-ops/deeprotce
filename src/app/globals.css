@@ -957,6 +957,12 @@ html.dark .bg-black\/5.text-black { color: var(--dc-text-strong) !important; }
   opacity: 0.6;
 }
 
+.code-preview-code:focus,
+.code-preview-code:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
 textarea.deepchat-field {
   resize: vertical;
   min-height: 6rem;

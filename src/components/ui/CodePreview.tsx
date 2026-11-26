@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { gsap } from 'gsap';
 import { ArrowLeftToLine, ArrowRightToLine, Check, Code2, Copy, Download, Edit3, Maximize2, PanelBottom, Play, Trash2, X } from '@/components/ui/icons';
 import { bundledLanguages, type BundledLanguage, type Highlighter } from 'shiki';
 import { buildPreviewDocument } from '@/lib/code/code-preview-builder';
@@ -81,8 +82,136 @@ function IconButton({ title, onClick, children, active = false }: { title: strin
   );
 }
 
-const CodeStreamingSpinner = React.memo(function CodeStreamingSpinner() {
-  return <span className="deepchat-code-spinner" aria-hidden="true" />;
+const CodeBadgeIndicator = React.memo(function CodeBadgeIndicator({ isStreaming }: { isStreaming: boolean }) {
+  const badgeRef = useRef<HTMLSpanElement | null>(null);
+  const iconRef = useRef<HTMLSpanElement | null>(null);
+  const loaderRef = useRef<HTMLSpanElement | null>(null);
+  const arcRef = useRef<SVGSVGElement | null>(null);
+  const hasMountedRef = useRef(false);
+
+  useLayoutEffect(() => {
+    const iconEl = iconRef.current;
+    const loaderEl = loaderRef.current;
+    const arcEl = arcRef.current;
+    if (!iconEl || !loaderEl) return;
+
+    const mm = gsap.matchMedia();
+
+    mm.add('(prefers-reduced-motion: reduce)', () => {
+      gsap.set(iconEl, { opacity: isStreaming ? 0 : 1, scale: 1, rotation: 0 });
+      gsap.set(loaderEl, { opacity: isStreaming ? 1 : 0, scale: 1 });
+    });
+
+    mm.add('(prefers-reduced-motion: no-preference)', () => {
+      const ctx = gsap.context(() => {
+        gsap.killTweensOf([iconEl, loaderEl, arcEl].filter(Boolean));
+
+        if (!hasMountedRef.current) {
+          hasMountedRef.current = true;
+          if (isStreaming) {
+            gsap.set(iconEl, { opacity: 0, scale: 0.6 });
+            gsap.set(loaderEl, { opacity: 1, scale: 1 });
+          } else {
+            gsap.set(iconEl, { opacity: 1, scale: 1, rotation: 0 });
+            gsap.set(loaderEl, { opacity: 0, scale: 0.6 });
+          }
+        } else if (isStreaming) {
+          const tl = gsap.timeline({ defaults: { force3D: true } });
+          tl.to(iconEl, {
+            opacity: 0,
+            scale: 0.55,
+            rotation: -18,
+            duration: 0.22,
+            ease: 'power2.in',
+          }).fromTo(
+            loaderEl,
+            { opacity: 0, scale: 0.6 },
+            { opacity: 1, scale: 1, duration: 0.3, ease: 'back.out(1.6)' },
+            0.08
+          );
+        } else {
+          const tl = gsap.timeline({ defaults: { force3D: true } });
+          tl.to(loaderEl, {
+            opacity: 0,
+            scale: 0.55,
+            duration: 0.2,
+            ease: 'power2.in',
+          }).fromTo(
+            iconEl,
+            { opacity: 0, scale: 0.55, rotation: 16 },
+            {
+              opacity: 1,
+              scale: 1,
+              rotation: 0,
+              duration: 0.36,
+              ease: 'back.out(1.7)',
+              clearProps: 'transform',
+            },
+            0.08
+          );
+        }
+
+        if (isStreaming && arcEl) {
+          gsap.to(arcEl, {
+            rotation: 360,
+            transformOrigin: '50% 50%',
+            duration: 1,
+            repeat: -1,
+            ease: 'none',
+            force3D: true,
+          });
+        }
+      }, badgeRef);
+
+      return () => ctx.revert();
+    });
+
+    return () => mm.revert();
+  }, [isStreaming]);
+
+  return (
+    <span
+      ref={badgeRef}
+      className={`relative inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-colors duration-300 ${
+        isStreaming
+          ? 'bg-blue-50/90 text-blue-600 ring-1 ring-blue-200/80 dark:bg-blue-500/15 dark:text-blue-400 dark:ring-blue-400/30'
+          : 'bg-white text-slate-600 ring-1 ring-slate-200/80 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700/80'
+      }`}
+    >
+      <span ref={iconRef} className="absolute inset-0 flex items-center justify-center">
+        <Code2 className="h-3.5 w-3.5" />
+      </span>
+      <span ref={loaderRef} className="absolute inset-0 flex items-center justify-center opacity-0">
+        <svg
+          ref={arcRef}
+          className="h-3.5 w-3.5"
+          viewBox="0 0 24 24"
+          fill="none"
+          aria-hidden="true"
+        >
+          <circle
+            cx="12"
+            cy="12"
+            r="8.5"
+            stroke="currentColor"
+            strokeOpacity="0.22"
+            strokeWidth="2.4"
+          />
+          <path
+            d="M12 3.5a8.5 8.5 0 0 1 8.5 8.5"
+            stroke="currentColor"
+            strokeWidth="2.4"
+            strokeLinecap="round"
+          />
+        </svg>
+      </span>
+      {isStreaming && (
+        <span className="sr-only" role="status" aria-live="polite">
+          Generating code...
+        </span>
+      )}
+    </span>
+  );
 });
 
 function ModeSwitch({ mode, onShowCode, onRunPreview }: { mode: 'preview' | 'code', onShowCode: () => void, onRunPreview: () => void }) {
@@ -152,7 +281,8 @@ function CodeSurface({ code, html, editing, onChange, fill = false }: { code: st
           document.execCommand('insertText', false, '  ');
           syncEditableCode();
         }}
-        className={`code-preview-code modern-scrollbar overflow-auto bg-white p-4 text-[13.5px] leading-6 text-slate-900 outline-none ring-0 selection:bg-indigo-200/70 dark:bg-[#0d1117] dark:text-slate-100 [&>pre]:!m-0 [&>pre]:!bg-transparent [&>pre]:!p-0 [&_code]:!bg-transparent ${fill ? 'h-full' : 'min-h-[340px]'}`}
+        style={{ outline: 'none' }}
+        className={`code-preview-code modern-scrollbar overflow-auto bg-white p-4 text-[13.5px] leading-6 text-slate-900 outline-none focus:outline-none focus-visible:outline-none ring-0 selection:bg-indigo-200/70 dark:bg-[#0d1117] dark:text-slate-100 [&>pre]:!m-0 [&>pre]:!bg-transparent [&>pre]:!p-0 [&_code]:!bg-transparent ${fill ? 'h-full' : 'min-h-[340px]'}`}
       />
     );
   }
@@ -468,22 +598,10 @@ export default function CodePreview({ language, value, highlighter, isStreaming 
     <div className="not-prose mb-4 overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm dark:border-slate-800 dark:bg-[#0d1117]">
       <div className="flex flex-wrap items-center justify-between gap-2.5 border-b border-slate-100 bg-slate-50/80 px-3.5 py-2.5 dark:border-slate-800/80 dark:bg-slate-900/70">
         <div className="flex min-w-0 items-center gap-2">
-          <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white text-slate-600 ring-1 ring-slate-200/80 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700/80">
-            <Code2 className="h-3.5 w-3.5" />
-          </span>
+          <CodeBadgeIndicator isStreaming={isStreaming} />
           <span className="truncate rounded-md bg-white px-2.5 py-1 font-mono text-[11px] font-semibold uppercase tracking-wider text-slate-700 ring-1 ring-slate-200/80 dark:bg-slate-800 dark:text-slate-200 dark:ring-slate-700/80">
             {displayLanguage}
           </span>
-          {isStreaming && (
-            <span
-              role="status"
-              aria-live="polite"
-              className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 px-2.5 py-1 text-[11px] font-medium text-indigo-600 ring-1 ring-indigo-200/80 dark:bg-indigo-500/15 dark:text-indigo-300 dark:ring-indigo-400/25"
-            >
-              <CodeStreamingSpinner />
-              <span>Streaming</span>
-            </span>
-          )}
         </div>
         <div className="flex flex-wrap items-center justify-end gap-1.5">
           <IconButton title={copied ? 'Copied' : 'Copy'} onClick={handleCopy}>
