@@ -241,8 +241,13 @@ export default function ChatComposer({
 
   const dragDepthRef = useRef(0);
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
   const dictationBaseRef = useRef('');
   const toggleDictationRef = useRef<() => void>(() => {});
+  const [dictationStream, setDictationStream] = useState<MediaStream | null>(null);
+  const [isTranscribing, setIsTranscribing] = useState(false);
 
   const gridProxyRef = useRef({ r1: 0, r2: 44, gap: 0, minH: 44 });
   const prevSlotRef = useRef<TextareaSlot | null>(null);
@@ -681,9 +686,110 @@ export default function ChatComposer({
     return () => window.removeEventListener('keydown', handleUploadShortcut, true);
   }, [openFilePicker]);
 
+  const stopMediaRecorderDictation = useCallback(() => {
+    const recorder = mediaRecorderRef.current;
+    if (recorder && recorder.state !== 'inactive') {
+      recorder.stop();
+    } else {
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach((t) => t.stop());
+        mediaStreamRef.current = null;
+      }
+      setDictationStream(null);
+      setIsDictating(false);
+    }
+  }, []);
+
+  const startMediaRecorderDictation = useCallback(async () => {
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+      toast.error('Voice dictation is not supported in this browser.');
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const preferredMime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus'
+        : MediaRecorder.isTypeSupported('audio/webm')
+          ? 'audio/webm'
+          : '';
+      const recorder = preferredMime
+        ? new MediaRecorder(stream, { mimeType: preferredMime })
+        : new MediaRecorder(stream);
+
+      mediaStreamRef.current = stream;
+      mediaRecorderRef.current = recorder;
+      audioChunksRef.current = [];
+      dictationBaseRef.current = value;
+      setDictationStream(stream);
+      setIsDictating(true);
+
+      recorder.ondataavailable = (ev) => {
+        if (ev.data && ev.data.size > 0) {
+          audioChunksRef.current.push(ev.data);
+        }
+      };
+
+      recorder.onstop = async () => {
+        const chunks = audioChunksRef.current;
+        audioChunksRef.current = [];
+        mediaRecorderRef.current = null;
+        if (mediaStreamRef.current) {
+          mediaStreamRef.current.getTracks().forEach((t) => t.stop());
+          mediaStreamRef.current = null;
+        }
+        setDictationStream(null);
+        setIsDictating(false);
+
+        if (chunks.length === 0) return;
+        const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
+        if (blob.size < 400) return;
+
+        setIsTranscribing(true);
+        try {
+          const settings = loadGeneralSettings();
+          const form = new FormData();
+          form.append('audio', blob, 'dictation.webm');
+          form.append('lang', getDictationLanguage(settings));
+          const res = await fetch('/api/chat/transcribe', {
+            method: 'POST',
+            credentials: 'same-origin',
+            body: form,
+          });
+          if (!res.ok) {
+            throw new Error('Transcription failed');
+          }
+          const data = (await res.json()) as { text?: string };
+          const spokenText = (data.text || '').trim();
+          if (spokenText) {
+            const base = dictationBaseRef.current.trimEnd();
+            onChange(base ? `${base} ${spokenText}` : spokenText);
+          }
+        } catch {
+          toast.error('Could not transcribe audio.');
+        } finally {
+          setIsTranscribing(false);
+        }
+      };
+
+      recorder.start(250);
+    } catch {
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach((t) => t.stop());
+        mediaStreamRef.current = null;
+      }
+      setDictationStream(null);
+      setIsDictating(false);
+      toast.error('Microphone permission denied.');
+    }
+  }, [onChange, value]);
+
   const toggleDictation = () => {
-    if (!isDictationEnabled) return;
+    if (!isDictationEnabled || isTranscribing) return;
     if (isDictating) {
+      if (mediaRecorderRef.current) {
+        stopMediaRecorderDictation();
+        return;
+      }
       recognitionRef.current?.stop();
       recognitionRef.current = null;
       setIsDictating(false);
@@ -691,16 +797,18 @@ export default function ChatComposer({
     }
     const Recognition = getSpeechRecognitionConstructor();
     if (!Recognition) {
-      toast.error('Voice dictation requires Chrome, Edge, or Safari.');
+      void startMediaRecorderDictation();
       return;
     }
     const recognition = new Recognition();
     const settings = loadGeneralSettings();
+    let receivedResult = false;
     dictationBaseRef.current = value;
     recognition.lang = getDictationLanguage(settings);
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.onresult = (event) => {
+      receivedResult = true;
       let finalTranscript = '';
       let interimTranscript = '';
       for (let index = 0; index < event.results.length; index += 1) {
@@ -719,21 +827,24 @@ export default function ChatComposer({
     };
     recognition.onend = () => {
       recognitionRef.current = null;
-      setIsDictating(false);
+      if (!mediaRecorderRef.current) {
+        setIsDictating(false);
+      }
     };
     recognition.onerror = (event?: { error?: string }) => {
       const code = event?.error;
-      if (code === 'not-allowed') {
-        toast.error('Microphone permission denied.');
-      } else if (code === 'service-not-allowed') {
-        toast.error('Speech recognition service is unavailable in this browser.');
-      } else if (code === 'audio-capture') {
-        toast.error('No microphone detected.');
-      } else if (code === 'network') {
-        toast.error('Speech recognition network error.');
-      }
       recognitionRef.current = null;
       setIsDictating(false);
+      if (code === 'service-not-allowed' || (!receivedResult && code === 'network')) {
+        // Browser blocks built-in cloud speech (e.g. Brave / Linux Chromium) -> free server transcription fallback
+        void startMediaRecorderDictation();
+        return;
+      }
+      if (code === 'not-allowed') {
+        toast.error('Microphone permission denied.');
+      } else if (code === 'audio-capture') {
+        toast.error('No microphone detected.');
+      }
     };
     recognitionRef.current = recognition;
     setIsDictating(true);
@@ -742,7 +853,7 @@ export default function ChatComposer({
     } catch {
       recognitionRef.current = null;
       setIsDictating(false);
-      toast.error('Could not start voice dictation.');
+      void startMediaRecorderDictation();
     }
   };
 
@@ -888,28 +999,30 @@ export default function ChatComposer({
             onClick={toggleDictation}
           >
             <DictateAbstractOrb
-              isDictating={isDictating}
+              isDictating={isDictating || isTranscribing}
               activityTick={dictationActivityTick}
+              mediaStream={dictationStream}
               className="h-5 w-5"
             />
           </IconButton>
         </div>
       )}
-      {isDictationEnabled && (isDictating || (!hasText && !hasAttachedFiles && !isBusy)) && (
+      {isDictationEnabled && (isDictating || isTranscribing || (!hasText && !hasAttachedFiles && !isBusy)) && (
         <button
           type="button"
           onClick={toggleDictation}
           aria-label={isDictating ? 'Stop dictation' : 'Dictate'}
           aria-pressed={isDictating}
           className={`flex h-9 w-9 items-center justify-center rounded-full transition-all active:scale-90 sm:hidden ${
-            isDictating
+            isDictating || isTranscribing
               ? 'bg-blue-500/12 text-blue-600 ring-1 ring-blue-500/30 dark:text-blue-400'
               : 'text-[var(--dc-text-body)] hover:bg-black/[0.06] dark:hover:bg-white/[0.08]'
           }`}
         >
           <DictateAbstractOrb
-            isDictating={isDictating}
+            isDictating={isDictating || isTranscribing}
             activityTick={dictationActivityTick}
+            mediaStream={dictationStream}
             className="h-[19px] w-[19px]"
           />
         </button>
