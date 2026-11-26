@@ -1,8 +1,4 @@
-import crypto from 'node:crypto';
 import { NextResponse } from 'next/server';
-import { ensureTursoSchema } from '@/backend/db/connection';
-import { checkAccountStorageQuota, freeSpaceForUpload, registerLibraryItem } from '@/backend/library/service';
-import { isR2Configured, uploadToR2 } from '@/backend/storage/r2';
 import { getPersona } from '@/app/persona';
 import {
   getChatCompletionsUrl,
@@ -337,77 +333,6 @@ const combineAbortSignals = (signal: AbortSignal | undefined, timeoutMs: number)
 const isAbortLikeError = (err: unknown, signal?: AbortSignal): boolean => {
   if (signal?.aborted) return true;
   return err instanceof Error && err.name === 'AbortError';
-};
-
-const materializeGeneratedImages = async (
-  images: GeneratedImageOutput[],
-  meta?: { accountId?: string; prompt?: string; model?: string },
-  signal?: AbortSignal
-) => {
-  const materialized: GeneratedImageOutput[] = [];
-  if (signal?.aborted) return materialized;
-  const pool = meta?.accountId && isR2Configured() ? await ensureTursoSchema().catch(() => null) : null;
-
-  for (const image of images) {
-    if (signal?.aborted) break;
-    if (image.base64 && meta?.accountId && isR2Configured()) {
-      try {
-        const bytes = new Uint8Array(Buffer.from(image.base64, 'base64'));
-        const mime = image.mimeType || 'image/png';
-        const ext = mime === 'image/webp' ? 'webp' : mime === 'image/jpeg' ? 'jpg' : 'png';
-        let quota = pool
-          ? await checkAccountStorageQuota(pool, meta.accountId, bytes.byteLength)
-          : { allowed: true };
-        if (signal?.aborted) break;
-        if (!quota.allowed && pool) {
-          await freeSpaceForUpload(pool, meta.accountId, bytes.byteLength);
-          quota = await checkAccountStorageQuota(pool, meta.accountId, bytes.byteLength);
-        }
-        if (signal?.aborted) break;
-
-        if (quota.allowed) {
-          const rand = crypto.randomBytes(5).toString('hex');
-          const key = `images_generated/dc${rand}.${ext}`;
-          const uploaded = await uploadToR2({ key, body: bytes, contentType: mime });
-          if (signal?.aborted) break;
-          if (pool) {
-            await registerLibraryItem(pool, {
-              accountId: meta.accountId,
-              r2Key: uploaded.key,
-              url: uploaded.url,
-              fileName: `dc${rand}.${ext}`,
-              mimeType: mime,
-              sizeBytes: bytes.byteLength,
-              source: 'generated',
-              metadata: {
-                prompt: (meta.prompt || '').slice(0, 500),
-                model: meta.model || 'image',
-                generatedAt: new Date().toISOString()
-              }
-            }).catch(() => undefined);
-          }
-          materialized.push({ url: uploaded.url, mimeType: mime });
-          continue;
-        }
-      } catch {
-        // Fallback to inline data URL if R2 upload fails
-      }
-    }
-
-    if (image.url) {
-      materialized.push(image);
-      continue;
-    }
-    if (image.base64) {
-      materialized.push({
-        ...image,
-        url: `data:${image.mimeType || 'image/png'};base64,${image.base64}`
-      });
-      continue;
-    }
-    materialized.push(image);
-  }
-  return materialized;
 };
 
 const getOpenAIImageSize = (model: string, aspectRatio: ImageAspectRatio) => {
@@ -1460,19 +1385,7 @@ export async function POST(req: Request) {
       if (images.length === 0) {
         throw new Error('The server kept it to itself, no image came back. Try again in a moment.');
       }
-      const materializedImages = await materializeGeneratedImages(
-        images,
-        {
-          accountId: verifiedAccount?.sub,
-          prompt,
-          model: imageModel
-        },
-        req.signal
-      );
-      if (req.signal.aborted) {
-        return new Response(null, { status: 499 });
-      }
-      const output = imageOutputToMarkdown(materializedImages);
+      const output = imageOutputToMarkdown(images);
       logAiExchange({ ...aiLogPayload, output });
       // image call still eats a prompt, go with that
       recordTokens(identityKey, imagePromptTokens);

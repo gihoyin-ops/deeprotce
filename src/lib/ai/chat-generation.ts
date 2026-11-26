@@ -7,6 +7,7 @@ import { publishDeepChatNotification } from '@/lib/settings/notification-setting
 import { getEnabledToolRuntimeItems } from '@/lib/settings/tool-settings';
 import { parseAgentClarification, parseGeneratedClarificationAnswerContent, type AgentClarification } from '@/lib/agent/agent-clarification';
 import { getGenerationMode, stripGeneratedImageMarkdown, type GenerationMode } from '@/lib/images/image-generation';
+import { convertImageToWebp } from '@/lib/images/client-webp';
 import { normalizeImageAspectRatio, type ImageAspectRatio } from '@/lib/images/image-aspect-ratio';
 import type { SearchSource, SearchStatus, ThinkingStep } from '@/lib/search/source-display';
 import {
@@ -566,9 +567,84 @@ const normalizeSearchSources = (value: unknown): SearchSource[] => {
   return sources;
 };
 
+const GENERATED_DATA_IMAGE_PATTERN = /!\[([^\]\n]*)\]\(\s*(data:image\/[a-z0-9.+-]+;base64,[a-z0-9+/=\s]+)\s*\)/gi;
+
+const fileToDataUrl = (file: Blob): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(new Error('Failed to read WebP blob'));
+    reader.readAsDataURL(file);
+  });
+
+const materializeGeneratedImagesAsWebp = async (content: string): Promise<string> => {
+  if (!content || !content.includes('data:image/')) return content;
+
+  const matches = Array.from(content.matchAll(GENERATED_DATA_IMAGE_PATTERN));
+  if (matches.length === 0) return content;
+
+  const autoSpaceUp =
+    typeof window === 'undefined' ||
+    localStorage.getItem('deepchat-auto-space-storage') !== 'false';
+
+  let updated = content;
+  for (let i = 0; i < matches.length; i += 1) {
+    const fullMatch = matches[i][0];
+    const alt = matches[i][1] || `image_${i + 1}`;
+    const rawDataUrl = matches[i][2].replace(/\s+/g, '');
+
+    try {
+      const { file } = await convertImageToWebp(rawDataUrl, {
+        fileName: `generated-${i + 1}.webp`,
+        quality: 0.88
+      });
+
+      let replacementUrl: string | null = null;
+      try {
+        const form = new FormData();
+        form.append('file', file);
+        form.append('folder', 'images_generated');
+        form.append('autoSpaceUp', autoSpaceUp ? '1' : '0');
+
+        const res = await fetch('/api/storage/upload', {
+          method: 'POST',
+          credentials: 'same-origin',
+          body: form
+        });
+        if (res.ok) {
+          const data = (await res.json()) as { url?: string };
+          if (data.url) replacementUrl = data.url;
+        }
+      } catch {
+        // Guest or offline fallback below
+      }
+
+      if (!replacementUrl) {
+        replacementUrl = await fileToDataUrl(file);
+      }
+
+      if (replacementUrl) {
+        updated = updated.replace(fullMatch, `![${alt}](${replacementUrl})`);
+      }
+    } catch {
+      // Keep original data URL if WebP encoding fails
+    }
+  }
+
+  return updated;
+};
+
 const finishSuccessfulTask = async (task: ChatGenerationTask) => {
   if (!task.fullContent && !task.fullReasoning && !task.clarification) {
     throw new Error('The provider returned an empty response.');
+  }
+
+  if (task.fullContent && task.fullContent.includes('data:image/')) {
+    const materializedContent = await materializeGeneratedImagesAsWebp(task.fullContent);
+    if (materializedContent !== task.fullContent) {
+      task.fullContent = materializedContent;
+      task.displayedContent = materializedContent;
+    }
   }
 
   task.status = 'completed';

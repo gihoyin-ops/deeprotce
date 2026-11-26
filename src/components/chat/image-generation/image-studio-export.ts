@@ -1,4 +1,5 @@
 import { type ImageAspectRatio } from '@/lib/images/image-aspect-ratio';
+import { downloadImageAsPng } from '@/lib/images/client-webp';
 
 export type ImageStudioMode = 'view' | 'edit' | 'annotate' | 'resize' | 'remove';
 
@@ -341,55 +342,6 @@ export function buildSpatialPinPrompt(pins: EditPin[], generalPrompt: string): s
   return lines.join('\n');
 }
 
-function getExtensionFromSrc(src: string): string {
-  const dataMatch = src.match(/^data:image\/([a-z0-9.+-]+)/i);
-  if (dataMatch) {
-    return dataMatch[1].toLowerCase().replace('jpeg', 'jpg').replace('svg+xml', 'svg');
-  }
-  const pathMatch = src.split('?')[0]?.match(/\.([a-z0-9]+)$/i);
-  if (pathMatch) {
-    return pathMatch[1].toLowerCase();
-  }
-  return 'png';
-}
-
 export function downloadImageSrc(src: string, index = 0) {
-  const ext = getExtensionFromSrc(src);
-  const filename = `deepchat-image-${index + 1}.${ext}`;
-
-  if (src.startsWith('data:')) {
-    try {
-      const commaIdx = src.indexOf(',');
-      const header = src.slice(0, commaIdx);
-      const body = src.slice(commaIdx + 1);
-      const mimeMatch = header.match(/^data:([^;]+)/i);
-      const mime = mimeMatch?.[1] || 'image/png';
-      const binary = atob(body);
-      const bytes = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i += 1) {
-        bytes[i] = binary.charCodeAt(i);
-      }
-      const blob = new Blob([bytes], { type: mime });
-      const blobUrl = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.setTimeout(() => URL.revokeObjectURL(blobUrl), 1200);
-      return;
-    } catch {
-      // Fall through to direct link
-    }
-  }
-
-  const link = document.createElement('a');
-  link.href = src;
-  link.download = filename;
-  link.target = '_blank';
-  link.rel = 'noopener noreferrer';
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
+  void downloadImageAsPng(src, `deepchat-image-${index + 1}`);
 }
