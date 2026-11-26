@@ -119,7 +119,7 @@ export async function PATCH(req: Request) {
         );
       }
       const existing = await pool.query<{ id: string }>(
-        'SELECT id FROM accounts WHERE username = ? AND id != ? LIMIT 1',
+        'SELECT id FROM accounts WHERE LOWER(username) = LOWER(?) AND id != ? LIMIT 1',
         [normalized, current.id]
       );
       if (existing.length > 0) {
@@ -193,6 +193,12 @@ export async function PATCH(req: Request) {
     return res;
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to update profile.';
+    if (/unique/i.test(message) && /username/i.test(message)) {
+      return NextResponse.json(
+        { error: 'That username is already taken. Try another one.' },
+        { status: 409 }
+      );
+    }
     const status = message.includes('Database is not configured') ? 503 : 500;
     return NextResponse.json({ error: message }, { status });
   }

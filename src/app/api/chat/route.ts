@@ -317,14 +317,39 @@ const imageOutputToMarkdown = (images: GeneratedImageOutput[], text = '') => [
   })
 ].filter(Boolean).join('\n\n');
 
+const combineAbortSignals = (signal: AbortSignal | undefined, timeoutMs: number): AbortSignal => {
+  const timeoutSignal = AbortSignal.timeout(timeoutMs);
+  if (!signal) return timeoutSignal;
+  if (typeof AbortSignal.any === 'function') {
+    return AbortSignal.any([signal, timeoutSignal]);
+  }
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  if (signal.aborted || timeoutSignal.aborted) {
+    controller.abort();
+  } else {
+    signal.addEventListener('abort', abort, { once: true });
+    timeoutSignal.addEventListener('abort', abort, { once: true });
+  }
+  return controller.signal;
+};
+
+const isAbortLikeError = (err: unknown, signal?: AbortSignal): boolean => {
+  if (signal?.aborted) return true;
+  return err instanceof Error && err.name === 'AbortError';
+};
+
 const materializeGeneratedImages = async (
   images: GeneratedImageOutput[],
-  meta?: { accountId?: string; prompt?: string; model?: string }
+  meta?: { accountId?: string; prompt?: string; model?: string },
+  signal?: AbortSignal
 ) => {
   const materialized: GeneratedImageOutput[] = [];
+  if (signal?.aborted) return materialized;
   const pool = meta?.accountId && isR2Configured() ? await ensureTursoSchema().catch(() => null) : null;
 
   for (const image of images) {
+    if (signal?.aborted) break;
     if (image.base64 && meta?.accountId && isR2Configured()) {
       try {
         const bytes = new Uint8Array(Buffer.from(image.base64, 'base64'));
@@ -333,15 +358,18 @@ const materializeGeneratedImages = async (
         let quota = pool
           ? await checkAccountStorageQuota(pool, meta.accountId, bytes.byteLength)
           : { allowed: true };
+        if (signal?.aborted) break;
         if (!quota.allowed && pool) {
           await freeSpaceForUpload(pool, meta.accountId, bytes.byteLength);
           quota = await checkAccountStorageQuota(pool, meta.accountId, bytes.byteLength);
         }
+        if (signal?.aborted) break;
 
         if (quota.allowed) {
           const rand = crypto.randomBytes(5).toString('hex');
           const key = `images_generated/dc${rand}.${ext}`;
           const uploaded = await uploadToR2({ key, body: bytes, contentType: mime });
+          if (signal?.aborted) break;
           if (pool) {
             await registerLibraryItem(pool, {
               accountId: meta.accountId,
@@ -415,9 +443,13 @@ const getOpenAIGeneratedImages = (data: unknown): GeneratedImageOutput[] => {
   }).filter((item): item is GeneratedImageOutput => Boolean(item));
 };
 
-const inlineRemoteGeneratedImages = async (images: GeneratedImageOutput[]) => {
+const inlineRemoteGeneratedImages = async (
+  images: GeneratedImageOutput[],
+  signal?: AbortSignal
+) => {
   const inlined: GeneratedImageOutput[] = [];
   for (const image of images) {
+    if (signal?.aborted) break;
     if (image.base64 || !image.url) {
       inlined.push(image);
       continue;
@@ -425,7 +457,8 @@ const inlineRemoteGeneratedImages = async (images: GeneratedImageOutput[]) => {
     try {
       // provider-supplied URL; refuse private/metadata targets before fetching
       await assertEgressUrl(image.url);
-      const response = await fetch(image.url, { signal: AbortSignal.timeout(15000) });
+      if (signal?.aborted) break;
+      const response = await fetch(image.url, { signal: combineAbortSignals(signal, 15000) });
       if (!response.ok) {
         inlined.push(image);
         continue;
@@ -1056,7 +1089,8 @@ export async function POST(req: Request) {
               const res = await fetch(url, {
                 method: 'POST',
                 headers,
-                body: JSON.stringify(body)
+                body: JSON.stringify(body),
+                signal: req.signal
               });
 
               // Graceful fallback if upstream provider rejects `tools` parameter
@@ -1082,7 +1116,8 @@ export async function POST(req: Request) {
                 const fbRes = await fetch(url, {
                   method: 'POST',
                   headers,
-                  body: JSON.stringify(applyOpenAICompatibleReasoning({ model: modelToUse, messages: fbOpenAI, stream: true }, llmSettings))
+                  body: JSON.stringify(applyOpenAICompatibleReasoning({ model: modelToUse, messages: fbOpenAI, stream: true }, llmSettings)),
+                  signal: req.signal
                 });
                 if (!fbRes.ok || !fbRes.body) {
                   const fbErr = await getRouteResponseError(fbRes);
@@ -1331,6 +1366,9 @@ export async function POST(req: Request) {
     injectSearchSystemPrompt(messages, searchResult.context, searchResult.sources.length > 0);
 
     if (isImageRequest) {
+      if (req.signal.aborted) {
+        return new Response(null, { status: 499 });
+      }
       const liveImage = getLiveImageConfig();
       // server image endpoint is env-provisioned only; client strings must not select base or model
       if (!liveImage) {
@@ -1371,7 +1409,8 @@ export async function POST(req: Request) {
               clientSecret: liveImage.apiKey,
               clientId,
             }),
-            body: formData
+            body: formData,
+            signal: req.signal
           });
 
           if (editRes.ok) {
@@ -1386,6 +1425,9 @@ export async function POST(req: Request) {
       }
 
       if (!res) {
+        if (req.signal.aborted) {
+          return new Response(null, { status: 499 });
+        }
         const body = getOpenAIImageRequestBody(imageModel, prompt, requestedAspectRatio);
         res = await fetch(`${liveImage.baseUrl}/v1/images/generations`, {
           method: 'POST',
@@ -1394,27 +1436,43 @@ export async function POST(req: Request) {
             clientId,
             contentType: 'application/json',
           }),
-          body: JSON.stringify(body)
+          body: JSON.stringify(body),
+          signal: req.signal
         });
       }
 
+      if (req.signal.aborted) {
+        return new Response(null, { status: 499 });
+      }
       if (!res.ok) {
         const upstreamBody = await getRouteResponseError(res);
         logUpstreamFailure(res.status, upstreamBody);
         return upstreamErrorResponse(res.status, res.headers);
       }
       const data = await res.json();
-      const images = await inlineRemoteGeneratedImages(getOpenAIGeneratedImages(data));
+      if (req.signal.aborted) {
+        return new Response(null, { status: 499 });
+      }
+      const images = await inlineRemoteGeneratedImages(getOpenAIGeneratedImages(data), req.signal);
+      if (req.signal.aborted) {
+        return new Response(null, { status: 499 });
+      }
       if (images.length === 0) {
         throw new Error('The server kept it to itself, no image came back. Try again in a moment.');
       }
-      const output = imageOutputToMarkdown(
-        await materializeGeneratedImages(images, {
+      const materializedImages = await materializeGeneratedImages(
+        images,
+        {
           accountId: verifiedAccount?.sub,
           prompt,
           model: imageModel
-        })
+        },
+        req.signal
       );
+      if (req.signal.aborted) {
+        return new Response(null, { status: 499 });
+      }
+      const output = imageOutputToMarkdown(materializedImages);
       logAiExchange({ ...aiLogPayload, output });
       // image call still eats a prompt, go with that
       recordTokens(identityKey, imagePromptTokens);
@@ -1442,7 +1500,8 @@ export async function POST(req: Request) {
     const res = await fetch(url, {
       method: 'POST',
       headers,
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
+      signal: req.signal
     });
 
     if (!res.ok) {
@@ -1484,6 +1543,9 @@ export async function POST(req: Request) {
     });
 
   } catch (err: unknown) {
+    if (isAbortLikeError(err, req.signal)) {
+      return new Response(null, { status: 499 });
+    }
     console.error(`[chat] unexpected error: ${getErrorMessage(err)}`);
     return NextResponse.json({ error: 'Could not complete the request right now. Please try again.' }, { status: 500 });
   }

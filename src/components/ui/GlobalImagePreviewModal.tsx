@@ -29,11 +29,13 @@ export default function GlobalImagePreviewModal({
   const imgRef = useRef<HTMLImageElement | null>(null);
   const dragRef = useRef<{
     active: boolean;
+    moved: boolean;
     startX: number;
     startY: number;
     originX: number;
     originY: number;
-  }>({ active: false, startX: 0, startY: 0, originX: 0, originY: 0 });
+  }>({ active: false, moved: false, startX: 0, startY: 0, originX: 0, originY: 0 });
+  const suppressBackdropClickRef = useRef(false);
 
   const [zoom, setZoom] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
@@ -99,10 +101,12 @@ export default function GlobalImagePreviewModal({
   };
 
   const handlePointerDown = (e: React.PointerEvent) => {
-    if (zoom <= 1) return;
+    if (e.button !== 0) return;
     e.stopPropagation();
+    if (zoom <= 1) return;
     dragRef.current = {
       active: true,
+      moved: false,
       startX: e.clientX,
       startY: e.clientY,
       originX: offset.x,
@@ -112,14 +116,43 @@ export default function GlobalImagePreviewModal({
 
   const handlePointerMove = (e: React.PointerEvent) => {
     if (!dragRef.current.active) return;
+    const dx = e.clientX - dragRef.current.startX;
+    const dy = e.clientY - dragRef.current.startY;
+    if (Math.hypot(dx, dy) > 4) {
+      dragRef.current.moved = true;
+      suppressBackdropClickRef.current = true;
+    }
     setOffset({
-      x: dragRef.current.originX + (e.clientX - dragRef.current.startX),
-      y: dragRef.current.originY + (e.clientY - dragRef.current.startY)
+      x: dragRef.current.originX + dx,
+      y: dragRef.current.originY + dy
     });
   };
 
   const handlePointerUp = () => {
     dragRef.current.active = false;
+    if (suppressBackdropClickRef.current) {
+      window.setTimeout(() => {
+        suppressBackdropClickRef.current = false;
+      }, 40);
+    }
+  };
+
+  const handleBackdropClick = () => {
+    if (suppressBackdropClickRef.current) return;
+    onClose();
+  };
+
+  const handleImageClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (dragRef.current.moved || suppressBackdropClickRef.current) {
+      dragRef.current.moved = false;
+      return;
+    }
+    if (zoom > 1.05) {
+      resetView();
+    } else {
+      setZoom(2);
+    }
   };
 
   return createPortal(
@@ -128,7 +161,9 @@ export default function GlobalImagePreviewModal({
       role="dialog"
       aria-modal="true"
       aria-label={alt}
-      onClick={onClose}
+      data-no-marquee="true"
+      onMouseDown={e => e.stopPropagation()}
+      onClick={handleBackdropClick}
       onWheel={handleWheel}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
@@ -175,7 +210,8 @@ export default function GlobalImagePreviewModal({
         src={src}
         alt={alt}
         draggable={false}
-        onClick={e => e.stopPropagation()}
+        onMouseDown={e => e.stopPropagation()}
+        onClick={handleImageClick}
         onDoubleClick={handleDoubleClick}
         onPointerDown={handlePointerDown}
         style={{

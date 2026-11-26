@@ -552,6 +552,7 @@ export default function LibraryPage() {
 
   const handleContainerMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
+    if (previewItem || isMoveModalOpen || isTrashModalOpen || isNewFolderModalOpen) return;
     const target = e.target as HTMLElement;
     if (target.closest('button, input, a, [data-no-marquee]')) return;
     marqueeActiveRef.current = true;
