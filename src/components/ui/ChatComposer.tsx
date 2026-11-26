@@ -723,10 +723,14 @@ export default function ChatComposer({
     };
     recognition.onerror = (event?: { error?: string }) => {
       const code = event?.error;
-      if (code === 'not-allowed' || code === 'service-not-allowed') {
+      if (code === 'not-allowed') {
         toast.error('Microphone permission denied.');
+      } else if (code === 'service-not-allowed') {
+        toast.error('Speech recognition service is unavailable in this browser.');
       } else if (code === 'audio-capture') {
         toast.error('No microphone detected.');
+      } else if (code === 'network') {
+        toast.error('Speech recognition network error.');
       }
       recognitionRef.current = null;
       setIsDictating(false);
