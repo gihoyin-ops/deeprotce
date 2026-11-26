@@ -25,13 +25,13 @@ export default function DictateAbstractOrb({
   const phaseRef = useRef(0);
   const energyRef = useRef(0.35);
 
-  // Boost voice wave energy whenever real speech recognition results arrive
+  // Crank up the wave energy whenever actual speech results roll in
   useEffect(() => {
     if (!isDictating || activityTick <= 0) return;
     energyRef.current = 1;
   }, [activityTick, isDictating]);
 
-  // Smooth GSAP state transition (idle <-> dictating)
+  // GSAP transition between idle and dictating states
   useLayoutEffect(() => {
     const svgEl = svgRef.current;
     const haloEl = haloRef.current;
@@ -91,7 +91,7 @@ export default function DictateAbstractOrb({
     }
   }, [isDictating]);
 
-  // Continuous GSAP ticker voice-reactive morphing (uses existing mediaStream if provided, never steals mic)
+  // Continuous GSAP ticker for voice-reactive bars (reuses existing mediaStream so it doesn't hijack the mic)
   useEffect(() => {
     if (!isDictating) return;
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -150,7 +150,7 @@ export default function DictateAbstractOrb({
         return;
       }
 
-      // Gently decay speech spike back to calm listening baseline
+      // Bleed the speech spike back down to the chill baseline
       energyRef.current = Math.max(0.32, energyRef.current - dt * 0.0012);
       const energy = energyRef.current;
       for (let i = 0; i < 5; i += 1) {

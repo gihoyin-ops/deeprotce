@@ -88,7 +88,7 @@ export const persistModel = (model: SelectedModel) => {
     localStorage.setItem('selectedModelObj', JSON.stringify(model));
     localStorage.setItem('selectedModel', model.id);
   } catch {
-    // ignore storage failures
+    // storage is busted or blocked, ignore that shit
   }
 };
 
@@ -118,7 +118,7 @@ export const loadStoredEffort = (): number => {
       if (!Number.isNaN(parsed) && parsed >= 0 && parsed <= 4) return parsed;
     }
   } catch {
-    // ignore storage failures
+    // storage is busted or blocked, ignore that shit
   }
   return 1;
 };
@@ -127,7 +127,7 @@ export const persistEffort = (index: number) => {
   try {
     localStorage.setItem('selectedModelEffort', String(index));
   } catch {
-    // ignore storage failures
+    // storage is busted or blocked, ignore that shit
   }
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('modelEffortChanged', { detail: index }));

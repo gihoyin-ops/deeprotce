@@ -171,7 +171,7 @@ export const loadAppearanceSettings = (): AppearanceSettings => {
   try {
     const raw = localStorage.getItem(APPEARANCE_KEY);
     if (raw) return normalizeAppearanceSettings(JSON.parse(raw));
-    // fallback to legacy key if user hasn't saved under the new key yet
+    // fall back to the old legacy key if they haven't saved under the new key yet
     const legacy = localStorage.getItem(LEGACY_GENERAL_KEY);
     if (legacy) return normalizeAppearanceSettings(JSON.parse(legacy));
     return defaultAppearanceSettings;

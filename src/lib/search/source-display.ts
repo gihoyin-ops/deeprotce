@@ -90,7 +90,7 @@ export const formatSourceDate = (date?: string): string => {
   const raw = date?.trim() || '';
   if (!raw) return '';
 
-  // Avoid parsing bare 4-digit numbers or purely numeric strings as Unix/epoch dates
+  // don't parse bare 4-digit numbers or pure numeric garbage as Unix/epoch dates
   if (/[a-zA-Z]|[-/]/.test(raw) && !/\bago\b/i.test(raw)) {
     const parsed = Date.parse(raw);
     if (!Number.isNaN(parsed)) {
@@ -190,7 +190,7 @@ export const extractCitedSourceIndices = (markdown: string, sources: SearchSourc
     }
   };
 
-  // Match bracketed citations such as [1], [1, 2], [Wikipedia]
+  // match bracketed citations like [1], [1, 2], [Wikipedia]
   const bracketPattern = /\[([^\[\]\n]{1,64})\](?:\(([^)\s]+)\))?/g;
   let match: RegExpExecArray | null;
   while ((match = bracketPattern.exec(plain)) !== null) {

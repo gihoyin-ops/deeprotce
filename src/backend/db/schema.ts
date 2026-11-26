@@ -1,7 +1,7 @@
-// Turso / libSQL schema for DeepChat
+// Turso / libSQL schema for DeepChat.
 // Covers accounts, OAuth identities, sessions, plan grants, usage windows,
 // persistent guest rate limits, chats/messages/versions/attachments,
-// personas, settings, encrypted connections, memories, and feedback
+// personas, settings, encrypted connections, memories, and feedback.
 
 export const TURSO_SCHEMA_STATEMENTS: string[] = [
   `CREATE TABLE IF NOT EXISTS accounts (

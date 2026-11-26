@@ -1,4 +1,4 @@
-// shared settings modal types
+// Shared TypeScript crap for the settings modal
 
 export type SettingsTab =
   | 'account'
@@ -76,7 +76,7 @@ export interface SettingsModalProps {
   initialTab?: SettingsTab;
 }
 
-// personalization draft state
+// Draft state for all the AI personality and memory knobs
 export interface PersonaState {
   instructions: string;
   styleTone: string;

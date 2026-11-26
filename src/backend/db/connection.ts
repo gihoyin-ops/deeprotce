@@ -1,7 +1,7 @@
-// engine-neutral pool contract for the future server
-// mirrors the local-first per-process DatabaseSync, implementation
-// lands on Postgres/Neon, driver-agnostic on purpose so the rest of
-// the tree depends only on this shape
+// Engine-neutral pool contract for the future server.
+// Mirrors the local per-process DatabaseSync, actual implementation lands on
+// Postgres/Neon, kept driver-agnostic on purpose so the rest of the codebase
+// only depends on this interface.
 
 import type { BackendPlanGrant, BackendUsageLedger, BackendUsageWindow } from '../types';
 
@@ -14,7 +14,7 @@ export interface DbPool {
 
 export { ensureTursoSchema, getDbPool, isTursoConfigured } from './turso';
 
-// thin read shapes for the account, plan, and usage service
+// Thin read shapes for the account, plan, and usage services
 export type PlanGrantQuery = {
   accountId: string;
 } & Pick<BackendPlanGrant, 'plan'>;

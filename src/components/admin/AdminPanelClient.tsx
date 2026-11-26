@@ -114,7 +114,7 @@ export default function AdminPanelClient() {
     staleTime: 15_000
   });
 
-  // Entrance stagger with GSAP
+  // GSAP stagger bs for initial mount entrance
   useEffect(() => {
     if (!data || didAnimateEntrance.current || !rootRef.current) return;
     didAnimateEntrance.current = true;
@@ -137,7 +137,7 @@ export default function AdminPanelClient() {
     return () => ctx.revert();
   }, [data]);
 
-  // Sliding tab indicator + content fade with GSAP
+  // GSAP sliding tab underline and content fade when switching tabs
   useEffect(() => {
     const activeBtn = tabButtonRefs.current[tab];
     const indicator = tabIndicatorRef.current;
@@ -279,7 +279,7 @@ export default function AdminPanelClient() {
 
   return (
     <div ref={rootRef} className="min-h-screen bg-[var(--dc-canvas)] text-[var(--dc-text)]">
-      {/* Clean top navbar — zero extra tags or clutter */}
+      {/* Stripped-down top navbar, no extra garbage or clutter */}
       <header className="sticky top-0 z-30 border-b border-[var(--dc-border-subtle)] bg-[var(--dc-canvas)]/85 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3.5 sm:px-6">
           <div className="flex items-center gap-3">
@@ -322,7 +322,7 @@ export default function AdminPanelClient() {
       </header>
 
       <main className="mx-auto max-w-6xl space-y-6 px-4 py-6 sm:px-6">
-        {/* Stats */}
+        {/* Top stat cards */}
         <section className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
           {[
             { label: 'Accounts', value: data?.stats.totalUsers ?? '—' },
@@ -342,7 +342,7 @@ export default function AdminPanelClient() {
           ))}
         </section>
 
-        {/* Sliding-indicator Tabs */}
+        {/* Tabs with the sliding underline indicator */}
         <div className="relative flex items-center gap-1 border-b border-[var(--dc-border-subtle)]">
           {(
             [
@@ -385,7 +385,7 @@ export default function AdminPanelClient() {
             </div>
           ) : tab === 'users' ? (
             <div className="space-y-4">
-              {/* Search & PillDropdown Filters */}
+              {/* Search bar and PillDropdown filters */}
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="relative flex-1 sm:max-w-sm">
                   <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--dc-text-muted)]" />
@@ -422,7 +422,7 @@ export default function AdminPanelClient() {
                 </div>
               ) : (
                 <>
-                  {/* Desktop table */}
+                  {/* Desktop users table */}
                   <div className="hidden overflow-hidden rounded-3xl border border-[var(--dc-border-subtle)] bg-[var(--dc-surface)] md:block">
                     <table className="w-full border-collapse text-left text-sm">
                       <thead>
@@ -617,7 +617,7 @@ export default function AdminPanelClient() {
                     </table>
                   </div>
 
-                  {/* Mobile cards */}
+                  {/* Mobile stacked user cards */}
                   <div className="space-y-3 md:hidden">
                     {filteredUsers.map(user => {
                       const isSelf = user.id === data?.actor.id;

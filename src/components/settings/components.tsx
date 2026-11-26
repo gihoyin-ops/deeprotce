@@ -7,7 +7,7 @@ import { Search, Settings as SettingsIcon, Trash2 } from '@/components/ui/icons'
 import type { InstalledTool, TOOL_CATALOG } from '@/lib/settings/tool-settings';
 import { StatusPill } from './primitives';
 
-// rows for search tools
+// Search tool row styles and crap
 
 const card = 'rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-colors hover:border-indigo-200 dark:border-slate-700/60 dark:bg-slate-900/60 dark:hover:border-indigo-500/40';
 const iconButton = 'rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition-colors hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:hover:border-indigo-500/40 dark:hover:bg-indigo-500/10 dark:hover:text-indigo-300';
@@ -15,7 +15,7 @@ const installButton = (installed: boolean) => `rounded-xl px-4 py-2 text-xs font
   ? 'cursor-default bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300'
   : 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-400'}`;
 
-// shared toggle row
+// Shared toggle switch row with GSAP thumb slide
 export function RowSwitch({ checked, onChange, label }: { checked: boolean; onChange: (checked: boolean) => void; label: string }) {
   const thumbRef = useRef<HTMLSpanElement>(null);
   const isFirstRender = useRef(true);

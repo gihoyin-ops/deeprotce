@@ -5,10 +5,10 @@ import { ensureDataDirectoriesSync, DATA_DIR } from '@/lib/data-directories';
 
 export const runtime = 'nodejs';
 
-// Local-first feedback store. One record per (chat, message, rating): votes
-// can be flipped, annotated with reasons/details (latest annotation wins),
-// and inspected via GET. The file sits in the app DATA_DIR next to the rest
-// of the server-side data, so it shares the same serverless/tmpdir behavior
+// Local-first feedback SQLite store. One row per (chat, message, rating), votes
+// can be flipped, tagged with reasons/details (latest one wins), and dumped via
+// GET. Lives in DATA_DIR next to the rest of the server data so it inherits the
+// same serverless/tmpdir bullshit
 const DB_PATH = (() => {
   ensureDataDirectoriesSync();
   return path.join(DATA_DIR, 'deepchat-feedback.sqlite');
@@ -56,7 +56,7 @@ const getDb = (): DatabaseSync | null => {
         UNIQUE (chat_id, message_id, version_index, rating)
       );`);
 
-      // Ensure version_index exists and is part of the unique index on existing tables
+      // Make sure version_index exists and sits in the unique index on old tables
       const columns = db.prepare('PRAGMA table_info(feedback)').all() as Array<{ name: string }>;
       const hasVersion = columns.some(c => c.name === 'version_index');
       if (!hasVersion) {
@@ -99,8 +99,8 @@ const getDb = (): DatabaseSync | null => {
     }
     return db;
   } catch {
-    // No writable storage (serverless, locked file). The client keeps the vote
-    // in localStorage; we report the gap instead of pretending it persisted
+    // Disk is read-only or locked (classic serverless shit). Client keeps the vote
+    // in localStorage, we report the failure instead of faking persistence
     return null;
   }
 };
@@ -166,7 +166,7 @@ export async function POST(request: Request) {
 
     const now = new Date().toISOString();
     if (remove) {
-      // Removing a vote clears both directions for this specific version
+      // Unvoting nukes both like and dislike for this version
       database.prepare('DELETE FROM feedback WHERE chat_id = ? AND message_id = ? AND version_index = ?').run(chatId, messageId, versionIndex);
       return NextResponse.json({ ok: true, persisted: true, removed: true, savedAt: now, versionIndex });
     }
@@ -174,7 +174,7 @@ export async function POST(request: Request) {
     const reasons = parseReasons(body.reasons, rating === 'like' ? LIKE_REASONS : DISLIKE_REASONS);
     const details = normalizeString(body.details, 2000);
     if (rating === 'like') {
-      // Liking flips a previous dislike on this version: the dislike row is retired
+      // Liking kills any prior dislike on this version so they don't both sit there
       database.prepare('DELETE FROM feedback WHERE chat_id = ? AND message_id = ? AND version_index = ? AND rating = \'dislike\'').run(chatId, messageId, versionIndex);
     }
     database.prepare(`
@@ -197,7 +197,7 @@ export async function POST(request: Request) {
       now
     );
 
-    // A dislike vote after an existing like removes the like for this version
+    // Disliking after a like nukes the old like for this version
     if (rating === 'dislike') {
       database.prepare('DELETE FROM feedback WHERE chat_id = ? AND message_id = ? AND version_index = ? AND rating = \'like\'').run(chatId, messageId, versionIndex);
     }

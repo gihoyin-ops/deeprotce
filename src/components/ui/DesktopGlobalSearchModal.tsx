@@ -246,7 +246,7 @@ export default function DesktopGlobalSearchModal({
         onClick={e => e.stopPropagation()}
         className="flex max-h-[72dvh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-[var(--dc-border)] bg-[var(--dc-panel)] text-[var(--dc-text)] shadow-2xl"
       >
-        {/* Search Input Header */}
+        {/* Top search input bar */}
         <div className="flex items-center gap-3 px-5 pb-3 pt-4">
           <Search className="h-4 w-4 shrink-0 text-[var(--dc-text-muted)]" />
           <input
@@ -278,7 +278,7 @@ export default function DesktopGlobalSearchModal({
           </button>
         </div>
 
-        {/* Full-name Filter Tabs */}
+        {/* Filter tabs */}
         <div className="flex items-center gap-1 px-4 pb-3">
           {SEARCH_TABS.map(tab => {
             const active = activeTab === tab.id;
@@ -299,7 +299,7 @@ export default function DesktopGlobalSearchModal({
           })}
         </div>
 
-        {/* Results */}
+        {/* Search results list */}
         <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto px-3 pb-4">
           {filtered.length === 0 ? (
             <div className="py-14 text-center">

@@ -4,7 +4,7 @@ import { isSessionActiveInDb, requireDbPool, type AccountRow } from '@/backend/a
 import AdminPanelClient from '@/components/admin/AdminPanelClient';
 import { ACCOUNT_COOKIE_NAME } from '@/lib/security/auth';
 import { verifyAccountClaims } from '@/lib/security/crypto';
-import { isStaffRole, parseRole } from '@/lib/security/roles';
+import { isManagerStaffRole, parseRole } from '@/lib/security/roles';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,7 +34,7 @@ export default async function AdminPage() {
     }
 
     const role = parseRole(account.role) ?? 'user';
-    if (!isStaffRole(role)) {
+    if (!isManagerStaffRole(role)) {
       redirect('/');
     }
   } catch {

@@ -148,7 +148,7 @@ class TursoHttpPool implements DbPool {
   }
 
   async close(): Promise<void> {
-    // HTTP pipeline is stateless per request
+    // HTTP pipeline is stateless per request, nothing to tear down here
   }
 }
 
@@ -220,7 +220,7 @@ export const getDbPool = (): DbPool | null => {
     return cachedPool;
   }
 
-  // On serverless without Turso env vars, local SQLite is ephemeral
+  // On serverless without Turso env vars, local SQLite is ephemeral garbage so bail out
   if (isServerless) {
     return null;
   }
@@ -252,7 +252,7 @@ const ensureAccountSecurityColumns = async (pool: DbPool): Promise<void> => {
 const ensureStaffAccountsAndPlans = async (pool: DbPool): Promise<void> => {
   await ensureAccountSecurityColumns(pool);
 
-  // Migrate legacy plan='owner' / plan='staff' into role='staff'
+  // Migrate old plan='owner' / plan='staff' shit into role='staff'
   await pool.exec(
     `UPDATE accounts SET role = 'staff' WHERE LOWER(plan) IN ('owner', 'staff') AND (role IS NULL OR LOWER(role) = 'user')`
   );

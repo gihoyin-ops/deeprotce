@@ -23,13 +23,13 @@ function readDotPalette(): DotPalette {
 
   return isDark
     ? {
-        baseRgb: '148, 163, 184', // slate-400
-        accentRgb: '96, 165, 250', // blue-400
+        baseRgb: '148, 163, 184', // slate-400 bs
+        accentRgb: '96, 165, 250', // blue-400 bs
         isDark: true,
       }
     : {
-        baseRgb: '100, 116, 139', // slate-500
-        accentRgb: '37, 99, 235', // blue-600
+        baseRgb: '100, 116, 139', // slate-500 bs
+        accentRgb: '37, 99, 235', // blue-600 bs
         isDark: false,
       };
 }
@@ -61,7 +61,7 @@ export default function AbstractStudioCanvas({
     palette: readDotPalette(),
   });
 
-  // Advanced GSAP dot-matrix canvas + kinetic blue dot choreography
+  // GSAP dot-matrix canvas and blue dot animation bs
   useEffect(() => {
     const rootEl = rootRef.current;
     const canvasEl = canvasRef.current;
@@ -86,7 +86,7 @@ export default function AbstractStudioCanvas({
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, width, height);
 
-      // Responsive grid spacing that adapts cleanly from compact mobile to desktop
+      // Grid spacing that scales from tiny phone screens up to desktop without looking like ass
       const spacing = Math.max(15, Math.min(22, Math.round(Math.min(width, height) / 13)));
       const cols = Math.max(6, Math.floor((width - spacing) / spacing));
       const rows = Math.max(6, Math.floor((height - spacing) / spacing));
@@ -111,7 +111,7 @@ export default function AbstractStudioCanvas({
           const distCenter = Math.hypot(dxCenter, dyCenter);
           const normDist = distCenter / maxDist;
 
-          // Calm radial wave + subtle harmonic interference
+          // Radial wave + cross-drift interference so the dots actually move
           const radialWave = animate
             ? Math.sin(distCenter * 0.038 - time * 1.9) * 0.5 + 0.5
             : 0.45;
@@ -119,10 +119,10 @@ export default function AbstractStudioCanvas({
             ? Math.sin(c * 0.45 + time * 0.9) * Math.cos(r * 0.45 - time * 0.75) * 0.5 + 0.5
             : 0.5;
 
-          // Edge vignette keeps perimeter whisper-quiet
+          // Fade out the edges so the border doesn't look harsh as shit
           const vignette = Math.max(0.18, 1 - normDist * 0.78);
 
-          // Pointer proximity illumination & subtle magnetic displacement
+          // Brighten dots near the pointer and nudge them slightly away
           let drawX = baseX;
           let drawY = baseY;
           let pointerBoost = 0;
@@ -145,7 +145,7 @@ export default function AbstractStudioCanvas({
           const baseAlpha = (palette.isDark ? 0.08 : 0.09) + energy * (palette.isDark ? 0.14 : 0.12);
           const alpha = (baseAlpha * vignette + pointerBoost * 0.34) * exitFade;
 
-          // Blend toward brand blue near the wave crest or pointer
+          // Tint toward brand blue near wave crests or the pointer
           const blueMix = Math.min(1, Math.max(0, (energy - 0.55) * 1.1 + pointerBoost * 0.95));
 
           if (blueMix > 0.15) {
@@ -212,7 +212,7 @@ export default function AbstractStudioCanvas({
       };
       gsap.ticker.add(tickerFn);
 
-      // Ambient blue glow breathing
+      // Breathing blue background glow
       if (ambientGlowRef.current) {
         gsap.to(ambientGlowRef.current, {
           scale: 1.18,
@@ -225,7 +225,7 @@ export default function AbstractStudioCanvas({
         });
       }
 
-      // Signature Blue Dot kinetic breathing + subtle organic squish
+      // Main blue dot breathing + squash/stretch bs
       if (coreDotRef.current) {
         const dotTl = gsap.timeline({ repeat: -1, defaults: { force3D: true } });
         dotTl
@@ -252,7 +252,7 @@ export default function AbstractStudioCanvas({
           });
       }
 
-      // Delicate expanding sonar ring from the blue dot
+      // Expanding sonar ring shooting out from the blue dot
       if (pulseRingRef.current) {
         gsap.fromTo(
           pulseRingRef.current,
@@ -268,7 +268,7 @@ export default function AbstractStudioCanvas({
         );
       }
 
-      // Minimalist orbital rotation for satellite micro-dots
+      // Spin the tiny satellite dots around the center
       if (orbitGroupRef.current) {
         gsap.to(orbitGroupRef.current, {
           rotation: 360,
@@ -279,7 +279,7 @@ export default function AbstractStudioCanvas({
         });
       }
 
-      // Bottom hairline filament sweep
+      // Bottom progress line sweep
       if (filamentRef.current) {
         gsap.fromTo(
           filamentRef.current,
@@ -293,7 +293,7 @@ export default function AbstractStudioCanvas({
         );
       }
 
-      // Subtle pointer magnetism on desktop fine-pointer devices
+      // Pointer tracking on desktop mouse devices only (fuck doing this on touch)
       const canHover = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
       let removePointerListeners: (() => void) | undefined;
 
@@ -335,7 +335,7 @@ export default function AbstractStudioCanvas({
     };
   }, []);
 
-  // Smooth exit fade for dot matrix when transitioning to the generated image
+  // Fade out the dot matrix when swapping in the finished image
   useEffect(() => {
     if (!isExiting) return;
     gsap.to(simRef.current, {
@@ -345,7 +345,7 @@ export default function AbstractStudioCanvas({
     });
   }, [isExiting]);
 
-  // Cycle clean status whisper
+  // Cycle through the status text strings every 3s
   useEffect(() => {
     if (isExiting) return;
 
@@ -404,14 +404,14 @@ export default function AbstractStudioCanvas({
       ref={rootRef}
       className="relative flex h-full w-full select-none items-center justify-center overflow-hidden"
     >
-      {/* Responsive HiDPI Dot-Matrix Canvas */}
+      {/* HiDPI dot-matrix canvas */}
       <canvas
         ref={canvasRef}
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 h-full w-full"
       />
 
-      {/* Subtle Ambient Blue Diffusion */}
+      {/* Ambient blue blur */}
       <div
         ref={ambientGlowRef}
         aria-hidden="true"
@@ -422,10 +422,10 @@ export default function AbstractStudioCanvas({
         }}
       />
 
-      {/* Minimalist Centerpiece: Signature Brand Blue Dot + Clean Status */}
+      {/* Centerpiece: blue dot + status label */}
       <div className="relative z-10 flex flex-col items-center justify-center gap-3.5 px-4 text-center">
         <div className="relative flex h-11 w-11 items-center justify-center">
-          {/* Expanding Sonar Ring */}
+          {/* Expanding sonar ring */}
           <div
             ref={pulseRingRef}
             aria-hidden="true"
@@ -433,7 +433,7 @@ export default function AbstractStudioCanvas({
             style={{ borderColor: 'rgb(59 130 246 / 0.45)' }}
           />
 
-          {/* Orbital Micro-Dots */}
+          {/* Orbiting micro-dots */}
           <div
             ref={orbitGroupRef}
             aria-hidden="true"
@@ -449,7 +449,7 @@ export default function AbstractStudioCanvas({
             />
           </div>
 
-          {/* Signature Kinetic Blue Dot */}
+          {/* Kinetic blue dot */}
           <KineticDot ref={coreDotRef} mode="manual" size="lg" />
         </div>
 
@@ -463,7 +463,7 @@ export default function AbstractStudioCanvas({
         </span>
       </div>
 
-      {/* Ultra-Thin Bottom Progress Filament */}
+      {/* Skinny bottom progress bar */}
       <div
         className="pointer-events-none absolute inset-x-0 bottom-0 h-[1.5px] overflow-hidden"
         style={{ backgroundColor: 'var(--dc-studio-border)' }}

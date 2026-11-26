@@ -49,7 +49,7 @@ export async function GET(req: Request) {
       }
     }
   } catch {
-    // If DB check fails transiently, fall back to cryptographically verified claims
+    // DB crapped out transiently, fall back to the cryptographically verified claims
   }
 
   const displayName = dbAccount?.display_name || verified.name;

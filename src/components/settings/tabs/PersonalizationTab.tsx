@@ -108,7 +108,7 @@ export function PersonalizationTab({
         </p>
       </header>
 
-      {/* Memory */}
+      {/* Memory toggles and management */}
       <section>
         <div className="flex items-center justify-between border-b border-[var(--dc-border-subtle)] pb-3">
           <div className="flex items-center gap-1.5">
@@ -160,7 +160,7 @@ export function PersonalizationTab({
         </div>
       </section>
 
-      {/* Reference photos (matches screenshot 1) */}
+      {/* Reference photos for image gen */}
       <section>
         <h4 className="border-b border-[var(--dc-border-subtle)] pb-3 text-base font-medium text-[var(--dc-text-strong)]">
           Reference photos
@@ -257,7 +257,7 @@ export function PersonalizationTab({
         </div>
       </section>
 
-      {/* Unheaded style & characteristics rows */}
+      {/* Style and tone dropdowns without a section header */}
       <section className="divide-y divide-[var(--dc-border-subtle)] border-t border-[var(--dc-border-subtle)]">
         <div className="flex items-center justify-between gap-6 py-4">
           <div className="min-w-0">
@@ -340,7 +340,7 @@ export function PersonalizationTab({
         </div>
       </section>
 
-      {/* Custom instructions */}
+      {/* Custom system instructions */}
       <section>
         <h4 className="border-b border-[var(--dc-border-subtle)] pb-3 text-base font-medium text-[var(--dc-text-strong)]">
           Custom instructions
@@ -365,7 +365,7 @@ export function PersonalizationTab({
         </div>
       </section>
 
-      {/* Additional settings (matches screenshot 2) */}
+      {/* Extra feature toggles */}
       <section>
         <h4 className="border-b border-[var(--dc-border-subtle)] pb-3 text-base font-medium text-[var(--dc-text-strong)]">
           Additional settings
@@ -434,7 +434,7 @@ export function PersonalizationTab({
         </div>
       </section>
 
-      {/* Custom Instructions Edit Modal (portaled outside SettingsModal for full-screen focus) */}
+      {/* Custom instructions modal, portaled outside SettingsModal so it covers the whole damn screen */}
       {isCustomModalOpen && typeof document !== 'undefined' && createPortal(
         <div
           className="fixed inset-0 z-[10050] flex items-center justify-center bg-black/55 p-4 backdrop-blur-[2px]"

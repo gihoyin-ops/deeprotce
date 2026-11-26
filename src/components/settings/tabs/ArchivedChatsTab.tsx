@@ -104,7 +104,7 @@ export function ArchivedChatsTab({ onOpenChat }: ArchivedChatsTabProps) {
         </p>
       </header>
 
-      {/* Search + Sort bar (matches screenshot 1) */}
+      {/* Search and sort bar */}
       <div className="flex flex-wrap items-center gap-2.5">
         <div className="relative min-w-[200px] flex-1">
           <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--dc-text-muted)]" />
@@ -126,13 +126,13 @@ export function ArchivedChatsTab({ onOpenChat }: ArchivedChatsTabProps) {
         />
       </div>
 
-      {/* Count header */}
+      {/* Archived chat count header */}
       <div className="flex items-center justify-between border-b border-[var(--dc-border-subtle)] pb-2.5 text-xs font-medium text-[var(--dc-text-muted)]">
         <span>Archived conversations</span>
         <span>{filteredChats.length} {filteredChats.length === 1 ? 'chat' : 'chats'}</span>
       </div>
 
-      {/* List */}
+      {/* Actual list of archived chats, or empty state if there ain't shit */}
       {isLoading ? (
         <div className="space-y-2.5">
           <div className="h-14 animate-pulse rounded-2xl bg-[var(--dc-surface-muted)]" />

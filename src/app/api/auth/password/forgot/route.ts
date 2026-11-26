@@ -19,7 +19,7 @@ export async function POST(req: Request) {
     const pool = await requireDbPool();
     const account = await findAccountByEmail(pool, email);
 
-    // Avoid leaking whether an email exists if not registered, while still enforcing cooldowns if it does
+    // Don't leak whether an email is registered, while still enforcing cooldowns if it actually exists
     if (!account) {
       return NextResponse.json({
         ok: true,

@@ -2,8 +2,8 @@ import crypto from 'node:crypto';
 import type { DbPool } from '@/backend/db/connection';
 import { hashToken } from '@/lib/security/crypto';
 
-export const OTP_TTL_MS = 10 * 60 * 1000; // 10 minutes
-export const OTP_HISTORY_WINDOW_MS = 60 * 60 * 1000; // 1 hour window for resend escalation
+export const OTP_TTL_MS = 10 * 60 * 1000; // 10 minutes before this shit expires
+export const OTP_HISTORY_WINDOW_MS = 60 * 60 * 1000; // 1 hour window for resend cooldown escalation
 export const OTP_MAX_ATTEMPTS = 5;
 
 export type OtpPurpose = 'auth' | 'reset';
@@ -11,11 +11,11 @@ export type OtpPurpose = 'auth' | 'reset';
 const hashOtpCode = (email: string, purpose: OtpPurpose, code: string): string =>
   hashToken(`${email.trim().toLowerCase()}:${purpose}:${code.trim()}`);
 
-// Progressive cooldown with random jitter as resend count increases within 1 hour:
-// - 1st send -> next resend in 45-60s
-// - 2nd send -> next resend in 120-180s (2-3 min)
-// - 3rd send -> next resend in 300-480s (5-8 min)
-// - 4th+ send -> next resend in 600-900s (10-15 min)
+// Progressive cooldown with random jitter as resend spam ramps up within 1 hour:
+// 1st send -> next resend in 45s to 60s
+// 2nd send -> next resend in 120s to 180s (2 to 3 min)
+// 3rd send -> next resend in 300s to 480s (5 to 8 min)
+// 4th+ send -> next resend in 600s to 900s (10 to 15 min)
 const computeProgressiveCooldownMs = (priorSendsInWindow: number): number => {
   if (priorSendsInWindow <= 0) {
     return (45 + crypto.randomInt(0, 16)) * 1000;
@@ -38,7 +38,7 @@ export const issueEmailOtp = async (
   const now = Date.now();
   const windowCutoffIso = new Date(now - OTP_HISTORY_WINDOW_MS).toISOString();
 
-  // Check active cooldown from the latest OTP sent to this email
+  // Check if the latest OTP for this email is still on cooldown
   const latestRows = await pool.query<{ next_resend_at: number }>(
     `SELECT next_resend_at FROM email_otps
      WHERE email = ? AND purpose = ?
@@ -52,7 +52,7 @@ export const issueEmailOtp = async (
     return { code: '', resendAfterSeconds: retryAfterSeconds, retryAfterSeconds };
   }
 
-  // Count prior sends in the last hour to escalate cooldown with random jitter
+  // Count how many times they spammed sends in the last hour so we can crank up the cooldown with jitter
   const countRows = await pool.query<{ cnt: number }>(
     `SELECT COUNT(*) AS cnt FROM email_otps
      WHERE email = ? AND purpose = ? AND created_at >= ?`,
@@ -62,7 +62,7 @@ export const issueEmailOtp = async (
   const cooldownMs = computeProgressiveCooldownMs(priorSends);
   const nextResendAt = now + cooldownMs;
 
-  // Invalidate any previous unconsumed OTPs for this email & purpose
+  // Nuke any old unconsumed OTPs for this email and purpose
   await pool.exec(
     `UPDATE email_otps SET consumed_at = ? WHERE email = ? AND purpose = ? AND consumed_at IS NULL`,
     [now, normalizedEmail, purpose]

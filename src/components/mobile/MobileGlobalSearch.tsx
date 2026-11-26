@@ -237,7 +237,7 @@ export default function MobileGlobalSearch({ isOpen, onClose }: MobileGlobalSear
       aria-label="Global search"
       className="fixed inset-0 z-[120] flex flex-col bg-[var(--dc-canvas)] text-[var(--dc-text)] sm:hidden"
     >
-      {/* Top Filter Tabs */}
+      {/* Top filter tabs */}
       <div className="shrink-0 px-4 pb-2 pt-[max(1rem,env(safe-area-inset-top))]">
         <div className="flex items-center gap-1 overflow-x-auto pb-1">
           {SEARCH_TABS.map(tab => {
@@ -260,7 +260,7 @@ export default function MobileGlobalSearch({ isOpen, onClose }: MobileGlobalSear
         </div>
       </div>
 
-      {/* Scrollable Results */}
+      {/* Scrollable search results */}
       <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto px-4 py-2">
         {filtered.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center px-6 text-center">
@@ -318,7 +318,7 @@ export default function MobileGlobalSearch({ isOpen, onClose }: MobileGlobalSear
         )}
       </div>
 
-      {/* Bottom Search Textarea + Circular X Button */}
+      {/* Bottom search box and circular close button */}
       <div className="shrink-0 px-4 pb-[max(0.85rem,env(safe-area-inset-bottom))] pt-2">
         <div className="flex items-end gap-2.5">
           <div className="flex min-h-[44px] flex-1 items-center rounded-3xl border border-[var(--dc-border-subtle)] bg-[var(--dc-surface)] px-4 py-2">

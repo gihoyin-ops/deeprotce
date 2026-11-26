@@ -380,7 +380,7 @@ const inlineRemoteGeneratedImages = async (
       continue;
     }
     try {
-      // provider-supplied URL; refuse private/metadata targets before fetching
+      // Untrusted provider URL, block private/metadata IPs before fetching that shit
       await assertEgressUrl(image.url);
       if (signal?.aborted) break;
       const response = await fetch(image.url, { signal: combineAbortSignals(signal, 15000) });
@@ -710,7 +710,7 @@ const getRouteResponseError = async (response: Response) => {
   return `Request failed with status ${response.status}`;
 };
 
-// upstream body text must never reach the client; map status classes to sanitized constants
+// Never leak upstream garbage to the client, map status classes to sanitized constants
 const upstreamSseError = (status: number, headers?: Headers) => formatRelayError(status, headers).message;
 
 const upstreamErrorResponse = (status: number, headers?: Headers) => relayErrorResponse(status, headers);
@@ -758,7 +758,7 @@ export async function POST(req: Request) {
     const verifiedAccount = getVerifiedAccount(req.headers);
     const isGuest = verifiedAccount === null;
 
-    // budget gate, identity is account_id when signed in, or client IP
+    // Budget gate, identity is account_id when signed in, or client IP for guests
     const identityKey = verifiedAccount ? `acc:${verifiedAccount.sub}` : clientIp;
     const gate = verifiedAccount
       ? await checkAccountUsageBudget(verifiedAccount.sub)
@@ -773,7 +773,7 @@ export async function POST(req: Request) {
         exhaustedWindow: gate.exhaustedWindow
       }, { status: 402, headers });
     }
-    // fallback estimate for image turns, fallback list only
+    // Rough fallback token estimate for image turns, fallback list only
     const imagePromptTokens = estimateChatPromptTokens(messages as { role?: string; content?: unknown }[]);
 
     const clientId = resolveRelayClientId(req);
@@ -812,7 +812,7 @@ export async function POST(req: Request) {
     const requestedImageGeneration = latestUser?.imageGenerationEnabled === true;
     const requestedAspectRatio = normalizeImageAspectRatio(imageAspectRatio || latestUser?.imageAspectRatio);
 
-    // Block image generation and image editing for guests before model resolution
+    // Cockblock image generation and editing for guests before resolving any model
     const requestedModel = typeof modelId === 'string' ? modelId.trim() : '';
     if (
       isGuest &&
@@ -850,7 +850,7 @@ export async function POST(req: Request) {
       }
     }
 
-    // Guests cannot pick arbitrary models; lock them to the server-configured guest default
+    // Guests don't get to pick random models, lock their asses to the server guest default
     let selectedRequestModel: string;
     if (isGuest) {
       const guestDefault =
@@ -859,7 +859,7 @@ export async function POST(req: Request) {
         conn.model;
       selectedRequestModel = guestDefault;
     } else {
-      // client modelId is untrusted; only env-provisioned or relay-listed models may reach the relay
+      // Client modelId is untrusted bs, only env-provisioned or relay-listed models can hit the relay
       const allowedModels = new Set(getLiveModels().map(m => m.id));
       for (const id of getEnvModelIds()) allowedModels.add(id);
       if (requestedModel && !allowedModels.has(requestedModel)) {
@@ -943,7 +943,7 @@ export async function POST(req: Request) {
               })));
             }
 
-            // Read any explicit URLs pasted in the user message in parallel
+            // Scrape any explicit URLs pasted in the user message in parallel
             const urlOutcome = urlContextTools.length > 0
               ? await collectSearchRuntimeContext(urlContextTools, latestUserMessage)
               : { context: '', sources: [] as SearchSource[], readSources: [] as SearchSource[], searched: false };
@@ -1019,7 +1019,7 @@ export async function POST(req: Request) {
                 signal: req.signal
               });
 
-              // Graceful fallback if upstream provider rejects `tools` parameter
+              // Fallback gracefully if the upstream provider chokes on the `tools` param
               if (round === 0 && !res.ok && (res.status === 400 || res.status === 404 || res.status === 422)) {
                 const upstreamBody = await getRouteResponseError(res);
                 logUpstreamFailure(res.status, `Tools rejected (${res.status}), falling back: ${upstreamBody}`);
@@ -1305,7 +1305,7 @@ export async function POST(req: Request) {
         return new Response(null, { status: 499 });
       }
       const liveImage = getLiveImageConfig();
-      // server image endpoint is env-provisioned only; client strings must not select base or model
+      // Image endpoint is env-provisioned only, client strings don't pick the base or model
       if (!liveImage) {
         return NextResponse.json({ error: 'The image feature is not configured on the server. Everything else is fine, try without an image.' }, { status: 400 });
       }
@@ -1397,7 +1397,7 @@ export async function POST(req: Request) {
       }
       const output = imageOutputToMarkdown(images);
       logAiExchange({ ...aiLogPayload, output });
-      // image call still eats a prompt, go with that
+      // Image call still burns a prompt, bill that shit
       recordTokens(identityKey, imagePromptTokens);
       if (verifiedAccount) {
         void recordAccountModelUsage(verifiedAccount.sub, selectedModel || conn.model || 'image', imagePromptTokens);
@@ -1407,7 +1407,7 @@ export async function POST(req: Request) {
 
     const url = getChatCompletionsUrl(p, cleanBase);
     const openAICompatibleMessages = await buildOpenAICompatibleMessages(messages, conn.provider, isMistralChatCompletionsTarget(conn, cleanBase, p));
-    // estimate from the final list, system, persona, and images are included
+    // Estimate tokens from the final list with system, persona, and images baked in
     const promptTokens = estimateChatPromptTokens(openAICompatibleMessages);
     const headers = buildRelayHeaders({
       clientSecret: conn.apiKey,

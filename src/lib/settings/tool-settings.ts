@@ -107,7 +107,7 @@ const normalizeInstalledTool = (value: unknown): InstalledTool | null => {
 
 const normalizeSettings = (settings: unknown): ToolSettings => {
   if (!isRecord(settings)) return defaultToolSettings;
-  // legacy persisted keys from older clients are dropped by the selective reads below
+  // old persisted keys from legacy clients get dropped on purpose by the selective reads below
   const installed = Array.isArray(settings.installed)
     ? settings.installed.map(normalizeInstalledTool).filter((item): item is InstalledTool => Boolean(item))
     : [];
@@ -214,10 +214,10 @@ const getEnabledSearchRuntimeItems = (settings: ToolSettings, requested: boolean
   const installed = getInstalledSearchRuntimeItems(settings);
   const configuredInstalled = installed.filter(item => item.configured);
   if (configuredInstalled.length > 0) return configuredInstalled;
-  // No provider installed: return the DuckDuckGo marker so the search gate opens
-  // The fan-out engine filters 'duckduckgo' out of the API-tools list, so this item
-  // only unlocks the request, the free pool (parallel/brave/duckduckgo/wikipedia)
-  // runs and DuckDuckGo is served exactly once, from the pool
+  // No provider installed, so return the DuckDuckGo marker just to open the search gate
+  // The fan-out engine strips 'duckduckgo' from the API-tools list anyway, so this
+  // only unlocks the request while the free pool (parallel/brave/duckduckgo/wikipedia)
+  // runs and serves DuckDuckGo once from the pool
   return [getDuckDuckGoRuntimeItem()];
 };
 

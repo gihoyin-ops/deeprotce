@@ -48,8 +48,8 @@ const StageIcon = ({ kind }: { kind: ErrorPageProps['kind'] }) => {
   );
 };
 
-// Self-contained error & restricted-route surface styled with DeepChat theme tokens
-// so it renders consistently even in global-error / global-not-found without globals.css
+// Self-contained error and restricted-route page styled with DeepChat theme tokens
+// so this shit still renders properly in global-error / global-not-found without globals.css
 const ErrorPage = ({ kind, title, lines, primary, secondary }: ErrorPageProps) => {
   const rootRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLElement>(null);
@@ -122,7 +122,7 @@ const ErrorPage = ({ kind, title, lines, primary, secondary }: ErrorPageProps) =
           '-=0.3'
         );
 
-      // Ambient micro-animations
+      // Ambient bullshit micro-animations so the screen isn't dead ass still
       gsap.to('.ep-ring-outer', {
         rotation: 360,
         duration: 36,
@@ -148,7 +148,7 @@ const ErrorPage = ({ kind, title, lines, primary, secondary }: ErrorPageProps) =
         ease: 'sine.inOut',
       });
 
-      // Subtle pointer parallax on the emblem & spotlight
+      // Subtle pointer parallax on the emblem and spotlight, nothing crazy
       const card = cardRef.current;
       const emblem = emblemRef.current;
       if (card && emblem) {

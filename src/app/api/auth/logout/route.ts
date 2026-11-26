@@ -15,7 +15,7 @@ export async function POST(req: Request) {
         await revokeSessionById(pool, verified.sid);
       }
     } catch {
-      // Clear cookie even if DB cleanup fails
+      // Nuke the cookie anyway even if DB cleanup craps out
     }
   }
 

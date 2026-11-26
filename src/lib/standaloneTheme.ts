@@ -1,6 +1,6 @@
-// shared head assets for fully standalone documents (global-error,
-// global-not-found): these render outside the root layout, so they carry
-// the pre-hydration theme script and the complete standalone theme vars
+// shared head assets for standalone pages (global-error, global-not-found)
+// since they render outside the root layout and need their own pre-hydration
+// theme script plus full CSS theme vars
 export const THEME_SCRIPT = "(function(){try{var r=document.documentElement;var s=JSON.parse(localStorage.getItem('deepchat-appearance-settings')||localStorage.getItem('deepchat-general-settings')||'null')||{};var a=s.appearance==='dark'||s.appearance==='light'||s.appearance==='system'?s.appearance:'system';var dark=a==='dark'||(a==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);r.classList.toggle('dark',dark);r.style.colorScheme=dark?'dark':'light';r.dataset.appearance=a;r.dataset.contrast=s.contrast==='increased'||s.contrast==='medium'?s.contrast:(window.matchMedia('(prefers-contrast: more)').matches?'increased':'medium');r.dataset.accentColor=s.accentColor||'default';r.dataset.theme=s.theme||'default';}catch(e){var r2=document.documentElement;var d2=window.matchMedia('(prefers-color-scheme: dark)').matches;r2.classList.toggle('dark',d2);r2.style.colorScheme=d2?'dark':'light';}})()";
 
 export const GLOBAL_CSS = `

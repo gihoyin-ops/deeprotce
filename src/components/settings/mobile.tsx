@@ -51,7 +51,7 @@ function useHasPhysicalKeyboard(): boolean {
   return hasPhysicalKeyboard;
 }
 
-// mobile only views
+// Mobile-only settings views, stay out on desktop
 
 export function MobileGeneralSelectRow({
   label,
@@ -262,7 +262,7 @@ export function MobileSettingsHome({
 
   return (
     <div className={`${hidden ? 'hidden' : 'flex'} h-full flex-col bg-[var(--dc-canvas)] sm:hidden`}>
-      {/* Unified Mobile Settings Top Bar */}
+      {/* Mobile settings top bar */}
       <div className="dc-mob-navbar flex min-h-[56px] shrink-0 items-center justify-between px-2 pt-[env(safe-area-inset-top)]">
         <button
           type="button"
@@ -279,7 +279,7 @@ export function MobileSettingsHome({
       </div>
 
       <div className="custom-scrollbar flex-1 overflow-y-auto px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-4">
-        {/* Profile Header Summary (taps through to /profile) */}
+        {/* Profile header summary, taps straight to /profile */}
         {!isGuest && (
           <button
             type="button"

@@ -229,7 +229,7 @@ export default function LoginPage() {
       ref={scrollContainerRef}
       className="custom-scrollbar h-dvh w-full overflow-x-hidden overflow-y-auto bg-[var(--dc-canvas)] text-[var(--dc-text)]"
     >
-      {/* Clean minimal header, no divider line, no extra buttons */}
+      {/* Bare-ass header, no divider line or extra buttons cluttering it up */}
       <header className="mx-auto flex h-16 max-w-6xl items-center px-6">
         <Link href="/" aria-label="DeepChat" className="inline-flex items-center">
           <span
@@ -250,16 +250,16 @@ export default function LoginPage() {
         </Link>
       </header>
 
-      {/* Main Login Hero (Clean Video Loop on Left, Auth Card on Right) */}
+      {/* Main login hero, looping video on the left and auth card on the right */}
       <main>
         <section className="mx-auto flex min-h-[calc(100dvh-4rem)] max-w-6xl items-center px-6 py-8 sm:py-12">
           <div className="grid w-full grid-cols-1 items-center gap-12 lg:grid-cols-12 lg:gap-16">
-            {/* Left: Pure looping video showcase */}
+            {/* Left side looping video showcase */}
             <div className="lg:col-span-6">
               <LoginShowcaseMedia />
             </div>
 
-            {/* Right: Headline + Login Card */}
+            {/* Right side headline and login card */}
             <div className="mx-auto w-full max-w-[400px] lg:col-span-6">
               <div className="mb-7 text-center">
                 <h1 className="text-3xl font-semibold tracking-tight text-[var(--dc-text-strong)] sm:text-[40px] sm:leading-[1.12]">
@@ -426,7 +426,7 @@ export default function LoginPage() {
           </div>
         </section>
 
-        {/* Empty scroll space -> Bottom circle expanding to full screen -> 4-Question FAQ */}
+        {/* Dead scroll space -> bottom circle blowing up full screen -> 4-question FAQ */}
         <PlanetFaqSection scrollContainerRef={scrollContainerRef} />
       </main>
     </div>

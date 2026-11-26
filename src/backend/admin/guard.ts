@@ -9,7 +9,6 @@ import type { DbPool } from '@/backend/db/connection';
 import { getVerifiedAccount, isSameOriginRequest } from '@/lib/security/auth';
 import {
   isManagerStaffRole,
-  isStaffRole,
   parseRole,
   type AccountRole
 } from '@/lib/security/roles';
@@ -98,18 +97,11 @@ export async function requireAdminActor(
   }
 
   const role = parseRole(account.role) ?? 'user';
-  if (!isStaffRole(role)) {
-    return {
-      ok: false,
-      response: NextResponse.json({ error: 'Staff access required.' }, { status: 403 })
-    };
-  }
-
-  if (options?.requireManager && !isManagerStaffRole(role)) {
+  if (!isManagerStaffRole(role)) {
     return {
       ok: false,
       response: NextResponse.json(
-        { error: 'Manager Staff authority required for this action.' },
+        { error: 'Manager Staff access required.' },
         { status: 403 }
       )
     };

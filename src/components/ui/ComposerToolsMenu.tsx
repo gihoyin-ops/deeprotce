@@ -192,7 +192,7 @@ export function ComposerToolsMenu({
     setView(nextView);
   }, []);
 
-  // Panel open / close choreography
+  // Panel open/close animation and item stagger
   useEffect(() => {
     const panelEl = panelRef.current;
     if (!panelEl) return;
@@ -253,7 +253,7 @@ export function ComposerToolsMenu({
     }
   }, [isOpen]);
 
-  // Directional view slide + item stagger when drilling into Recent / More
+  // Slide animation when drilling into Recent or More subviews
   useEffect(() => {
     if (!isOpen || viewDirectionRef.current === 0) return;
     const viewEl = viewRef.current;

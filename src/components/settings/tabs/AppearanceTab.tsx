@@ -44,7 +44,7 @@ function ColorModePreviewCard({
             : 'border-[var(--dc-border)] hover:border-[var(--dc-border-strong)]'
         }`}
       >
-        {/* Mobile phone-style preview (no sidebar) */}
+        {/* Tiny phone preview, no sidebar bs */}
         <div className="h-full w-full sm:hidden">
           {mode === 'light' && (
             <div className="flex h-full w-full flex-col justify-between p-1.5" style={{ backgroundColor: '#ffffff' }}>
@@ -112,7 +112,7 @@ function ColorModePreviewCard({
           )}
         </div>
 
-        {/* Desktop window preview (with sidebar) */}
+        {/* Desktop window preview with the sidebar */}
         <div className="hidden h-full w-full sm:block">
           {mode === 'light' && (
             <div className="flex h-full w-full p-1.5" style={{ backgroundColor: '#ffffff' }}>
@@ -226,7 +226,7 @@ export function AppearanceTab({ settings, onChange }: AppearanceTabProps) {
         </h4>
 
         <div className="divide-y divide-[var(--dc-border-subtle)]">
-          {/* Color mode (matches screenshot 5) */}
+          {/* Light, dark, or system color mode */}
           <div className="flex flex-col gap-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
             <div className="min-w-0">
               <p className="text-sm font-medium text-[var(--dc-text-strong)]">Color mode</p>
@@ -246,7 +246,7 @@ export function AppearanceTab({ settings, onChange }: AppearanceTabProps) {
             </div>
           </div>
 
-          {/* Theme */}
+          {/* Surface palette theme preset */}
           <div className="flex items-center justify-between gap-6 py-4">
             <div className="min-w-0">
               <p className="text-sm font-medium text-[var(--dc-text-strong)]">Theme</p>
@@ -265,7 +265,7 @@ export function AppearanceTab({ settings, onChange }: AppearanceTabProps) {
             />
           </div>
 
-          {/* Accent (with color dot) */}
+          {/* Accent color with a little dot */}
           <div className="flex items-center justify-between gap-6 py-4">
             <div className="min-w-0">
               <p className="text-sm font-medium text-[var(--dc-text-strong)]">Accent</p>
@@ -280,7 +280,7 @@ export function AppearanceTab({ settings, onChange }: AppearanceTabProps) {
             />
           </div>
 
-          {/* Background (color pill picker) */}
+          {/* Background color pill picker */}
           <div className="flex items-center justify-between gap-6 py-4">
             <div className="min-w-0">
               <p className="text-sm font-medium text-[var(--dc-text-strong)]">Background</p>
@@ -295,7 +295,7 @@ export function AppearanceTab({ settings, onChange }: AppearanceTabProps) {
             />
           </div>
 
-          {/* Foreground (color pill picker) */}
+          {/* Foreground text color pill picker */}
           <div className="flex items-center justify-between gap-6 py-4">
             <div className="min-w-0">
               <p className="text-sm font-medium text-[var(--dc-text-strong)]">Foreground</p>
@@ -312,7 +312,7 @@ export function AppearanceTab({ settings, onChange }: AppearanceTabProps) {
         </div>
       </section>
 
-      {/* Collapsible Advanced section (matches screenshots) */}
+      {/* Collapsible Advanced section for font sizes and motion shit */}
       <section>
         <div className="flex items-center justify-between border-b border-[var(--dc-border-subtle)] pb-3">
           <button
@@ -340,7 +340,7 @@ export function AppearanceTab({ settings, onChange }: AppearanceTabProps) {
 
         {isAdvancedOpen && (
           <div className="divide-y divide-[var(--dc-border-subtle)]">
-            {/* UI font size */}
+            {/* UI font size in px */}
             <div className="flex items-center justify-between gap-6 py-4">
               <div className="min-w-0">
                 <p className="text-sm font-medium text-[var(--dc-text-strong)]">UI font size</p>
@@ -367,7 +367,7 @@ export function AppearanceTab({ settings, onChange }: AppearanceTabProps) {
               </div>
             </div>
 
-            {/* Code font size */}
+            {/* Code block font size in px */}
             <div className="flex items-center justify-between gap-6 py-4">
               <div className="min-w-0">
                 <p className="text-sm font-medium text-[var(--dc-text-strong)]">Code font size</p>
@@ -394,7 +394,7 @@ export function AppearanceTab({ settings, onChange }: AppearanceTabProps) {
               </div>
             </div>
 
-            {/* Reduce motion */}
+            {/* Kill animations if motion makes you sick */}
             <div className="flex items-center justify-between gap-6 py-4">
               <div className="min-w-0">
                 <p className="text-sm font-medium text-[var(--dc-text-strong)]">Reduce motion</p>
@@ -426,7 +426,7 @@ export function AppearanceTab({ settings, onChange }: AppearanceTabProps) {
               </div>
             </div>
 
-            {/* Separate light and dark modes */}
+            {/* Separate theme/color settings for light and dark mode */}
             <div className="flex items-center justify-between gap-6 py-4">
               <div className="min-w-0">
                 <p className="text-sm font-medium text-[var(--dc-text-strong)]">Separate light and dark modes</p>
@@ -442,7 +442,7 @@ export function AppearanceTab({ settings, onChange }: AppearanceTabProps) {
               />
             </div>
 
-            {/* Contrast */}
+            {/* Contrast slider */}
             <div className="flex items-center justify-between gap-6 py-4">
               <div className="min-w-0">
                 <p className="text-sm font-medium text-[var(--dc-text-strong)]">Contrast</p>

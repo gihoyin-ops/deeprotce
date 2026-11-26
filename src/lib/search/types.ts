@@ -9,7 +9,7 @@ export interface SearchProviderResult {
 }
 
 /**
- * Structural copy of the chat tool runtime item
+ * Structural copy of the chat tool runtime item, keep it in sync
  */
 export interface SearchRuntimeItem {
   toolId: string;

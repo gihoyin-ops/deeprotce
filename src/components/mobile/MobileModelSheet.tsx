@@ -133,7 +133,7 @@ export default function MobileModelSheet({ isOpen, onClose }: MobileModelSheetPr
     [onClose]
   );
 
-  // Entrance animation + staggered model cards
+  // Slide the sheet up and stagger the model cards in
   useEffect(() => {
     if (!isOpen) {
       isAnimatingOutRef.current = false;
@@ -186,7 +186,7 @@ export default function MobileModelSheet({ isOpen, onClose }: MobileModelSheetPr
     return () => ctx.revert();
   }, [isOpen, loading]);
 
-  // Escape key & closeModelSelector listener
+  // Handle Escape key and external closeModelSelector events
   useEffect(() => {
     if (!isOpen) return;
 
@@ -314,7 +314,7 @@ export default function MobileModelSheet({ isOpen, onClose }: MobileModelSheetPr
     [commitTier, fireConfetti, maxTierIndex]
   );
 
-  // Sparkles canvas setup while sheet is open
+  // Init the sparkle particles on the canvas while the sheet is open
   const initParticles = useCallback((w: number, h: number) => {
     const count = Math.max(6, Math.round(w / 24));
     particlesRef.current = Array.from({ length: count }, () => ({
@@ -388,7 +388,7 @@ export default function MobileModelSheet({ isOpen, onClose }: MobileModelSheetPr
     };
   }, []);
 
-  // Slider pointer handling
+  // Slider pointer drag math and events
   const updatePosFromClientX = (clientX: number) => {
     const track = trackRef.current;
     if (!track) return 0;
@@ -413,7 +413,7 @@ export default function MobileModelSheet({ isOpen, onClose }: MobileModelSheetPr
     try {
       e.currentTarget.setPointerCapture(e.pointerId);
     } catch {
-      // ignore pointer capture issues
+      // Browser threw a fit on pointer capture, fuck it, ignore it
     }
     setIsDraggingSlider(true);
     updatePosFromClientX(e.clientX);
@@ -449,7 +449,7 @@ export default function MobileModelSheet({ isOpen, onClose }: MobileModelSheetPr
     }
   };
 
-  // 1:1 finger-tracked drag-to-dismiss on sheet handle + header
+  // 1:1 finger tracking to drag the sheet down by its handle or header
   const handleSheetTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
     if (e.touches.length !== 1 || isAnimatingOutRef.current) return;
     const target = e.target as HTMLElement;
@@ -559,7 +559,7 @@ export default function MobileModelSheet({ isOpen, onClose }: MobileModelSheetPr
       >
         {!isGuest && isUltra && <div className="dc-ms-ultra-top-seam" aria-hidden="true" />}
 
-        {/* Drag Handle + Header */}
+        {/* Drag handle and header */}
         <div
           onTouchStart={handleSheetTouchStart}
           onTouchMove={handleSheetTouchMove}
@@ -618,7 +618,7 @@ export default function MobileModelSheet({ isOpen, onClose }: MobileModelSheetPr
           </div>
         ) : (
           <>
-            {/* Section 1: Immediate One-Thumb Intelligence Control */}
+            {/* Section 1: One-thumb intelligence slider */}
         <div className="mb-4 rounded-2xl border border-[var(--dc-border)] bg-[var(--dc-surface-subtle)] p-3.5">
           <div className="mb-2.5 flex min-h-[20px] items-center justify-between gap-2">
             <span className="text-[12.5px] font-semibold text-[var(--dc-text-strong)]">
@@ -710,7 +710,7 @@ export default function MobileModelSheet({ isOpen, onClose }: MobileModelSheetPr
           </div>
         </div>
 
-        {/* Section 2: Models List */}
+        {/* Section 2: Model list */}
         <div>
           <div className="mb-2 flex items-center justify-between px-0.5">
             <span className="text-[12px] font-semibold uppercase tracking-wider text-[var(--dc-text-muted)]">

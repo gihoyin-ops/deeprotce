@@ -28,8 +28,8 @@ const canvasToBlob = (
 const stripExtension = (name: string): string => name.replace(/\.[^.]+$/, '') || 'image';
 
 /**
- * Converts an uploaded File/Blob or data URL into WebP on the client device
- * before sending it to CDN storage.
+ * Converts an uploaded File/Blob or data URL to WebP on the client before
+ * yeeting it to CDN storage.
  */
 export const convertImageToWebp = async (
   input: File | Blob | string,
@@ -79,7 +79,7 @@ export const convertImageToWebp = async (
 };
 
 /**
- * Downloads a CDN/remote image and converts it to PNG on the user's device.
+ * Fetches a CDN/remote image and converts it to PNG locally on the user's machine.
  */
 export const downloadImageAsPng = async (
   url: string,
@@ -119,7 +119,7 @@ export const downloadImageAsPng = async (
     anchor.remove();
     window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1500);
   } catch {
-    // Fallback if remote host blocks CORS fetch
+    // fallback when the remote host blocks CORS fetch like an asshole
     const anchor = document.createElement('a');
     anchor.href = url;
     anchor.download = `${baseName}.png`;

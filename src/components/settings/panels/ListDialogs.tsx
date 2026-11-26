@@ -24,7 +24,7 @@ function EmptyState({ icon, title, hint }: { icon: React.ReactNode; title: strin
   );
 }
 
-// archived chats dialog
+// Archived chats modal
 interface ArchivedChatsDialogProps {
   open: boolean;
   closing: boolean;
@@ -93,7 +93,7 @@ export function ArchivedChatsDialog({ open, closing, chats, isLoading, deletingI
   );
 }
 
-// saved memories dialog
+// Saved memories modal
 interface MemoriesDialogProps {
   open: boolean;
   closing: boolean;
@@ -169,7 +169,7 @@ export function MemoriesDialog({ open, closing, memories, isLoading, isClearing,
   );
 }
 
-// delete confirmation dialog
+// Generic delete confirmation modal so we don't nuke shit by accident
 export function ConfirmDialog({ state, closing, isBusy, onCancel, onConfirm }: {
   state: ConfirmDialogState | null;
   closing: boolean;

@@ -34,7 +34,7 @@ function handle(req: NextRequest): NextResponse {
   const ip = getClientIp(req);
   const pathname = req.nextUrl.pathname;
 
-  // Browsers navigating directly to /api/* in the address bar land on /naughty
+  // Nosey browsers hitting /api/* directly in the address bar get yeeted to /naughty
   if (req.headers.get('sec-fetch-dest') === 'document') {
     const target = new URL('/naughty', req.url);
     target.searchParams.set('from', pathname);
@@ -54,7 +54,7 @@ function handle(req: NextRequest): NextResponse {
     issueCookie = buildSessionCookie(issueSessionToken());
   }
 
-  // Verify signed dc_account cookie if present; clear tampered/expired cookies
+  // Verify signed dc_account cookie if it's there; nuke tampered or expired garbage
   const rawAccountCookie = getCookieValue(req.headers, ACCOUNT_COOKIE_NAME);
   const verifiedAccount = rawAccountCookie ? getVerifiedAccount(req.headers) : null;
   const shouldClearTamperedAccount = rawAccountCookie !== null && verifiedAccount === null;
@@ -67,7 +67,7 @@ function handle(req: NextRequest): NextResponse {
     }
   }
 
-  // Stricter rate limit for auth mutation endpoints (brute-force protection)
+  // Tighter rate limit on auth mutation routes so skids can't brute-force logins
   if (pathname.startsWith('/api/auth/') && req.method === 'POST') {
     const authVerdict = checkAuthRateLimits(ip);
     if (authVerdict.status === 'banned') {
@@ -104,7 +104,7 @@ export default function middleware(req: Request): NextResponse {
   try {
     return handle(req as NextRequest);
   } catch {
-    // Fail closed on unexpected security middleware errors
+    // Fail closed if security middleware shits the bed
     return jsonError(500, 'security_middleware_error');
   }
 }

@@ -491,7 +491,7 @@ export const deleteAllChatRecords = async (): Promise<boolean> => {
 
 export const saveSharedSnapshot = async (shareId: string, chatId: string, chat: StoredChat) => {
   if (isAuthenticatedClient()) {
-    // Already persisted in Turso via updateChatRecord({ isShared: true, shareId })
+    // Already saved in Turso via updateChatRecord({ isShared: true, shareId }), nothing to do here
     return;
   }
   await idbSet('shared_chats', {

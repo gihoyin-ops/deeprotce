@@ -66,7 +66,7 @@ export default function PlanetFaqSection({
     mass: 0.4,
   });
 
-  // Empty scroll first (0 -> 0.22), then a circle emerges from the bottom and grows to full screen
+  // Burn some empty scroll first (0 -> 0.22), then pop a circle out the bottom and blow it up full screen
   const circleRadius = useTransform(
     smoothProgress,
     [0, 0.2, 0.45, 0.78, 1],
@@ -79,7 +79,7 @@ export default function PlanetFaqSection({
   );
   const clipPath = useMotionTemplate`circle(${circleRadius}% at 50% ${circleY}%)`;
 
-  // FAQ content fades in cleanly once the circular surface fills the screen
+  // Fade the FAQ shit in once that circle actually covers the whole screen
   const faqOpacity = useTransform(smoothProgress, [0.58, 0.78, 1], [0, 1, 1]);
   const faqY = useTransform(smoothProgress, [0.58, 0.8, 1], [32, 0, 0]);
 
@@ -97,7 +97,7 @@ export default function PlanetFaqSection({
             : 'sticky top-0 flex h-dvh w-full items-center justify-center overflow-hidden'
         }
       >
-        {/* Full-screen circular atmospheric reveal from the bottom */}
+        {/* Full-screen circular atmospheric reveal coming up from the bottom */}
         <motion.div
           style={
             prefersReducedMotion
@@ -109,7 +109,7 @@ export default function PlanetFaqSection({
           }
           className="relative flex h-full w-full items-center justify-center px-6"
         >
-          {/* Clean full-bleed atmospheric surface */}
+          {/* Full-bleed atmospheric background gradient, no extra bs */}
           <div
             aria-hidden="true"
             className="pointer-events-none absolute inset-0"
@@ -119,7 +119,7 @@ export default function PlanetFaqSection({
             }}
           />
 
-          {/* 4-Question FAQ */}
+          {/* 4-question FAQ block */}
           <motion.div
             style={
               prefersReducedMotion

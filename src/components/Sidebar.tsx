@@ -13,7 +13,7 @@ import {
   ChevronDown, ChevronRight, FileText, User, Brain,
   Settings, PanelLeft, SquarePen, Search, Ellipsis, Library, Image as ImageIcon, Folder, Plus, X, Check, ShieldAlert
 } from '@/components/ui/icons';
-import { isStaffRole } from '@/lib/security/roles';
+import { isManagerStaffRole, isStaffRole } from '@/lib/security/roles';
 import { useShortcutLabels } from './shortcuts';
 import Tooltip from './ui/Tooltip';
 import { AnimatedChatTitle } from './ui/AnimatedChatTitle';
@@ -93,6 +93,7 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
   });
 
   const isStaff = isStaffRole(profile.role) || (profile.plan || '').trim().toLowerCase() === 'staff';
+  const isManager = isManagerStaffRole(profile.role);
   const formatPlanLabel = (raw?: string) => {
     const trimmed = (raw || '').trim();
     if (!trimmed) return 'Free';
@@ -336,7 +337,7 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
         >
           {!isGuest && (
             <>
-              {/* Header user card */}
+              {/* Top user profile card */}
               <button
                 type="button"
                 onClick={() => {
@@ -414,7 +415,7 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
             <span>Settings</span>
           </button>
 
-          {!isGuest && isStaff && (
+          {!isGuest && isManager && (
             <button
               type="button"
               onClick={() => {
@@ -431,7 +432,7 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
 
           <div className="my-1 border-t border-[var(--dc-border-subtle)]" />
 
-          {/* Help with submenu */}
+          {/* Help button and its fucking submenu */}
           <div
             className="relative"
             onMouseEnter={() => setHelpMenuOpen(true)}
@@ -475,7 +476,7 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
             )}
           </div>
 
-          {/* Log in / Log out */}
+          {/* Log in or gtfo (log out) */}
           {isGuest ? (
             <button
               type="button"
@@ -558,7 +559,7 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
             <CollapsedSidebarButton label="Settings" onClick={() => handleOpenSettings()}>
               <Settings className="h-[19px] w-[19px]" strokeWidth={1.9} />
             </CollapsedSidebarButton>
-            {!isGuest && isStaff && (
+            {!isGuest && isManager && (
               <CollapsedSidebarButton label="Admin Panel" onClick={() => router.push('/admin')}>
                 <ShieldAlert className="h-[19px] w-[19px]" strokeWidth={1.9} />
               </CollapsedSidebarButton>

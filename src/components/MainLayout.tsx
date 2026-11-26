@@ -83,7 +83,7 @@ interface UserProfile {
   plan?: string;
 }
 
-// read only, safe for SSR
+// Read-only localStorage helper, won't blow up during SSR
 const loadStoredBoolean = (key: string, fallback: boolean) => {
   try {
     if (typeof window === 'undefined') return fallback;
@@ -150,7 +150,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
   const initialSidebarOpen = pathname.startsWith('/chat');
   const [isSidebarOpen, setSidebarOpen] = useState(initialSidebarOpen);
-  // restore after mount for hydration parity
+  // Hydrate saved state after mount so SSR doesn't shit itself with a mismatch
   const sidebarPreferenceLoadedRef = useRef(false);
   const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isRightDrawerOpen, setRightDrawerOpen] = useState(false);
@@ -171,7 +171,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     try {
       localStorage.setItem('isSidebarOpen', val.toString());
     } catch {
-      // fallback if storage access fails
+      // Eat storage errors if localStorage is locked down or full
     }
   }, []);
 
@@ -179,7 +179,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     if (sidebarPreferenceLoadedRef.current) return;
     sidebarPreferenceLoadedRef.current = true;
     setSidebarOpen(loadStoredBoolean('isSidebarOpen', pathname.startsWith('/chat')));
-    // initial mount only
+    // Run this crap on initial mount only
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -367,7 +367,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     return () => window.removeEventListener('keydown', handleShortcut);
   }, [handleCreateChat, openSettings]);
 
-  // Idle-warm mobile drawer chunks so first swipe responds at 60fps
+  // Pre-warm mobile drawer chunks during idle time so the first swipe isn't laggy as shit
   useEffect(() => {
     if (!isMobileViewport || mobileDrawersPrimed) return;
     let cancelled = false;
@@ -392,7 +392,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     };
   }, [isMobileViewport, mobileDrawersPrimed]);
 
-  // Listen to openModelSelector / closeModelSelector on mobile viewports
+  // Hook up openModelSelector / closeModelSelector events on mobile screens only
   useEffect(() => {
     const handleOpenModelSelector = () => {
       if (!window.matchMedia('(max-width: 639px)').matches) return;
@@ -410,7 +410,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     };
   }, [openMobileModelSheet]);
 
-  // 1:1 Finger-tracked global edge & canvas horizontal gesture engine (< 640px only)
+  // 1:1 finger-tracked horizontal swipe gesture handler for mobile (< 640px only)
   useEffect(() => {
     if (!isMobileViewport) return;
 
@@ -814,8 +814,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     pathname.startsWith('/admin/');
 
   if (isStandalonePage) {
-    // standalone guard page: intentionally outside the app chrome,
-    // so it reads as its own screen rather than an in-chat error bubble
+    // Standalone guard page: kept outside the main app shell on purpose
+    // so it looks like a real full screen instead of some jammed-in error bubble
     return (
       <div
         className="h-dvh w-full overflow-y-auto custom-scrollbar font-sans"

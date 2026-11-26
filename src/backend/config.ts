@@ -1,16 +1,16 @@
-// runtime env surface for the future server, shape only
-// nothing here is read at build or local dev time
-// the cutover extends .env.local, it does not replace it
+// Runtime env contract for the future server, shape only.
+// Nothing here gets read at build time or local dev.
+// The cutover extends .env.local, doesn't replace that shit.
 
 export interface BackendEnv {
-  // durable store, engine is picked at db wiring time
+  // Durable DB connection string, engine gets picked when wiring the DB
   DATABASE_URL: string;
 
-  // opaque secret for issuing and verifying session refs
+  // Opaque secret for minting and verifying session refs
   SESSION_SECRET: string;
 
-  // billing webhook secret when plan elevation via payment is on
+  // Billing webhook secret for when paid plan upgrades go live
   BILLING_WEBHOOK_SECRET: string;
 
-  // provider keys stay on the existing LIVE_* LITE_* IMAGE_* names
+  // Provider keys stay on the existing LIVE_* LITE_* IMAGE_* env names
 }

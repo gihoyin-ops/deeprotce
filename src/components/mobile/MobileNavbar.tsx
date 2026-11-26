@@ -58,7 +58,7 @@ export default function MobileNavbar({
     committed: boolean;
   } | null>(null);
 
-  // Sync streaming hairline state for active chat
+  // Keep the streaming hairline synced with whatever the active chat is doing
   useEffect(() => {
     if (!hasActiveChat || !activeChatId || activeChatId === 'new') {
       const frame = window.requestAnimationFrame(() => setIsStreaming(false));
@@ -80,7 +80,7 @@ export default function MobileNavbar({
     };
   }, [hasActiveChat, activeChatId]);
 
-  // Animate 2-bar menu glyph cleanly with GSAP when drawer opens/closes
+  // Morph the 2-bar menu icon into an X and back with GSAP when the drawer toggles
   useEffect(() => {
     const topEl = barTopRef.current;
     const bottomEl = barBottomRef.current;
@@ -133,7 +133,7 @@ export default function MobileNavbar({
     return () => ctx.revert();
   }, [isLeftDrawerOpen]);
 
-  // Animate chevron rotation when model sheet opens/closes
+  // Flip the chevron upside down when the model sheet opens or closes
   useEffect(() => {
     const chevronEl = chevronRef.current;
     if (!chevronEl) return;
@@ -216,7 +216,7 @@ export default function MobileNavbar({
   return (
     <header className="dc-mob-navbar pointer-events-none absolute top-0 left-0 right-0 z-20 sm:hidden">
       <div className="pointer-events-auto flex min-h-[56px] items-center justify-between gap-1 px-2">
-        {/* Left: Menu Trigger (44x44 touch target) */}
+        {/* Left: Menu button (44x44 fat-finger target) */}
         <div className="flex w-[88px] shrink-0 items-center justify-start">
           <button
             type="button"
@@ -261,7 +261,7 @@ export default function MobileNavbar({
           </button>
         </div>
 
-        {/* Center: Unified Model Selector Capsule (only on chat pages) */}
+        {/* Center: Model selector pill (chat pages only) */}
         <div className="flex min-w-0 flex-1 items-center justify-center">
           {isChatPage && (
             <button
@@ -333,7 +333,7 @@ export default function MobileNavbar({
           )}
         </div>
 
-        {/* Right: Quick Action Zone (only when in an active chat) */}
+        {/* Right: Quick action buttons (only when a chat is actually open) */}
         <div className="flex w-[88px] shrink-0 items-center justify-end gap-0.5">
           {isChatPage && hasActiveChat && (
             <>

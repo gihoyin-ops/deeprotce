@@ -116,7 +116,7 @@ const extractExplicitMemoryFallback = (userMessage: string) => {
   return [];
 };
 
-// upstream body text must never reach the client; map status classes like the chat route
+// Never leak upstream shit to the client, map status classes like the chat route
 const extractErrorResponse = (status: number, headers?: Headers) => relayErrorResponse(status, headers);
 
 const callMemoryModel = async (
@@ -162,7 +162,7 @@ export async function POST(req: Request) {
   try {
     const { userMessage, assistantMessage } = await req.json();
 
-    // Fast pre-filter: return immediately without any DB or network calls
+    // Fast pre-filter: bail immediately without touching the DB or network
     if (!userMessage || typeof userMessage !== 'string' || !hasDurableSignal(userMessage) || !shouldRunSavedMemoryExtraction(userMessage)) {
       return NextResponse.json({ savedCount: 0, memories: [] });
     }
@@ -182,30 +182,30 @@ export async function POST(req: Request) {
       return NextResponse.json({ savedCount: 0, memories: [] });
     }
 
-    // budget gate, a blocked identity degrades to no memories,
-    // same effect as the low-signal path
+    // Budget gate, broke/blocked ass identities get zero memories,
+    // same deal as the low-signal bailout
     if (!checkUsageBudget(getClientIp(req).slice(0, 128)).allowed) {
       return NextResponse.json({ savedCount: 0, memories: [] });
     }
 
-    // server env model only; client modelId must not select the extraction model
+    // Server env model only, client modelId doesn't get to pick the extraction model
     const model = conn.model;
     if (!model) {
       return NextResponse.json({ savedCount: 0, memories: [] });
     }
 
-    // server stores nothing; client persists saved memories in IndexedDB from this response
+    // Server stores jack shit, client saves the returned memories into IndexedDB
     let saved: NormalizedExtractedMemory[] = [];
     if (persona.memoryReferenceSaved !== false) {
       let extracted: NormalizedExtractedMemory[] = [];
-      // bound LLM prompt size before the existing buildPrompt slices
+      // Cap LLM prompt size before buildPrompt does its own slicing
       const boundedUserMessage = userMessage.slice(0, MAX_EXTRACT_MESSAGE_CHARS);
       const boundedAssistantMessage = (assistantMessage || '').slice(0, MAX_EXTRACT_MESSAGE_CHARS);
       const extractPrompt = buildPrompt(boundedUserMessage, boundedAssistantMessage);
       const clientId = resolveRelayClientId(req);
       try {
         const raw = await callMemoryModel(conn, model, extractPrompt, clientId);
-        // LITE model, same budget, output is uncapped so it is billed
+        // LITE model, same budget, output isn't capped so bill every token
         recordTokens(getClientIp(req).slice(0, 128), estimateTokens(systemPrompt) + estimateTokens(extractPrompt) + estimateTokens(raw));
         extracted = parseJsonArray(raw)
           .map((item: ExtractedMemoryCandidate) => {

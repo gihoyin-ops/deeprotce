@@ -89,7 +89,7 @@ export function AccountTab({
         </h4>
 
         <div className="divide-y divide-[var(--dc-border-subtle)]">
-          {/* Name */}
+          {/* User display name bs */}
           <div className="flex items-center justify-between gap-6 py-4">
             <div className="min-w-0">
               <p className="text-sm font-medium text-[var(--dc-text-strong)]">Name</p>
@@ -144,7 +144,7 @@ export function AccountTab({
             )}
           </div>
 
-          {/* Username */}
+          {/* Unique username handle */}
           <div className="flex items-center justify-between gap-6 py-4">
             <div className="min-w-0">
               <p className="text-sm font-medium text-[var(--dc-text-strong)]">Username</p>
@@ -199,7 +199,7 @@ export function AccountTab({
             )}
           </div>
 
-          {/* Plan */}
+          {/* Current workspace plan tier */}
           <div className="flex items-center justify-between gap-6 py-4">
             <div className="min-w-0">
               <p className="text-sm font-medium text-[var(--dc-text-strong)]">Plan</p>
@@ -208,7 +208,7 @@ export function AccountTab({
             <span className="shrink-0 text-sm font-medium text-[var(--dc-text-strong)]">{displayPlan}</span>
           </div>
 
-          {/* Age */}
+          {/* Age bracket for whatever legal compliance shit */}
           <div className="flex items-center justify-between gap-6 py-4">
             <div className="min-w-0">
               <p className="text-sm font-medium text-[var(--dc-text-strong)]">Age</p>
@@ -222,7 +222,7 @@ export function AccountTab({
             />
           </div>
 
-          {/* Delete account */}
+          {/* Nuke the whole damn account */}
           <div className="flex items-center justify-between gap-6 py-4">
             <div className="min-w-0">
               <p className="text-sm font-medium text-[var(--dc-text-strong)]">Delete account</p>
@@ -239,7 +239,7 @@ export function AccountTab({
         </div>
       </section>
 
-      {/* Delete account confirmation card (portaled outside SettingsModal for full-screen focus) */}
+      {/* Account nuke confirmation modal, portaled outside SettingsModal so it actually takes over the whole screen */}
       {isDeleteCardOpen && typeof document !== 'undefined' && createPortal(
         <div
           className="fixed inset-0 z-[10050] flex items-center justify-center bg-black/55 p-4 backdrop-blur-[2px]"

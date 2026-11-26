@@ -26,7 +26,7 @@ const EmptyState = ({ title, hint }: { title: string; hint: string }) => (
   </div>
 );
 
-// search provider modal
+// Search provider manager modal
 interface SearchManagerDialogProps {
   open: boolean;
   closing: boolean;
@@ -39,7 +39,7 @@ interface SearchManagerDialogProps {
   onConfigureCatalog: (toolId: string) => void;
 }
 
-// select search providers (installed API providers join the free parallel fan-out)
+// Pick search providers (installed API providers join the free parallel fan-out)
 export function SearchManagerDialog({ open, closing, settings, onClose, onToggle, onRemove, onConfigure, onInstalledChange, onConfigureCatalog }: SearchManagerDialogProps) {
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<'All' | ToolCategory>('All');

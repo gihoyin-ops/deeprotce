@@ -1,9 +1,7 @@
 'use client';
 
 /**
- * Determines whether a touch gesture originating at `target` should yield
- * to an interactive control or horizontal scroll region instead of triggering
- * global mobile drawer swiping
+ * Checks if a touch on `target` belongs to a slider, input, or horizontal scroller so we don't hijack it for drawer swipes
  */
 export function shouldIgnoreHorizontalSwipe(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false;
@@ -36,7 +34,7 @@ export function shouldIgnoreHorizontalSwipe(target: EventTarget | null): boolean
 }
 
 /**
- * Checks whether a blocking modal or bottom sheet is currently mounted on screen
+ * True if some modal or bottom sheet is already blocking the screen
  */
 export function hasBlockingModalOpen(): boolean {
   if (typeof document === 'undefined') return false;
@@ -46,7 +44,7 @@ export function hasBlockingModalOpen(): boolean {
 }
 
 /**
- * Fires a subtle micro-vibration on supported mobile devices without throwing
+ * Buzzes the phone slightly if the browser supports it, silently eats any bs errors
  */
 export function triggerSubtleHaptic(duration = 8): void {
   try {
@@ -54,7 +52,7 @@ export function triggerSubtleHaptic(duration = 8): void {
       navigator.vibrate(duration);
     }
   } catch {
-    // ignore unsupported vibration errors
+    // Browser doesn't support vibrate, whatever, ignore it
   }
 }
 

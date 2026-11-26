@@ -109,7 +109,7 @@ export async function POST(req: Request) {
     const pool = account ? await ensureTursoSchema() : null;
     const autoSpaceUp = form.get('autoSpaceUp') !== '0';
 
-    // Enforce 256 MB per-user storage quota for library/generated/profile uploads
+    // Enforce 256 MB per-user storage cap for library, generated, and profile uploads
     if (account && pool && folder !== 'attachments') {
       let quota = await checkAccountStorageQuota(pool, account.sub, file.size);
       if (!quota.allowed && autoSpaceUp) {

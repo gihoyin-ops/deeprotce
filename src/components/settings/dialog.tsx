@@ -4,7 +4,7 @@ import React from 'react';
 import { createPortal } from 'react-dom';
 import { X } from '@/components/ui/icons';
 
-// modal frame with backdrop and animations
+// Modal shell with backdrop blur and enter/exit animations
 export function Dialog({ open, closing, zIndex, width = 'max-w-4xl', onClose, children }: {
   open: boolean;
   closing: boolean;

@@ -5,9 +5,9 @@ import { useEffect, useRef, useState } from 'react';
 const PROBE_URL = '/api/online';
 const PROBE_TIMEOUT_MS = 6000;
 const POLL_INTERVAL_MS = 30000;
-// when navigator.onLine is true the probe must fail twice in a row before we
-// assume offline (VPN tunnels can shed a single probe); when the browser
-// itself reports offline, one probe failure is enough
+// If navigator.onLine says true, make the probe fail twice in a row before calling it
+// offline (flaky VPNs drop a single probe all the time); if the browser already admits
+// it's offline, one failed probe is enough to call it dead
 const FAILURES_REQUIRED_WHEN_NAV_ONLINE = 2;
 const FAILURES_REQUIRED_WHEN_NAV_OFFLINE = 1;
 
@@ -15,9 +15,9 @@ type Connectivity = 'online' | 'offline' | 'unknown';
 
 const probeReachable = async (): Promise<boolean> => {
   try {
-    // any HTTP status counts: reaching the server at all means we are online
-    // only a network-level TypeError (no route / TCP refused / DNS) counts
-    // as offline. cache: 'no-store' defeats a cached 200 in disconnected states
+    // Any HTTP status means we reached the server, so we're online;
+    // only a network TypeError (no route / TCP refused / DNS shit) counts as offline.
+    // cache: 'no-store' stops the browser from serving a stale cached 200 when disconnected
     await fetch(PROBE_URL, {
       cache: 'no-store',
       method: 'GET',
@@ -32,8 +32,8 @@ const probeReachable = async (): Promise<boolean> => {
 const OfflineGuard = () => {
   const [state, setState] = useState<Connectivity>('unknown');
   const failuresRef = useRef(0);
-  // direct probe retry for the "Check connection" button: a page reload here
-  // would read as a crash, so we simply re-run the verdict round
+  // Direct probe retry for the "Check connection" button; a full page reload here
+  // looks like the app crashed, so just re-run the probe check instead
   const recheckRef = useRef<() => void>(() => undefined);
 
   useEffect(() => {
@@ -61,8 +61,8 @@ const OfflineGuard = () => {
       }, 0);
     };
 
-    // the online/offline events can fire rapidly in bursts (VPN, wifi roam),
-    // so debounce the very short probe round
+    // online/offline events spam like crazy during VPN drops or wifi roaming,
+    // so debounce this probe check before firing
     let eventDebounce: number | undefined;
     const handleNetEvent = () => {
       window.clearTimeout(eventDebounce);

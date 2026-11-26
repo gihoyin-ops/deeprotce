@@ -16,7 +16,7 @@ const Cropper = dynamic(() => import('react-easy-crop'), {
   )
 });
 
-// crop selection to jpeg data url
+// Draw the cropped region onto a canvas and spit out a JPEG data URL
 async function cropToDataUrl(imageSrc: string, box: CropBox): Promise<string | null> {
   const image = new Image();
   image.src = imageSrc;
@@ -41,7 +41,7 @@ interface CropDialogProps {
   onSave: (dataUrl: string) => Promise<void> | void;
 }
 
-// client-side image crop modal
+// Client-side avatar/image crop modal
 export function CropDialog({ image, closing, onClose, onSave }: CropDialogProps) {
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);

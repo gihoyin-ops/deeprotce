@@ -261,7 +261,7 @@ export async function getRelevantSavedMemories(query: string, limit = 12): Promi
 }
 
 export async function saveExtractedMemories(items: MemoryInput[], metadata: MemoryMetadata = {}) {
-  // server no longer persists memories; client IndexedDB is the only store
+  // Server doesn't save memories anymore, client IndexedDB is the only shit holding them
   if (typeof window === 'undefined') return [];
   const existing = await getSavedMemories();
   const now = new Date().toISOString();
@@ -322,7 +322,7 @@ export async function saveExtractedMemories(items: MemoryInput[], metadata: Memo
 }
 
 export async function recordChatHistoryMemory(userMessage: string, assistantMessage: string, metadata: MemoryMetadata = {}) {
-  // server no longer persists memories; client IndexedDB is the only store
+  // Server doesn't save memories anymore, client IndexedDB is the only shit holding them
   if (typeof window === 'undefined') return null;
   const cleanUser = userMessage.replace(/\s+/g, ' ').trim();
   const cleanAssistant = assistantMessage.replace(/\s+/g, ' ').trim();

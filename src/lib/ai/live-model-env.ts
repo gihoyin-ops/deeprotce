@@ -1,8 +1,8 @@
-// env-driven model list entries: 'MODEL_ID|Display Name|description|maxEffort'
-// - fields after the first '|' are optional ('id' alone keeps legacy behavior)
-// - empty entries are skipped ('a,,b' is valid); whitespace trimmed per field
-// - ids are case-sensitive and used verbatim (relays are case-sensitive)
-// - capped at 25 entries per env var as a defensive guard
+// env-driven model entries: 'MODEL_ID|Display Name|description|maxEffort'
+// - everything after the first '|' is optional ('id' alone still works like the old shit)
+// - empty entries get skipped ('a,,b' is fine), whitespace trimmed per field
+// - ids are case-sensitive and used verbatim because relays throw a fit otherwise
+// - capped at 25 entries per env var so nobody nukes this with garbage
 export interface ModelEnvEntry {
   id: string;
   name: string;
@@ -34,7 +34,7 @@ export const parseModelMaxEffortEnv = (raw?: string): ModelMaxEffortConfig => {
     const trimmed = entry.trim();
     if (!trimmed) continue;
 
-    // Support 'modelId|tier' or 'modelId=tier' (avoid splitting on ':' because model IDs use ':')
+    // support 'modelId|tier' or 'modelId=tier' (don't split on ':' because model IDs already use that shit)
     const sepIdx = trimmed.includes('|') ? trimmed.indexOf('|') : trimmed.indexOf('=');
     if (sepIdx === -1) {
       const globalTier = parseEffortTierIndex(trimmed);
@@ -81,8 +81,8 @@ const splitRawEntries = (val: string | readonly string[]): string[] => {
   for (const line of val.split(/\r?\n/)) {
     for (const chunk of line.split(',')) {
       const firstField = (chunk.split('|')[0] ?? '').trim();
-      // A comma inside a description produces a chunk whose leading field contains spaces;
-      // re-attach it to the previous entry instead of treating prose as a model ID
+      // commas inside a description leave a chunk whose first field has spaces,
+      // glue it back onto the previous entry instead of treating random prose as a model ID
       if (merged.length > 0 && /\s/.test(firstField)) {
         merged[merged.length - 1] = `${merged[merged.length - 1]},${chunk}`;
       } else {

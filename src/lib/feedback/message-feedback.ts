@@ -1,9 +1,9 @@
-// Client-side feedback helpers. The server sqlite (POST /api/feedback) is the
-// authoritative store; localStorage mirrors every vote so the UI can restore
-// state synchronously and keep it if the server file is missing
+// Client-side feedback helpers. Server sqlite (POST /api/feedback) is the real
+// source of truth, localStorage just mirrors every vote so the UI can restore
+// state synchronously and keep working if the server file goes missing
 //
-// One vote per message: re-clicking the active thumb removes the vote
-// ({remove: true}), clicking the other one flips it server-side
+// One vote per message: clicking the active thumb again deletes the vote
+// ({remove: true}), clicking the other thumb flips it server-side
 
 export type MessageRating = 'like' | 'dislike';
 
@@ -84,7 +84,7 @@ const writeStored = (map: FeedbackMap) => {
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(map));
   } catch {
-    // storage full or blocked: in-memory state in the caller still works
+    // storage full or blocked, caller's in-memory state still works fine
   }
 };
 
@@ -143,7 +143,7 @@ export const submitMessageFeedback = async (
     notifyChange();
   } else {
     const saved: FeedbackRecord = {
-      // Keep a prior annotation when the new call carries none (a plain flip
+      // keep the previous annotation if this call didn't send any (a quick flip
       // from the toolbar reuses whatever the dialog last submitted)
       rating,
       reasons: reasons.length > 0 ? reasons : previous?.rating === rating ? previous.reasons : [],
@@ -185,7 +185,7 @@ export const submitMessageFeedback = async (
     notifyChange();
     return persisted;
   } catch {
-    // offline: the local copy stays, marked unpersisted so it is visible as such
+    // offline, keep the local copy and flag it unpersisted so the UI knows it's dirty
     const freshMap = readStored();
     const current = freshMap[key];
     if (rating !== null && current) freshMap[key] = { ...current, persisted: false };

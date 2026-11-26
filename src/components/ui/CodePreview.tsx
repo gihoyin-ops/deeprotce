@@ -511,7 +511,7 @@ export default function CodePreview({ language, value, highlighter, isStreaming 
     URL.revokeObjectURL(url);
   };
 
-  // GSAP inline mode switch (code <-> preview)
+  // GSAP inline fade/slide when flipping between code and preview
   useLayoutEffect(() => {
     if (prevInlineModeRef.current === mode) return;
     prevInlineModeRef.current = mode;
@@ -529,7 +529,7 @@ export default function CodePreview({ language, value, highlighter, isStreaming 
     return () => mm.revert();
   }, [mode]);
 
-  // GSAP fullscreen portal entrance
+  // GSAP entrance for the fullscreen portal
   useLayoutEffect(() => {
     if (!fullscreen || fullscreenClosing) return;
     const shellEl = fullscreenShellRef.current;
@@ -564,7 +564,7 @@ export default function CodePreview({ language, value, highlighter, isStreaming 
     return () => mm.revert();
   }, [fullscreen, fullscreenClosing]);
 
-  // GSAP precision split-pane choreography for "Show code" / "Hide code"
+  // GSAP split-pane slide for toggling "Show code" / "Hide code"
   useLayoutEffect(() => {
     if (!fullscreen) {
       splitPaneMountedRef.current = false;
@@ -640,7 +640,7 @@ export default function CodePreview({ language, value, highlighter, isStreaming 
     };
   }, [fullscreen, fullscreenClosing, showFullscreenCode]);
 
-  // GSAP smooth console drawer reveal/collapse
+  // GSAP drawer animation for the console pane
   useLayoutEffect(() => {
     if (!fullscreen) {
       consoleMountedRef.current = false;

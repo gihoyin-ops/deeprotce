@@ -159,7 +159,7 @@ const getResponseError = async (res: Response) => {
         resetAt: Date.now() + retrySeconds * 1000,
       });
     }
-    // server sends a human message next to the code, show the sentence
+    // server sent a human-readable message with the code, show that shit
     return data?.message || data?.error || null;
   } catch {
     try {
@@ -616,7 +616,7 @@ const materializeGeneratedImagesAsWebp = async (content: string): Promise<string
           if (data.url) replacementUrl = data.url;
         }
       } catch {
-        // Guest or offline fallback below
+        // guest or offline fallback bs below
       }
 
       if (!replacementUrl) {
@@ -627,7 +627,7 @@ const materializeGeneratedImagesAsWebp = async (content: string): Promise<string
         updated = updated.replace(fullMatch, `![${alt}](${replacementUrl})`);
       }
     } catch {
-      // Keep original data URL if WebP encoding fails
+      // keep the original data URL if WebP encoding shits the bed
     }
   }
 

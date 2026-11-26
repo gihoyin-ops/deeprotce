@@ -59,7 +59,7 @@ export function StorageTab({ onRefresh }: StorageTabProps) {
         setLimitBytes(data.storage.limitBytes);
       }
     } catch {
-      // keep existing values
+      // Leave the existing values alone if this shit fails
     } finally {
       setIsLoading(false);
     }
@@ -140,7 +140,7 @@ export function StorageTab({ onRefresh }: StorageTabProps) {
         </button>
       </header>
 
-      {/* Clean storage slider bar */}
+      {/* Storage usage progress bar */}
       <section className="rounded-2xl border border-[var(--dc-border)] bg-[var(--dc-surface)] p-5">
         <div className="flex items-baseline justify-between gap-3">
           <p className="text-sm font-medium text-[var(--dc-text-strong)]">
@@ -160,7 +160,7 @@ export function StorageTab({ onRefresh }: StorageTabProps) {
         </div>
       </section>
 
-      {/* Controls */}
+      {/* Storage action controls */}
       <section className="divide-y divide-[var(--dc-border-subtle)] border-t border-[var(--dc-border-subtle)]">
         <div className="flex items-center justify-between gap-6 py-4">
           <div className="min-w-0">

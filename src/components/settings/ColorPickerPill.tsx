@@ -12,9 +12,9 @@ interface ColorPickerPillProps {
 }
 
 interface HSV {
-  h: number; // 0-360
-  s: number; // 0-100
-  v: number; // 0-100
+  h: number; // 0 to 360
+  s: number; // 0 to 100
+  v: number; // 0 to 100
 }
 
 function clamp(n: number, min: number, max: number): number {
@@ -90,7 +90,7 @@ export function ColorPickerPill({
   const svRef = useRef<HTMLDivElement>(null);
   const hueRef = useRef<HTMLDivElement>(null);
 
-  // Sync HSV when external value changes while closed
+  // Sync internal HSV state if the external hex changes while the picker is closed
   useEffect(() => {
     if (!isOpen) {
       setHsv(hexToHsv(resolvedHex));
@@ -235,7 +235,7 @@ export function ColorPickerPill({
           }}
           className="w-[236px] select-none overflow-hidden rounded-2xl border border-[var(--dc-border)] bg-[var(--dc-panel)] p-1.5 shadow-2xl shadow-black/20 dark:shadow-black/65"
         >
-          {/* 2D Saturation / Brightness canvas */}
+          {/* 2D saturation and brightness box */}
           <div
             ref={svRef}
             onPointerDown={startSvDrag}
@@ -260,7 +260,7 @@ export function ColorPickerPill({
             />
           </div>
 
-          {/* Hue spectrum bar */}
+          {/* Hue rainbow bar */}
           <div
             ref={hueRef}
             onPointerDown={startHueDrag}

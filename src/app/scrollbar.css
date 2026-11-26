@@ -418,7 +418,7 @@ html[data-appearance="dark"] .code-preview-code ::selection {
     transition-duration: 1ms !important;
   }
 
-  /* decorative entrances and pulses stop; activity spinners stay (they carry state) */
+  /* Kill decorative entrances and pulses, keep activity spinners running so users know shit is still loading */
   .animate-in,
   .animate-pulse,
   .animate-bounce,

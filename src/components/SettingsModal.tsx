@@ -123,7 +123,7 @@ const desktopSections: Array<{
   }
 ];
 
-// settings shell: shared state and loaders with GSAP micro-interactions
+// Settings shell: shared state, API loaders, and GSAP animation bs
 export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initialTab = 'general' }: SettingsModalProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -133,13 +133,13 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
   const resolvedInitialTab: SettingsTab =
     isGuest && GUEST_HIDDEN_TABS.has(initialTab) ? 'general' : initialTab;
 
-  // nav
+  // Nav state
   const [activeTab, setActiveTab] = useState<SettingsTab>(resolvedInitialTab);
   const [isMobileDetailOpen, setIsMobileDetailOpen] = useState(resolvedInitialTab !== 'general');
   const [isMobileDetailClosing, setIsMobileDetailClosing] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
 
-  // GSAP animation refs
+  // Refs for GSAP animation crap
   const backdropRef = useRef<HTMLDivElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -153,7 +153,7 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
     axis: 'none' | 'x' | 'y';
   } | null>(null);
 
-  // tab data
+  // Tab data state
   const [generalSettings, setGeneralSettings] = useState<GeneralSettings>(() => loadGeneralSettings());
   const [appearanceSettings, setAppearanceSettings] = useState<AppearanceSettings>(() => loadAppearanceSettings());
   const [keyboardSettings, setKeyboardSettings] = useState<KeyboardSettings>(() => loadKeyboardSettings());
@@ -169,7 +169,7 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
   const [toolSettings, setToolSettings] = useState<ToolSettings>(() => loadToolSettings());
   const [storage, setStorage] = useState<StorageState>({ usage: null, quota: null, localItems: 0 });
 
-  // dialogs
+  // Sub-dialog state
   const [cropImage, setCropImage] = useState<string | null>(null);
   const [isCropClosing, setIsCropClosing] = useState(false);
   const [sharedLinks, setSharedLinks] = useState<SharedLinkItem[]>([]);
@@ -193,7 +193,7 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
   const [isConfirmClosing, setIsConfirmClosing] = useState(false);
   const [isDeletingChats, setIsDeletingChats] = useState(false);
 
-  // avoid re-triggering loaders on reopen
+  // Don't re-fire loaders every damn time the modal reopens
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mountedRef = useRef(false);
   const loadedRef = useRef({ profile: false, persona: false });
@@ -215,7 +215,7 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
     };
   }, []);
 
-  // GSAP modal entrance
+  // GSAP modal entrance bs
   useEffect(() => {
     if (!isOpen) return;
 
@@ -235,7 +235,7 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
     }
   }, [isOpen]);
 
-  // GSAP tab switch micro-animation
+  // GSAP tab-switch fade/blur crap
   useEffect(() => {
     if (!contentRef.current) return;
     gsap.killTweensOf(contentRef.current);
@@ -246,7 +246,7 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
     );
   }, [activeTab]);
 
-  // wait for exit animation
+  // Wait for the exit animation to finish before nuking it
   const afterExit = useCallback((callback: () => void) => {
     const timer = window.setTimeout(() => {
       timersRef.current = timersRef.current.filter(item => item !== timer);
@@ -255,7 +255,7 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
     timersRef.current.push(timer);
   }, []);
 
-  // loaders
+  // Async data loaders
   const loadProfile = useCallback(async () => {
     if (loadedRef.current.profile) return;
     setIsProfileLoading(true);
@@ -266,7 +266,7 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
         loadedRef.current.profile = true;
       }
     } catch {
-      // keep defaults on error
+      // Leave defaults alone if this blows up
     } finally {
       if (mountedRef.current) setIsProfileLoading(false);
     }
@@ -298,7 +298,7 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
       });
       loadedRef.current.persona = true;
     } catch {
-      // keep defaults on error
+      // Leave defaults alone if this blows up
     } finally {
       if (mountedRef.current) setIsPersonaLoading(false);
     }
@@ -328,7 +328,7 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
     }
   }, []);
 
-  // lazy load active tab data
+  // Lazy-load data for whichever tab is actually open
   useEffect(() => {
     if (!isOpen) return;
     if (activeTab === 'account') void loadProfile();
@@ -386,7 +386,7 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
     returnUrlRef.current = null;
   }, []);
 
-  // close helpers with GSAP exit animation
+  // Close handlers with GSAP exit animation
   const close = useCallback(() => {
     if (isClosing) return;
     setIsClosing(true);
@@ -431,7 +431,7 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
     }
   };
 
-  // GSAP mobile detail panel slide entrance (< 640px)
+  // GSAP slide-in for the mobile detail panel (< 640px)
   useEffect(() => {
     if (!isOpen || !isMobileDetailOpen || typeof window === 'undefined' || window.innerWidth >= 640) return;
     const detailEl = mobileDetailRef.current;
@@ -485,7 +485,7 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
     });
   }, [isMobileDetailClosing]);
 
-  // Handle browser/phone hardware back button without navigating the underlying chat
+  // Intercept browser/phone hardware back button so we don't kick the user out of their chat
   useEffect(() => {
     if (!isOpen || typeof window === 'undefined') return;
     const handlePopState = () => {
@@ -581,7 +581,7 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
     }
   };
 
-  // general, appearance, profile, persona
+  // General, appearance, profile, and persona updaters
   const updateGeneral = (patch: Partial<GeneralSettings>) => setGeneralSettings(prev => saveGeneralSettings({ ...prev, ...patch }));
   const updateAppearance = (patch: Partial<AppearanceSettings>) => setAppearanceSettings(prev => saveAppearanceSettings({ ...prev, ...patch }));
   const updateKeyboardShortcut = (id: KeyboardShortcutId, binding: ShortcutBinding | null) =>
@@ -695,7 +695,7 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
     toast.success('Avatar saved!');
   };
 
-  // notifications
+  // Notification bs
   const updateNotifications = (patch: Partial<NotificationSettings>) => setNotificationSettings(prev => saveNotificationSettings({ ...prev, ...patch }));
   const updateQuietHours = (patch: Partial<NotificationSettings['quietHours']>) => updateNotifications({ quietHours: { ...notificationSettings.quietHours, ...patch } });
   const updateEvent = (key: NotificationEventKey, patch: Partial<NotificationEventSetting>) => updateNotifications({
@@ -726,7 +726,7 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
 
   const updateToolFeatures = (patch: Partial<Pick<ToolSettings, 'searchEnabled' | 'urlContextEnabled'>>) => setToolSettings(updateToolFeatureSettings(patch));
 
-  // data control
+  // Data control shit
   const openMemories = async () => {
     setIsMemoriesOpen(true);
     setIsMemoriesLoading(true);
@@ -954,13 +954,13 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
           hidden={isMobileDetailOpen && !isMobileDetailClosing}
         />
 
-        {/* Desktop Sidebar Navigation (matches screenshot 1 & 2) */}
+        {/* Desktop sidebar nav */}
         <nav className="hidden shrink-0 flex-col border-b border-[var(--dc-border-subtle)] bg-[var(--dc-sidebar)] p-4 sm:flex sm:w-64 sm:border-b-0 sm:border-r sm:p-4">
           <h2 className="mb-3 px-2 text-[17px] font-semibold text-[var(--dc-text-strong)]">
             Settings
           </h2>
 
-          {/* Search box */}
+          {/* Settings search input */}
           <div className="relative mb-4">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--dc-text-muted)]" />
             <input
@@ -974,7 +974,7 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
           </div>
 
           <div className="flex-1 space-y-5 overflow-y-auto custom-scrollbar pr-0.5">
-            {/* Profile link -> /profile */}
+            {/* Profile link to /profile */}
             {!isGuest && (!searchQuery.trim() || 'profile'.includes(searchQuery.trim().toLowerCase()) || (profile.name || 'guest').toLowerCase().includes(searchQuery.trim().toLowerCase())) && (
               <div>
                 <p className="mb-1.5 px-2 text-xs font-medium text-[var(--dc-text-muted)]">Profile</p>
@@ -1007,7 +1007,7 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
               </div>
             )}
 
-            {/* Account & App Sections */}
+            {/* Account and app sections */}
             {desktopSections.map(section => {
               const q = searchQuery.trim().toLowerCase();
               const visibleByGuest = isGuest
@@ -1050,7 +1050,7 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
           </div>
         </nav>
 
-        {/* Desktop Content Panel */}
+        {/* Desktop content panel */}
         <section
           ref={mobileDetailRef}
           key={isMobileDetailOpen ? activeTab : 'settings-content'}
@@ -1064,7 +1064,7 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
             <X className="h-5 w-5" />
           </button>
 
-          {/* Unified Mobile Settings Detail Header */}
+          {/* Mobile settings detail header */}
           <div className="dc-mob-navbar flex min-h-[56px] shrink-0 items-center justify-between px-2 pt-[env(safe-area-inset-top)] sm:hidden">
             <button
               type="button"

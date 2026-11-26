@@ -15,8 +15,8 @@ import {
 export const MAX_SEARCH_RESULTS = 15;
 export const MAX_SEARCH_CONTEXT_CHARS = 9000;
 const PROVIDER_TIMEOUT_MS = 15000;
-// live free providers answer in 1.5-2s; 6s is 3x headroom while a hung endpoint
-// can never hold the merge past the cap
+// live free providers usually answer in 1.5-2s; 6s gives 3x headroom so a hung
+// endpoint can't stall the merge past the cap
 const WALL_BUDGET_MS = 6000;
 const MAX_SOURCES_PER_PROVIDER = 8;
 
@@ -60,17 +60,16 @@ interface ProviderAttempt {
   skipped?: string;
 }
 
-// warm-up pass retries each provider once after the budget already expired,
-// the retry must never push the merge past the wall, so it becomes a freebie
+// warm-up pass retries each provider once after the budget already blew up,
+// retry can't push the merge past the wall so it's basically a freebie
 const WARMUP_RETRY_BUDGET_MS = 2500;
 
 interface ProviderSettleState {
   key: string;
   providerId: string;
   name: string;
-  // receives the signal for this attempt: pass 1 uses the shared wall,
-  // the rescue pass uses its own fresh controller so an aborted wall
-  // cannot cancel the retry requests
+  // takes the signal for this attempt: pass 1 uses the shared wall,
+  // rescue pass uses a fresh controller so an aborted wall doesn't kill the retries
   run: (signal: AbortSignal) => Promise<SearchProviderResult>;
 }
 
@@ -80,19 +79,19 @@ const readJsonArray = (value: string): SearchSource[] => JSON.parse(value) as Se
 
 const cacheKey = (providerId: string, query: string) => `${providerId}:${query}`;
 
-// cooldowns are per provider because free endpoints share one IP
-// results stay per query
+// cooldowns are per provider since free endpoints share one IP,
+// results stay cached per query
 const settleWithGuard = (state: ProviderSettleState, query: string, signal: AbortSignal, wallMs: number, timeoutMs: number, force = false): Promise<ProviderAttempt> => {
   const key = state.key;
   const cached = cacheGet(key);
   if (cached) {
     return Promise.resolve({ result: { providerId: state.providerId, providerName: state.name, sources: readJsonArray(cached) } });
   }
-  // the warm-up pass retries after pass 1 already armed a cooldown on the
-  // same provider, so it must bypass the short-circuit with force
+  // warm-up pass runs after pass 1 already tripped the cooldown on this same
+  // provider, so pass force=true to skip the short-circuit bs
   if (!force && isCoolingDown(state.providerId)) {
-    // warming up after a recent failure: let the next search in the cooldown
-    // line decide, surfacing this as a notice instead of a dead-end error
+    // still warming up after a recent faceplant, let the next query in line
+    // deal with it and show a notice instead of a dead-end error
     return Promise.resolve({ skipped: `${state.name} is warming up after recent failures` });
   }
   return runWithTimeout(state.run(signal), timeoutMs).then(
@@ -103,8 +102,8 @@ const settleWithGuard = (state: ProviderSettleState, query: string, signal: Abor
       return { result: { ...sources, sources: limited } };
     },
     error => {
-      // too slow is a failure too, otherwise a hung provider would drag every
-      // query for the full wall budget without ever backing off
+      // being slow as shit counts as a failure too, otherwise a hung provider drags
+      // every query for the whole wall budget without ever backing off
       markFailure(state.providerId);
       const detail = signal.aborted
         ? `timed out after the ${Math.max(1, Math.round(wallMs / 1000))}s deadline`
@@ -191,10 +190,10 @@ export const runWebSearch = async (tools: SearchRuntimeItem[], prompt: string, o
   };
 
   const apiTools = tools.filter(tool => tool.toolId !== 'url-context' && tool.toolId !== 'duckduckgo' && tool.toolId !== 'wikipedia' && tool.configured);
-  // one shared wall clock aborts stragglers so a dead provider cannot hold the merge
+  // one shared wall clock aborts slowpokes so a dead provider can't hold up the merge
   const budget = new AbortController();
   const budgetTimer = setTimeout(() => budget.abort(), wallMs);
-  // runs are lazy so cached or cooling-down providers never start a network call
+  // lazy thunks so cached or cooling-down providers never fire a useless network call
   const states: ProviderSettleState[] = [
     ...apiTools.map(tool => ({ key: cacheKey(tool.toolId, query), providerId: tool.toolId, name: tool.name, run: (signal: AbortSignal) => runApi(tool, signal) })),
     ...FREE_PROVIDERS.map(provider => ({ key: cacheKey(provider.id, query), providerId: provider.id, name: provider.name, run: (signal: AbortSignal) => provider.run(query, signal) }))
@@ -213,11 +212,10 @@ export const runWebSearch = async (tools: SearchRuntimeItem[], prompt: string, o
     else if (attempt.skipped) notices.push(noticeForSkipped(state.name, state.providerId));
   }
 
-  // first pass empty: rescue path, retry the down engines one by one
-  // (wikipedia first, the lightest, least-blocked endpoint) each under a
-  // fresh 2.5s controller so the aborted share wall cannot cancel the retry;
-  // rate-limited engines are skipped, an immediate re-hit cannot clear an
-  // IP quota and would only double the backoff
+  // first pass came up empty: rescue path retries down engines one by one
+  // (wikipedia first since it's lightweight and rarely blocked) with a fresh
+  // 2.5s controller so the dead shared wall doesn't abort them; skip rate-limited
+  // engines because hammering an IP quota just doubles the backoff for nothing
   if (results.length === 0) {
     const rescueable = new Set(failures.filter(failure => failure.kind !== 'rate-limited').map(failure => failure.providerId));
     const retries = WARMUP_ORDER
@@ -243,8 +241,8 @@ export const runWebSearch = async (tools: SearchRuntimeItem[], prompt: string, o
         clearTimeout(rescueTimer);
       }
     }
-    // rescued answer still lists the engines that stayed down, so the card
-    // can explain the partial degradation instead of a silent success
+    // rescued response still lists the engines that stayed dead so the card
+    // shows the partial shitshow instead of pretending everything worked
   }
 
   const providerNotice = buildProviderNotice(failures, notices);

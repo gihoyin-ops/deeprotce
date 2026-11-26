@@ -59,7 +59,7 @@ export const streamWithAiLog = (body: ReadableStream<Uint8Array> | null, payload
   let capped = false;
   return body.pipeThrough(new TransformStream<Uint8Array, Uint8Array>({
     transform(chunk, controller) {
-      // untrusted stream; stop accumulating past the cap to bound function memory
+      // untrusted stream, stop hoarding chunks past the cap so we don't OOM the function
       if (!capped) {
         raw += decoder.decode(chunk, { stream: true });
         if (raw.length > 2 * 1024 * 1024) capped = true;

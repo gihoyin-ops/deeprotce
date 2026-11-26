@@ -55,7 +55,7 @@ export const validateChatBody = (payload: unknown): string | null => {
     for (const file of files) {
       const raw = getAttachmentBase64(file);
       if (raw === '') continue;
-      // base64 encodes 3 source bytes per 4 characters
+      // base64 bloats 3 raw bytes into 4 chars
       const body = raw.includes(',') ? raw.slice(raw.indexOf(',') + 1) : raw;
       if (Math.ceil(body.length * 3 / 4) > MAX_ATTACHMENT_BYTES) return 'attachment too large';
     }

@@ -49,7 +49,7 @@ const isGenericTitle = (title: string, sourcePrompt = '') => {
     return true;
   }
 
-  // Reject verbatim or prefix echoes of short user messages so AI retries/summarizes instead
+  // Tell the AI to fuck off if it just parrots back short user messages instead of summarizing
   const normTitle = normalizeForCompare(title);
   const normPrompt = normalizeForCompare(sourcePrompt);
   if (normPrompt && normTitle) {
@@ -74,7 +74,7 @@ const cleanTitle = (raw: string) => raw
   .slice(0, 7)
   .join(' ');
 
-// upstream body text must never reach the client; map status classes to sanitized constants
+// Never leak upstream shit to the client, map status classes to sanitized constants
 const upstreamTitleError = (status: number, headers?: Headers) => relayErrorResponse(status, headers);
 
 type TitleModelResponse = {
@@ -148,7 +148,7 @@ export async function POST(req: Request) {
       prompt?: string;
       connectionId?: string;
     };
-    // client sends raw chat text; hard cap prompt size for the LLM call
+    // Client sends raw chat text, hard cap the prompt size before hitting the LLM
     const prompt = typeof body.prompt === 'string' ? body.prompt.slice(0, MAX_TITLE_PROMPT_CHARS) : '';
     promptForFallback = prompt || '';
 
@@ -156,7 +156,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
     }
 
-    // Guests get a deterministic local title without burning upstream AI calls
+    // Guests get a deterministic local title so they don't burn our upstream AI tokens
     if (isGuestRequest(req.headers)) {
       return NextResponse.json({ title: buildFallbackTitle(promptForFallback) });
     }
@@ -170,8 +170,7 @@ export async function POST(req: Request) {
     }
 
     const clientIp = getClientIp(req).slice(0, 128);
-    // budget gate, a blocked identity degrades to the local
-    // fallback title instead of a provider call
+    // Budget gate, broke/blocked ass identities get the local fallback title instead of a provider call
     if (!checkUsageBudget(clientIp).allowed) {
       return NextResponse.json({ title: buildFallbackTitle(promptForFallback) });
     }
@@ -182,7 +181,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ title: first.title });
     }
 
-    // If primary (e.g. LITE) failed or echoed verbatim, try chat connection or retry with higher temperature
+    // If primary (e.g. LITE) shat the bed or parroted verbatim, try chat connection or crank the temperature
     const secondaryConn =
       chatConn?.model && (chatConn.baseUrl !== primaryConn.baseUrl || chatConn.model !== primaryConn.model)
         ? chatConn

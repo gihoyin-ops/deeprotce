@@ -46,8 +46,8 @@ const dedupeByHost = (sources: SearchSource[], maxPerHost = 2) => {
 };
 
 /**
- * Round-robin interleave, one result per provider per round
- * keeps the merged context diverse even if one provider returns many near-duplicates
+ * Round-robin interleave (one result per provider per round)
+ * keeps the merged context diverse even when one provider dumps a pile of near-duplicates
  */
 const interleave = (lists: SearchSource[][]) => {
   const output: SearchSource[] = [];

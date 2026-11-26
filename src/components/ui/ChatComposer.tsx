@@ -303,7 +303,7 @@ export default function ChatComposer({
     gridEl.style.minHeight = `${p.minH.toFixed(2)}px`;
   }, []);
 
-  // Synchronized GSAP choreography for composer grid + textarea geometry
+  // Synced GSAP layout transition for the composer grid and textarea geometry
   const syncComposerGeometry = useCallback(
     (allowAnimate: boolean) => {
       const bodyEl = composerBodyRef.current;
@@ -319,7 +319,7 @@ export default function ChatComposer({
       const targetRect = targetSlotEl.getBoundingClientRect();
       if (targetRect.width <= 0) return;
 
-      // Measure textarea height cleanly at its destination width
+      // Measure the damn textarea height at its target width so it doesn't jump around
       const prevWidth = textareaEl.style.width;
       const prevHeight = textareaEl.style.height;
       textareaEl.style.width = `${targetRect.width}px`;
@@ -410,7 +410,7 @@ export default function ChatComposer({
           overwrite: 'auto',
         });
       } else {
-        // Pure viewport or sibling-width change: snap synchronously without lag
+        // Just a viewport or sibling width change, snap it right away without sluggish tweening
         gridProxyRef.current.r1 = targetR1;
         gridProxyRef.current.r2 = targetR2;
         gridProxyRef.current.gap = targetGap;
@@ -467,7 +467,7 @@ export default function ChatComposer({
     };
   }, [syncComposerGeometry]);
 
-  // Smooth GSAP drawer expansion & item entrance for attachments
+  // GSAP drawer slide-open and item entrance for attached files
   useLayoutEffect(() => {
     const wrapEl = attachmentsWrapRef.current;
     if (!wrapEl) return;
@@ -530,7 +530,7 @@ export default function ChatComposer({
     }
   }, [hasAttachedFiles]);
 
-  // Individual attachment card entrance micro-animation
+  // Pop-in animation for each newly added attachment card
   useEffect(() => {
     const currentKeys = attachedFiles.map((file, idx) => `${file.name}::${file.ext}::${idx}`);
     const prevKeys = prevAttachmentKeysRef.current;
@@ -559,7 +559,7 @@ export default function ChatComposer({
     });
   }, [attachedFiles]);
 
-  // GSAP micro-animation for `+` button rotation
+  // Spin the `+` button 45deg into an X when the menu opens
   useEffect(() => {
     const iconEl = plusIconRef.current;
     if (!iconEl) return;
@@ -572,7 +572,7 @@ export default function ChatComposer({
     });
   }, [isAttachMenuOpen]);
 
-  // GSAP micro-animation for Send arrow orientation & readiness pulse
+  // Rotate and scale the Send arrow when there's actually text ready to fire
   useEffect(() => {
     const arrowEl = sendArrowRef.current;
     if (!arrowEl) return;
@@ -587,7 +587,7 @@ export default function ChatComposer({
     });
   }, [hasText, isBusy]);
 
-  // Subtle drag-and-drop composer elevation (clears transform at rest)
+  // Slight scale bump on file dragover, clears transform when dropped
   useEffect(() => {
     const formEl = composerRef.current;
     if (!formEl || prefersReducedMotion()) return;
@@ -805,7 +805,7 @@ export default function ChatComposer({
         }
       };
 
-      // Real-time streaming transcription every ~2.2s while speaking (no need to press stop)
+      // Poll and transcribe chunks every ~2.2s while speaking so you don't have to hit stop first
       if (liveTranscribeTimerRef.current !== null) {
         window.clearInterval(liveTranscribeTimerRef.current);
       }
@@ -915,7 +915,7 @@ export default function ChatComposer({
       recognitionRef.current = null;
       setIsDictating(false);
       if (code === 'service-not-allowed' || (!receivedResult && code === 'network')) {
-        // Browser blocks built-in cloud speech (e.g. Brave / Linux Chromium) -> free server transcription fallback
+        // Browser blocks built-in cloud speech (Brave, Linux Chromium, etc.), fall back to free server transcription
         void startMediaRecorderDictation();
         return;
       }
@@ -1216,7 +1216,7 @@ export default function ChatComposer({
           isToolComposerActive ? 'px-4 py-3 sm:px-5 sm:py-3.5' : 'px-2 py-1'
         } ${isDraggingFile ? 'ring-2 ring-indigo-400 dark:ring-indigo-500/40' : ''}`}
       >
-        {/* Attachment Strip (generous padding ensures `×` badge is never clipped) */}
+        {/* Attachment strip with extra padding so the little X badge doesn't get clipped */}
         <div
           ref={attachmentsWrapRef}
           aria-hidden={!hasAttachedFiles}
@@ -1306,7 +1306,7 @@ export default function ChatComposer({
           )}
         </div>
 
-        {/* Relative body isolating controls + textarea from attachment height transitions */}
+        {/* Relative wrapper keeping controls and textarea isolated from attachment drawer height changes */}
         <div ref={composerBodyRef} className="relative">
           <div
             ref={gridRef}

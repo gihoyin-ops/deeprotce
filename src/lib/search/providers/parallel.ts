@@ -2,7 +2,7 @@ import { searchFetch } from '../http';
 import { getHost, normalizeSearchSource } from '../merge';
 import { type SearchProviderResult, type SearchSource } from '../types';
 
-// hosted streamable HTTP endpoint, free tier, no key
+// hosted streamable HTTP endpoint, free tier, no key bs
 const PARALLEL_SEARCH_ENDPOINT = 'https://search.parallel.ai/mcp';
 
 interface JsonRpcResult {
@@ -69,7 +69,7 @@ const parseParallelSources = (text: string): SearchSource[] => {
   }).filter((source): source is SearchSource => Boolean(source));
 };
 
-// stateless single request keeps each search at one call against the free rate limit
+// stateless single request keeps each search to one hit against the free rate limit
 export const searchParallel = async (query: string, signal?: AbortSignal): Promise<SearchProviderResult> => {
   const cleanQuery = query.replace(/\s+/g, ' ').trim();
   const objective = `Find fresh, factual web sources answering: ${cleanQuery}`;

@@ -165,7 +165,7 @@ export default function ImageGenerationStage({
 
   const entrancePlayedRef = useRef(false);
 
-  // Measure available container width & viewport height asynchronously (ResizeObserver + rAF)
+  // Measure container width and viewport height via ResizeObserver + rAF so layout doesn't thrash
   useEffect(() => {
     const outerEl = outerRef.current;
     if (!outerEl) return;
@@ -195,7 +195,7 @@ export default function ImageGenerationStage({
     };
   }, []);
 
-  // Gentle studio stage entrance when entering in 'generating' mode
+  // Entrance animation when the stage mounts in 'generating' mode
   useEffect(() => {
     if (phase !== 'generating' || entrancePlayedRef.current) return;
     const frameEl = frameRef.current;
@@ -222,7 +222,7 @@ export default function ImageGenerationStage({
     );
   }, [phase]);
 
-  // Preload & decode the primary generated image offscreen before launching aspect-ratio morph
+  // Preload and decode the generated image offscreen before running the aspect-ratio morph bs
   useEffect(() => {
     if (phase !== 'generating' || !primaryImage?.src) return;
 
@@ -279,7 +279,7 @@ export default function ImageGenerationStage({
     };
   }, [phase, primaryImage?.src, bounds.width, bounds.height, requestedAspectRatio]);
 
-  // Execute silky-smooth GSAP aspect-ratio expansion & photographic unveil
+  // Run the GSAP aspect-ratio expansion and image reveal animation
   useLayoutEffect(() => {
     if (phase !== 'morphing' || !morphBoxes) return;
     const frameEl = frameRef.current;
@@ -385,7 +385,7 @@ export default function ImageGenerationStage({
     };
   }, [phase, morphBoxes]);
 
-  // Clear inline pixel height once settled so CSS aspectRatio + min(100%, width) stays responsive
+  // Nuke inline pixel height once settled so CSS aspectRatio + min(100%, width) stays responsive
   useLayoutEffect(() => {
     if (phase !== 'settled') return;
     const frameEl = frameRef.current;
@@ -443,7 +443,7 @@ export default function ImageGenerationStage({
         style={frameStyle}
         className="dc-img-studio-frame dc-img-studio-card"
       >
-        {/* Waiting / Loading Studio Canvas (unmounts completely once settled) */}
+        {/* Loading dot-matrix canvas (unmounts completely once settled) */}
         {phase !== 'settled' && (
           <div
             ref={waitingLayerRef}
@@ -453,7 +453,7 @@ export default function ImageGenerationStage({
           </div>
         )}
 
-        {/* Warm photographic sheen swept across during the morph unveil */}
+        {/* Light sheen sweep during the morph reveal */}
         {phase === 'morphing' && (
           <div
             ref={sheenRef}
@@ -463,7 +463,7 @@ export default function ImageGenerationStage({
           />
         )}
 
-        {/* Primary Generated Image Layer */}
+        {/* Main generated image layer */}
         {primaryImage && (
           <div
             ref={imageLayerRef}
@@ -535,7 +535,7 @@ export default function ImageGenerationStage({
         )}
       </div>
 
-      {/* Additional images when a provider returns multiple variations */}
+      {/* Extra variation images if the provider spat out more than one */}
       {phase === 'settled' && secondaryImages.length > 0 && (
         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
           {secondaryImages.map((img, idx) => (

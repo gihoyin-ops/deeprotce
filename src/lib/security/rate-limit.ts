@@ -20,7 +20,7 @@ type RateCheckResult = {
 };
 
 const getState = (): RateState => {
-  // warm serverless invocations share globalThis; a cold start resets the buckets
+  // warm serverless runs share globalThis, cold start nukes the buckets back to zero
   const g = globalThis as { __dcRateState?: RateState };
   return (g.__dcRateState ??= { entries: {}, banned: new Set() });
 };
@@ -48,7 +48,7 @@ export const checkApiRateLimits = (ip: string): RateCheckResult => {
   }
 
   const elapsedSeconds = Math.max(0, (now - entry.updatedAt) / 1000);
-  // capacity 120 at 2/s refill: a full bucket is a 60s burst
+  // 120 capacity at 2/s refill gives a full 60s burst before throttling
   entry.tokens = Math.min(CAPACITY, entry.tokens + elapsedSeconds * REFILL_PER_SECOND);
   entry.updatedAt = now;
 
@@ -62,7 +62,7 @@ export const checkApiRateLimits = (ip: string): RateCheckResult => {
     entry.strikes.shift();
   }
   if (entry.strikes.length >= STRIKE_LIMIT) {
-    // permanent for this instance: a repeat offender stays locked until restart
+    // banned for the life of this instance, repeat spammers stay locked out until restart
     state.banned.add(ip);
     return { status: 'banned' };
   }

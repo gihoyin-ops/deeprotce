@@ -1,16 +1,16 @@
-// shared contracts for the future full-server backend
-// account + plan + usage move here when the app leaves the Vercel free tier
-// plain fields only, no classes, no runtime, so each module can pick its
-// own engine and adapter
-// mirrors the local-first dual window from src/lib/security/usage.ts,
-// a 5-hour burst cap and a 7-day weekly cap at the same plan limit,
-// so a cutover migrates data without changing its meaning
+// Shared contracts for the future full-server backend.
+// Account, plan, and usage move here once the app ditches the Vercel free tier.
+// Plain fields only, no classes or runtime code, so each module can pick
+// its own engine and adapter.
+// Mirrors the local-first dual window from src/lib/security/usage.ts
+// (a 5-hour burst cap and a 7-day weekly cap at the same plan limit)
+// so cutover migrates data without changing what it means.
 
 export type BackendPlanId = 'free' | 'supporters' | 'cool' | 'staff';
 
 export type AccountRole = 'user' | 'staff' | 'manager_staff';
 
-// valid_until is null for recurring grants, set for boxes
+// valid_until is null for recurring grants, set for one-off boxes
 export interface BackendPlanGrant {
   account_id: string;
   plan: BackendPlanId;
@@ -33,12 +33,12 @@ export interface BackendAuthSession {
   account_id: string;
   issued_at: number;
   expires_at: number;
-  // opaque ref, a server session cookie, not the local dc_session shape
+  // Opaque server session cookie ref, not the local dc_session shape
   session_ref: string;
 }
 
-// window is the 5h burst cap, h5, or the 7d weekly cap, d7
-// limit_tokens applies to each window independently
+// window is either the 5h burst cap (h5) or the 7d weekly cap (d7).
+// limit_tokens applies independently to each window.
 export interface BackendUsageWindow {
   window: 'h5' | 'd7';
   limit_tokens: number;
@@ -48,7 +48,7 @@ export interface BackendUsageWindow {
 }
 
 export interface BackendUsageLedger {
-  // account id, not IP
+  // Account id, not IP
   identity: string;
   plan: BackendPlanId;
   windows: BackendUsageWindow[];

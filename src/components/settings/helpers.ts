@@ -1,4 +1,4 @@
-// settings utility helpers
+// Settings utility helpers, nothing fancy
 
 export const formatStorageSize = (value: number | null) => {
   if (value === null) return 'Unavailable';
@@ -13,7 +13,7 @@ export const formatStorageSize = (value: number | null) => {
   return `${size.toFixed(size >= 10 ? 1 : 2)} ${units[unitIndex]}`;
 };
 
-// mobile menu section definitions
+// Mobile settings menu item grouping/rounding logic
 export const getMobileItemPosition = (sectionTitle: string, index: number, length: number) => {
   if (sectionTitle === 'Model & Services' && index >= 5) {
     return index === 5 ? 'top' : 'bottom';

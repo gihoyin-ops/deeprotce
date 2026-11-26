@@ -1,9 +1,9 @@
-// future account + session service
-// owns account creation, BackendAuthSession minting replacing the local
-// dc_session shape, and importing an IP-keyed local grant into the
-// new account so early users keep their tier
-// everything that today decides who is this, the rate limiter and the
-// usage ledger keyed on getClientIp, will key on an account_id instead
+// Future account and session service.
+// Owns account creation, minting BackendAuthSession to replace the local
+// dc_session shape, and importing an IP-keyed local grant into the new
+// account so early users don't lose their tier.
+// Everything that currently decides who the user is (rate limiter and usage
+// ledger keyed on getClientIp) will key on account_id instead.
 
 import type { Account, BackendAuthSession, BackendPlanId } from '../types';
 
@@ -15,33 +15,33 @@ export interface AuthPrincipal {
 }
 
 export interface AuthSessionBackend {
-  // creates or fetches a session, concrete impl decides cookie and rotation
+  // Creates or fetches a session, concrete impl handles cookies and rotation
   issueSession(account: Account): Promise<BackendAuthSession>;
 
-  // returns null on missing, expired, or unknown ref, caller 401s
+  // Returns null if missing, expired, or bogus ref, caller throws 401
   resolveSession(sessionRef: string): Promise<AuthPrincipal | null>;
 
-  // rotates session_ref, e.g. after a password change
+  // Rotates session_ref, like after a password reset
   rotateSession(sessionRef: string): Promise<BackendAuthSession>;
 
-  // revokes by account_id, used on degradation and account suspension
+  // Nukes sessions by account_id when degrading or suspending an account
   revokeSessions(accountId: string): Promise<void>;
 }
 
-// shape only, verifier and transport are picked by the concrete module
+// Contract shape only, concrete module picks the verifier and transport
 export interface AccountRegistrationInput {
   email: string;
-  // required for the password flow
+  // Needed for password auth flow
   password?: string;
-  // defaults to the email local-part
+  // Falls back to the email local-part if omitted
   display_name?: string;
 }
 
 export interface AccountService {
   register(input: AccountRegistrationInput): Promise<Account>;
 
-  // plan change keeps local invariants, it changes the per-window cap and
-  // does not reset current 5h/7d usage
+  // Plan change keeps local invariants, swaps the per-window cap without
+  // wiping current 5h/7d usage
   setPlan(accountId: string, grant: { plan: BackendPlanId; granted_by: 'self' | 'admin' | 'payment' }): Promise<Account>;
   lookup(accountId: string): Promise<Account | null>;
 }

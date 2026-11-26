@@ -3,7 +3,7 @@
 import React from 'react';
 import ToggleSwitch from '@/components/ui/ToggleSwitch';
 
-// shared settings layout primitives
+// Shared layout building blocks for settings panels
 
 export function TabHeader({ title, description }: { title: string; description: string }) {
   return (
@@ -22,7 +22,7 @@ export function SettingsPanel({ children, className = '' }: { children: React.Re
   );
 }
 
-// row with label and control
+// Standard setting row with title, description, and right-side control
 export function SettingRow({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700/60 dark:bg-slate-900/60 sm:flex sm:items-center sm:justify-between sm:gap-6">
@@ -35,7 +35,7 @@ export function SettingRow({ title, description, children }: { title: string; de
   );
 }
 
-// switch card
+// Card with a toggle switch
 export function ToggleRow({ title, description, checked, onChange, disabled = false }: {
   title: string;
   description: string;
@@ -56,7 +56,7 @@ export function ToggleRow({ title, description, checked, onChange, disabled = fa
   );
 }
 
-// icon toggle row
+// Toggle row with a leading icon badge
 export function IconToggleRow({ icon, title, description, checked, onChange, disabled = false }: {
   icon?: React.ReactNode;
   title: string;
@@ -108,7 +108,7 @@ export function StatusPill({ tone, children }: { tone: 'success' | 'muted' | 'in
   return <span className={`rounded-full px-2.5 py-1 text-[11px] font-extrabold ${tones[tone]}`}>{children}</span>;
 }
 
-// primary save button
+// Primary indigo save/action button
 export function PrimaryButton({ children, onClick, disabled = false, loading = false, icon, className = '' }: {
   children: React.ReactNode;
   onClick: () => void;

@@ -226,7 +226,7 @@ export default function UserProfilePage() {
         return;
       }
     } catch {
-      // User cancelled native share or unsupported; fall back to clipboard
+      // Bro cancelled the native share sheet or browser doesn't support it, fall back to clipboard
     }
 
     try {
@@ -340,7 +340,7 @@ export default function UserProfilePage() {
     }
   };
 
-  // Group dailyActivity into 26 columns (weeks) of 7 days for GitHub-style heatmap
+  // Chunk dailyActivity into 26 columns (weeks) of 7 days for the GitHub-style heatmap
   const activityWeeks = useMemo(() => {
     const points = data?.stats?.dailyActivity ?? [];
     if (points.length === 0) return [];
@@ -405,7 +405,7 @@ export default function UserProfilePage() {
   return (
     <div className="custom-scrollbar h-full w-full overflow-y-auto bg-[var(--dc-canvas)] text-[var(--dc-text)]">
       <div ref={pageRef} className="mx-auto max-w-3xl px-4 pb-16 pt-[64px] sm:px-8 sm:pt-8">
-        {/* Top utility bar: Edit, Private/Public, Share */}
+        {/* Top utility bar with Edit, Private/Public toggle, and Share */}
         <div data-up-stagger className="mb-6 flex items-center justify-end gap-1.5 sm:mb-4">
           {isOwner && (
             <>
@@ -449,7 +449,7 @@ export default function UserProfilePage() {
           </button>
         </div>
 
-        {/* Instagram-style centered identity header */}
+        {/* Centered IG-style identity header */}
         <header data-up-stagger className="flex flex-col items-center text-center">
           <div className="relative h-24 w-24 sm:h-[104px] sm:w-[104px]">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -473,7 +473,7 @@ export default function UserProfilePage() {
           <p className="mt-1 text-sm text-[var(--dc-text-muted)]">@{profile.username}</p>
         </header>
 
-        {/* Instagram-style Centered Edit Profile Modal (Owner only) */}
+        {/* Centered IG-style Edit Profile modal, owner only */}
         {isOwner && isEditing && typeof document !== 'undefined' && createPortal(
           <div
             onClick={() => setIsEditing(false)}
@@ -497,7 +497,7 @@ export default function UserProfilePage() {
                 </button>
               </div>
 
-              {/* Tap photo directly to change photo (Instagram style, no shuffle) */}
+              {/* Tap the pfp directly to swap it, no shuffle bs */}
               <div className="mb-5 flex flex-col items-center">
                 <input
                   ref={fileInputRef}
@@ -585,7 +585,7 @@ export default function UserProfilePage() {
           document.body
         )}
 
-        {/* Private State */}
+        {/* Locked private profile state */}
         {isPrivateLocked ? (
           <section
             data-up-stagger
@@ -603,7 +603,7 @@ export default function UserProfilePage() {
           </section>
         ) : (
           <>
-            {/* 4-Column Stats Bar */}
+            {/* 4-column stats bar */}
             <section
               data-up-stagger
               className="mt-8 grid grid-cols-2 divide-y divide-[var(--dc-border-subtle)] overflow-hidden rounded-2xl border border-[var(--dc-border-subtle)] bg-[var(--dc-surface)] sm:grid-cols-4 sm:divide-x sm:divide-y-0"
@@ -634,7 +634,7 @@ export default function UserProfilePage() {
               </div>
             </section>
 
-            {/* GitHub-style Token Activity Heatmap */}
+            {/* GitHub-style token activity heatmap */}
             <section
               data-up-stagger
               className="mt-6 rounded-2xl border border-[var(--dc-border-subtle)] bg-[var(--dc-surface)] p-5"
@@ -696,7 +696,7 @@ export default function UserProfilePage() {
               </div>
             </section>
 
-            {/* Plan Section */}
+            {/* Current plan section */}
             <section
               data-up-stagger
               className="mt-6 flex items-center justify-between gap-4 rounded-2xl border border-[var(--dc-border-subtle)] bg-[var(--dc-surface)] px-5 py-4"
@@ -717,7 +717,7 @@ export default function UserProfilePage() {
               )}
             </section>
 
-            {/* Most Used Models (Bottom) */}
+            {/* Most used models at the bottom */}
             <section
               data-up-stagger
               className="mt-6 rounded-2xl border border-[var(--dc-border-subtle)] bg-[var(--dc-surface)] p-5"
@@ -790,7 +790,7 @@ export default function UserProfilePage() {
                 }
               }
             } catch {
-              // Fallback to cropped data URL if R2 is not configured
+              // Fall back to the cropped data URL if R2 isn't wired up yet
             }
             setDraftAvatar(croppedUrl);
           }}

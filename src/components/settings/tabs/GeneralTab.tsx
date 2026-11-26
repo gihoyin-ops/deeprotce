@@ -14,7 +14,7 @@ interface GeneralTabProps {
   onChange: (patch: Partial<GeneralSettings>) => void;
 }
 
-// general preferences tab (desktop + mobile)
+// General preferences tab for both desktop and mobile, ngl pretty straightforward
 export function GeneralTab({ settings, onChange }: GeneralTabProps) {
   return (
     <>
@@ -66,7 +66,7 @@ export function GeneralTab({ settings, onChange }: GeneralTabProps) {
   );
 }
 
-// mobile general preferences layout (uses portal-based MobileGeneralDropdown so it never clips)
+// Mobile general preferences layout, uses portal-based MobileGeneralDropdown so the damn menu doesn't clip
 function MobileGeneralSettings({ settings, onChange }: GeneralTabProps) {
   return (
     <div className="space-y-6 sm:hidden">

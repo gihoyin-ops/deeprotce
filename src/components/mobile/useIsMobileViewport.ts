@@ -5,8 +5,8 @@ import { useEffect, useState } from 'react';
 const MOBILE_MEDIA_QUERY = '(max-width: 639px)';
 
 /**
- * Tracks whether the current viewport is under Tailwind's `sm` breakpoint (< 640px)
- * Starts `false` on SSR and hydrates immediately on mount to avoid hydration mismatches
+ * Checks if the viewport is narrower than Tailwind's `sm` breakpoint (< 640px).
+ * Starts `false` on SSR and updates right after mount so React doesn't shit itself over hydration mismatches.
  */
 export function useIsMobileViewport(): boolean {
   const [isMobile, setIsMobile] = useState(false);

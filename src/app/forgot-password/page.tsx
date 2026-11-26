@@ -150,7 +150,7 @@ function ForgotPasswordContent() {
 
   return (
     <div className="custom-scrollbar h-dvh w-full overflow-x-hidden overflow-y-auto bg-[var(--dc-canvas)] text-[var(--dc-text)]">
-      {/* Clean minimal header matching /login */}
+      {/* Barebones header matching /login */}
       <header className="mx-auto flex h-16 max-w-6xl items-center px-6">
         <Link href="/" aria-label="DeepChat" className="inline-flex items-center">
           <span

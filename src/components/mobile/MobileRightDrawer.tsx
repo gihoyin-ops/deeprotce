@@ -170,7 +170,7 @@ const MobileRightDrawer = forwardRef<MobileDrawerHandle, MobileRightDrawerProps>
         try {
           el.inert = inert;
         } catch {
-          // ignore unsupported inert
+          // Browser doesn't support inert, whatever, ignore it
         }
       },
       [mainContentRef]
@@ -338,7 +338,7 @@ const MobileRightDrawer = forwardRef<MobileDrawerHandle, MobileRightDrawerProps>
       [applyProgress, isVisibleLayer, snapClose, snapOpen]
     );
 
-    // Initialize offscreen transform on mount only; clean up mainContentRef only on unmount
+    // Shove the panel offscreen on mount and clean up mainContentRef on unmount
     useEffect(() => {
       const panelEl = panelRef.current;
       const backdropEl = backdropRef.current;
@@ -352,11 +352,11 @@ const MobileRightDrawer = forwardRef<MobileDrawerHandle, MobileRightDrawerProps>
           gsap.set(mainEl, { clearProps: 'transform,borderRadius' });
         }
       };
-      // mount-only initialization and unmount cleanup
+      // Mount-only setup and unmount cleanup, don't fuck with the deps
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // Sync prop -> imperative transition
+    // Sync isOpen prop to the imperative GSAP drawer transition
     useEffect(() => {
       if (isDraggingRef.current) return;
       if (isOpen && !openStateRef.current) {
@@ -369,7 +369,7 @@ const MobileRightDrawer = forwardRef<MobileDrawerHandle, MobileRightDrawerProps>
       }
     }, [isOpen, snapClose, snapOpen]);
 
-    // Escape closes drawer
+    // Escape key closes this shit
     useEffect(() => {
       if (!isOpen) return;
       const handleKeyDown = (e: KeyboardEvent) => {
@@ -382,7 +382,7 @@ const MobileRightDrawer = forwardRef<MobileDrawerHandle, MobileRightDrawerProps>
       return () => document.removeEventListener('keydown', handleKeyDown);
     }, [isOpen, snapClose]);
 
-    // Sync draft title when chatTitle changes or rename starts
+    // Sync draft title whenever chatTitle changes or rename mode kicks in
     useEffect(() => {
       if (!isRenaming) {
         const frame = window.requestAnimationFrame(() => setDraftTitle(chatTitle));
@@ -391,7 +391,7 @@ const MobileRightDrawer = forwardRef<MobileDrawerHandle, MobileRightDrawerProps>
       renameInputRef.current?.focus();
     }, [chatTitle, isRenaming]);
 
-    // Load active chat outline when drawer opens on 'chat' tab
+    // Load the active chat's prompt outline when the drawer opens on the chat tab
     useEffect(() => {
       if (!isOpen || !hasActiveChat || !activeChatId || activeChatId === 'new') {
         const frame = window.requestAnimationFrame(() => setOutlineItems([]));
@@ -430,7 +430,7 @@ const MobileRightDrawer = forwardRef<MobileDrawerHandle, MobileRightDrawerProps>
       };
     }, [isOpen, hasActiveChat, activeChatId]);
 
-    // Animate segmented pill indicator + subtle content entrance on tab switch
+    // Slide the pill indicator and fade tab content in when switching tabs
     useLayoutEffect(() => {
       const groupEl = tabGroupRef.current;
       const indicatorEl = tabIndicatorRef.current;
@@ -519,7 +519,7 @@ const MobileRightDrawer = forwardRef<MobileDrawerHandle, MobileRightDrawerProps>
       }
     };
 
-    // 1:1 swipe right anywhere inside the open right drawer or backdrop to dismiss
+    // 1:1 swipe right anywhere inside the open drawer or backdrop to dismiss it
     const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
       if (!openStateRef.current || e.touches.length !== 1) return;
       if (shouldIgnoreHorizontalSwipe(e.target)) return;
@@ -611,7 +611,7 @@ const MobileRightDrawer = forwardRef<MobileDrawerHandle, MobileRightDrawerProps>
           ref={panelRef}
           className="dc-mob-drawer relative z-10 flex h-[100svh] w-[min(86vw,356px)] flex-col border-l border-[var(--dc-border)] shadow-2xl will-change-transform"
         >
-          {/* Segmented Pill Header */}
+          {/* Segmented pill tab header */}
           <div className="flex shrink-0 items-center justify-between gap-2 border-b border-[var(--dc-border-subtle)] px-3.5 pb-3 pt-[max(0.85rem,env(safe-area-inset-top))]">
             <div
               ref={tabGroupRef}
@@ -664,14 +664,14 @@ const MobileRightDrawer = forwardRef<MobileDrawerHandle, MobileRightDrawerProps>
             </button>
           </div>
 
-          {/* Scrollable Body */}
+          {/* Scrollable drawer body */}
           <div
             ref={tabContentRef}
             className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-4"
           >
             {resolvedTab === 'chat' && hasActiveChat && (
               <div className="space-y-5">
-                {/* Inline Rename Card */}
+                {/* Inline rename card */}
                 <div className="rounded-2xl border border-[var(--dc-border)] bg-[var(--dc-surface-subtle)] p-3.5">
                   <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-[var(--dc-text-muted)]">
                     Conversation
@@ -715,7 +715,7 @@ const MobileRightDrawer = forwardRef<MobileDrawerHandle, MobileRightDrawerProps>
                   )}
                 </div>
 
-                {/* 2x2 Quick Action Grid */}
+                {/* 2x2 quick action buttons */}
                 <div className="grid grid-cols-2 gap-2.5">
                   <button
                     type="button"
@@ -779,7 +779,7 @@ const MobileRightDrawer = forwardRef<MobileDrawerHandle, MobileRightDrawerProps>
                   </button>
                 </div>
 
-                {/* Conversation Outline / Jump List */}
+                {/* Prompt outline jump list */}
                 <div>
                   <div className="mb-2 flex items-center justify-between px-0.5">
                     <span className="text-[11.5px] font-semibold uppercase tracking-wider text-[var(--dc-text-muted)]">

@@ -1,13 +1,13 @@
-// Plan tiers + per-identity token limit
-// Window budget is a security ceiling, not a billing meter
-// Each window is capped at the plan number below
+// Plan tiers and per-identity token limits
+// This window budget is a hard security ceiling, quit treating it like a billing meter
+// Every window caps out at the plan numbers below
 
 export type PlanId = 'free' | 'supporters' | 'cool' | 'staff';
 
 export interface Plan {
   id: PlanId;
   label: string;
-  /** per-window budget, Infinity is unlimited */
+  /** per-window budget, Infinity means no cap at all */
   limitTokens: number;
 }
 
@@ -18,13 +18,13 @@ export const PLANS: Record<PlanId, Plan> = {
   staff: { id: 'staff', label: 'Staff', limitTokens: Infinity }
 };
 
-/** tier order, low to high */
+/** tier order from broke to baller */
 export const PLAN_ORDER: PlanId[] = ['free', 'supporters', 'cool', 'staff'];
 
-/** default tier for a new identity */
+/** default tier for fresh identities */
 export const DEFAULT_PLAN: PlanId = 'free';
 
-// aliases accepted, singular and plural, case-insensitive, unknown never maps
+// accepted aliases (singular/plural, case-insensitive), unknown shit returns null
 const PLAN_ALIASES: Record<string, PlanId> = {
   free: 'free',
   supporters: 'supporters',
@@ -46,7 +46,7 @@ export const getPlan = (id: PlanId): Plan => PLANS[id];
 export const isUnlimitedPlan = (id: PlanId): boolean =>
   !Number.isFinite(PLANS[id].limitTokens);
 
-/** token count like 40M, 150M, 650M, or ∞ */
+/** format token count like 40M, 150M, 650M, or ∞ */
 export const formatTokens = (tokens: number): string => {
   if (!Number.isFinite(tokens)) return '∞';
   const n = Math.round(tokens);

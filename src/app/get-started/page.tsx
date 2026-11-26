@@ -55,7 +55,7 @@ export default function GetStartedPage() {
 
   const avatarUrl = buildDefaultAvatarUrl(avatarSeed);
 
-  // Hydrate initial account state (if signed in) without blocking the UI
+  // Hydrate initial account state if signed in without blocking the damn UI
   useEffect(() => {
     let active = true;
 
@@ -93,7 +93,7 @@ export default function GetStartedPage() {
           return;
         }
       } catch {
-        // Fall back to local profile if offline
+        // Network's dead, fall back to the local profile
       }
 
       const local = await getUserProfileClient();
@@ -116,7 +116,7 @@ export default function GetStartedPage() {
     };
   }, []);
 
-  // Smooth GSAP entrance choreography
+  // GSAP stagger entrance so this shit doesn't just pop in raw
   useEffect(() => {
     const el = containerRef.current;
     if (!el || prefersReducedMotion()) return;
@@ -315,7 +315,7 @@ export default function GetStartedPage() {
 
   return (
     <div className="custom-scrollbar h-dvh w-full overflow-x-hidden overflow-y-auto bg-[var(--dc-canvas)] text-[var(--dc-text)]">
-      {/* Minimal header matching /login and /verify */}
+      {/* Barebones header matching /login and /verify */}
       <header className="mx-auto flex h-16 max-w-6xl items-center px-6">
         <Link href="/" aria-label="DeepChat" className="inline-flex items-center">
           <span
@@ -338,7 +338,7 @@ export default function GetStartedPage() {
 
       <main className="mx-auto flex min-h-[calc(100dvh-4rem)] max-w-6xl items-center justify-center px-6 pb-14 pt-4">
         <div ref={containerRef} className="w-full max-w-[420px]">
-          {/* Avatar preview with subtle shuffle & lazy skeleton */}
+          {/* Avatar preview with shuffle button and loading skeleton */}
           <div data-gs-stagger className="mb-7 flex items-center gap-4">
             <div ref={avatarWrapRef} className="relative h-16 w-16 shrink-0">
               {!isHydrated ? (
@@ -368,7 +368,7 @@ export default function GetStartedPage() {
             </div>
           </div>
 
-          {/* Editorial headline */}
+          {/* Big ass headline */}
           <div data-gs-stagger className="mb-8">
             <h1 className="text-3xl font-semibold tracking-tight text-[var(--dc-text-strong)] sm:text-[32px]">
               Hello, tell us your name
@@ -379,7 +379,7 @@ export default function GetStartedPage() {
           </div>
 
           <form onSubmit={handleSubmit} noValidate className="space-y-5">
-            {/* Name input */}
+            {/* Display name box */}
             <div ref={nameGroupRef} data-gs-stagger>
               <label
                 htmlFor="gs-name"
@@ -414,7 +414,7 @@ export default function GetStartedPage() {
               )}
             </div>
 
-            {/* Randomly generated & editable username */}
+            {/* RNG username that the user can still unfuck */}
             <div ref={usernameGroupRef} data-gs-stagger>
               <div className="mb-2 flex items-center justify-between">
                 <label
@@ -471,7 +471,7 @@ export default function GetStartedPage() {
               )}
             </div>
 
-            {/* Submit */}
+            {/* Send it */}
             <div data-gs-stagger className="pt-2">
               <button
                 type="submit"

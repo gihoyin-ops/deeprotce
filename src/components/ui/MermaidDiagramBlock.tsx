@@ -123,7 +123,7 @@ export default function MermaidDiagramBlock({
   const [fullscreen, setFullscreen] = useState(false);
   const [fullscreenClosing, setFullscreenClosing] = useState(false);
 
-  // Fullscreen AI prompt & zoom/pan state
+  // Fullscreen AI prompt and zoom/pan state
   const [prompt, setPrompt] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
@@ -166,7 +166,7 @@ export default function MermaidDiagramBlock({
     );
   }, [loaded, diagramUrl]);
 
-  // GSAP fullscreen entrance + bottom prompt dock glide
+  // GSAP fullscreen fade-in and bottom prompt dock slide-up
   useLayoutEffect(() => {
     if (!fullscreen || fullscreenClosing || !fullscreenShellRef.current) return;
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -189,7 +189,7 @@ export default function MermaidDiagramBlock({
     };
   }, [fullscreen, fullscreenClosing]);
 
-  // Subtle GSAP pulse on fullscreen diagram while AI updates it
+  // Pulse the fullscreen diagram while the AI is rewriting it
   useLayoutEffect(() => {
     if (!fullscreen || !fullscreenImgRef.current) return;
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -202,7 +202,7 @@ export default function MermaidDiagramBlock({
     }
   }, [fullscreen, isUpdating]);
 
-  // Keyboard shortcuts in fullscreen
+  // Fullscreen keyboard shortcuts
   useEffect(() => {
     if (!fullscreen) return;
     const onKeyDown = (e: KeyboardEvent) => {
@@ -346,7 +346,7 @@ export default function MermaidDiagramBlock({
 
   return (
     <div className="group/diagram not-prose relative mb-4 overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm dark:border-slate-800 dark:bg-white">
-      {/* Subtle floating top-right actions on hover */}
+      {/* Floating top-right action buttons on hover */}
       {!isStreaming && (
         <div className="absolute right-2.5 top-2.5 z-10 flex items-center gap-1 opacity-100 transition-opacity duration-200 sm:opacity-0 sm:group-hover/diagram:opacity-100 sm:group-focus-within/diagram:opacity-100">
           <button
@@ -419,7 +419,7 @@ export default function MermaidDiagramBlock({
         </div>
       )}
 
-      {/* Pure Minimalist Fullscreen Modal with AI Prompt Bar */}
+      {/* Fullscreen modal with AI prompt bar */}
       {(fullscreen || fullscreenClosing) &&
         typeof document !== 'undefined' &&
         createPortal(
@@ -427,7 +427,7 @@ export default function MermaidDiagramBlock({
             ref={fullscreenShellRef}
             className="fixed inset-0 z-[999999] flex h-[100dvh] w-screen flex-col overflow-hidden bg-white dark:bg-[#0b0d11]"
           >
-            {/* Pure Borderless Top Navbar */}
+            {/* Borderless top navbar */}
             <div className="flex shrink-0 items-center justify-between gap-2 px-3 py-2.5 sm:px-4">
               <button
                 type="button"
@@ -499,7 +499,7 @@ export default function MermaidDiagramBlock({
               </div>
             </div>
 
-            {/* Interactive Zoom & Pan Diagram Stage */}
+            {/* Zoom and pan diagram stage */}
             <div
               onWheel={handleWheel}
               onPointerDown={handlePointerDown}
@@ -526,7 +526,7 @@ export default function MermaidDiagramBlock({
               )}
             </div>
 
-            {/* Pure Minimalist Bottom AI Prompt Bar (No divider lines) */}
+            {/* Bottom AI prompt bar */}
             <div
               ref={promptDockRef}
               className="shrink-0 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 sm:px-6 sm:pb-5"

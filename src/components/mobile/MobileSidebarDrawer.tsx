@@ -29,7 +29,7 @@ import {
   Trash2,
   X,
 } from '@/components/ui/icons';
-import { isStaffRole } from '@/lib/security/roles';
+import { isManagerStaffRole, isStaffRole } from '@/lib/security/roles';
 import {
   archiveChat,
   deleteChat,
@@ -156,7 +156,7 @@ const MobileSidebarDrawer = forwardRef<MobileDrawerHandle, MobileSidebarDrawerPr
         try {
           el.inert = inert;
         } catch {
-          // ignore unsupported inert
+          // Browser doesn't support inert, whatever, ignore it
         }
       },
       [mainContentRef]
@@ -323,7 +323,7 @@ const MobileSidebarDrawer = forwardRef<MobileDrawerHandle, MobileSidebarDrawerPr
       [applyProgress, isVisibleLayer, snapClose, snapOpen]
     );
 
-    // Initialize offscreen transform on mount only; clean up mainContentRef only on unmount
+    // Shove the drawer offscreen on mount and clean up mainContentRef on unmount
     useEffect(() => {
       const panelEl = panelRef.current;
       const backdropEl = backdropRef.current;
@@ -337,11 +337,11 @@ const MobileSidebarDrawer = forwardRef<MobileDrawerHandle, MobileSidebarDrawerPr
           gsap.set(mainEl, { clearProps: 'transform,borderRadius' });
         }
       };
-      // mount-only initialization and unmount cleanup
+      // Mount-only setup and unmount cleanup, don't mess with the deps
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // Sync prop -> imperative transition when changed externally
+    // Sync external isOpen prop changes to the imperative GSAP transition
     useEffect(() => {
       if (isDraggingRef.current) return;
       if (isOpen && !openStateRef.current) {
@@ -354,7 +354,7 @@ const MobileSidebarDrawer = forwardRef<MobileDrawerHandle, MobileSidebarDrawerPr
       }
     }, [isOpen, snapClose, snapOpen]);
 
-    // Escape key closes drawer
+    // Escape key closes this shit
     useEffect(() => {
       if (!isOpen) return;
       const handleKeyDown = (e: KeyboardEvent) => {
@@ -387,7 +387,7 @@ const MobileSidebarDrawer = forwardRef<MobileDrawerHandle, MobileSidebarDrawerPr
     );
     const hasMoreRecent = visibleRecent.length < filteredRecent.length;
 
-    // Progressive IntersectionObserver pagination as user scrolls down history
+    // Lazy-load more chat history with IntersectionObserver as the user scrolls down
     useEffect(() => {
       const sentinel = loadMoreSentinelRef.current;
       if (!sentinel || !hasMoreRecent || !isOpen) return;
@@ -444,7 +444,7 @@ const MobileSidebarDrawer = forwardRef<MobileDrawerHandle, MobileSidebarDrawerPr
       router.push('/library');
     };
 
-    // 1:1 swipe left anywhere inside the open drawer or backdrop to dismiss
+    // 1:1 swipe left anywhere inside the open drawer or backdrop to dismiss it
     const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
       if (!openStateRef.current || e.touches.length !== 1) return;
       if (shouldIgnoreHorizontalSwipe(e.target)) return;
@@ -536,7 +536,7 @@ const MobileSidebarDrawer = forwardRef<MobileDrawerHandle, MobileSidebarDrawerPr
           ref={panelRef}
           className="dc-mob-drawer relative z-10 flex h-[100svh] w-[min(84vw,340px)] flex-col border-r border-[var(--dc-sidebar-border)] shadow-2xl will-change-transform"
         >
-          {/* Header */}
+          {/* Top header */}
           <div className="flex shrink-0 items-center justify-between gap-2 px-4 pb-3 pt-[max(0.85rem,env(safe-area-inset-top))]">
             <button
               type="button"
@@ -580,7 +580,7 @@ const MobileSidebarDrawer = forwardRef<MobileDrawerHandle, MobileSidebarDrawerPr
             </div>
           </div>
 
-          {/* Vertical Monochrome Menu Stack (matching PC sidebar, no divider lines) */}
+          {/* Monochrome nav links (same as desktop sidebar, no ugly divider lines) */}
           <div className="shrink-0 px-3 pb-3">
             <div className="space-y-0.5">
               <button
@@ -610,9 +610,9 @@ const MobileSidebarDrawer = forwardRef<MobileDrawerHandle, MobileSidebarDrawerPr
             </div>
           </div>
 
-          {/* Scrollable History Lists */}
+          {/* Scrollable chat history lists */}
           <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-4">
-            {/* Pinned Section */}
+            {/* Pinned chats */}
             {filteredPinned.length > 0 && (
               <div className="mb-4">
                 <button
@@ -651,7 +651,7 @@ const MobileSidebarDrawer = forwardRef<MobileDrawerHandle, MobileSidebarDrawerPr
               </div>
             )}
 
-            {/* Projects Section */}
+            {/* Projects */}
             <div className="mb-4">
               <button
                 type="button"
@@ -680,7 +680,7 @@ const MobileSidebarDrawer = forwardRef<MobileDrawerHandle, MobileSidebarDrawerPr
               )}
             </div>
 
-            {/* Recents Section */}
+            {/* Recent chats */}
             <div>
               <button
                 type="button"
@@ -745,7 +745,7 @@ const MobileSidebarDrawer = forwardRef<MobileDrawerHandle, MobileSidebarDrawerPr
             </div>
           </div>
 
-          {/* Sticky Profile & Settings Footer */}
+          {/* Sticky profile and settings footer */}
           <div className="shrink-0 bg-[var(--dc-surface)] px-3 pb-[max(0.85rem,env(safe-area-inset-bottom))] pt-2.5">
             <div className="flex items-center gap-2">
               <button
@@ -829,7 +829,7 @@ const MobileSidebarDrawer = forwardRef<MobileDrawerHandle, MobileSidebarDrawerPr
               )}
             </div>
 
-            {!isAuthLoading && !isGuest && isStaffRole(profile.role) && (
+            {!isAuthLoading && !isGuest && isManagerStaffRole(profile.role) && (
               <button
                 type="button"
                 onClick={() => {

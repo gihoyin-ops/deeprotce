@@ -118,7 +118,7 @@ export function CitationPill({ sources }: CitationPillProps) {
     return () => clearCloseTimer();
   }, [clearCloseTimer]);
 
-  // Reposition on scroll/resize while mounted, and close on Escape or outside click
+  // Reposition this shit on scroll/resize while mounted, and nuke it on Escape or outside click
   useEffect(() => {
     if (!isMounted) return;
     const update = () => setCoords(computePosition());
@@ -155,7 +155,7 @@ export function CitationPill({ sources }: CitationPillProps) {
     };
   }, [closePopover, computePosition, isMounted, isPinned, uniqueSources.length]);
 
-  // GSAP open/close animation
+  // GSAP open/close animation bs
   useLayoutEffect(() => {
     if (!isMounted) return;
     const cardEl = popoverRef.current;
@@ -195,7 +195,7 @@ export function CitationPill({ sources }: CitationPillProps) {
     }
   }, [coords.placement, isMounted, isOpen]);
 
-  // GSAP pagination slide when flipping between sources
+  // GSAP slide animation when flipping between citation sources
   useLayoutEffect(() => {
     if (!isMounted || slideDirRef.current === 0) return;
     const bodyEl = bodyRef.current;

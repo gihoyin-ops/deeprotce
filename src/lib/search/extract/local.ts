@@ -7,7 +7,7 @@ const MAX_REDIRECTS = 3;
 const LOCAL_TIMEOUT_MS = 9000;
 const LOCAL_ACCEPT = 'text/html, text/plain, text/markdown, application/json, application/xhtml+xml;q=0.9, */*;q=0.1';
 
-// strip self-closing icons before paired bodies so document tails survive
+// nuke self-closing tags before paired bodies so we don't accidentally eat the rest of the document
 const stripTagBodies = (html: string) => STRIP_TAGS.reduce((markup, tag) => {
   let text = markup;
   text = text.replace(new RegExp(`<${tag}\\b[^>]*?/\\s*>`, 'gi'), ' ');
@@ -15,7 +15,7 @@ const stripTagBodies = (html: string) => STRIP_TAGS.reduce((markup, tag) => {
   return text.replace(new RegExp(`<${tag}\\b[^>]*>`, 'gi'), ' ');
 }, html);
 
-// prefer the main or article root when present
+// grab main or article root if it actually exists
 const pickBody = (html: string) => {
   const lower = html.toLowerCase();
   const starts = [lower.indexOf('<main'), lower.indexOf('<article')].filter(i => i >= 0);
@@ -42,7 +42,7 @@ const cleanHtml = (html: string) =>
     .replace(/\n{2,}/g, '\n\n')
     .trim();
 
-// re-assert each redirect target to prevent SSRF via open redirects
+// re-validate every redirect hop so nobody pulls SSRF bs via open redirects
 const fetchReadable = async (rawUrl: string, redirects = 0) => {
   const url = await assertEgressUrl(rawUrl);
   const response = await searchFetch(url, {

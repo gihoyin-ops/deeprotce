@@ -54,8 +54,8 @@ export const searchWikipedia = async (query: string, signal?: AbortSignal): Prom
   return { providerId: 'wikipedia', providerName: 'Wikipedia', sources };
 };
 
-// title and snippet each have a primary class and a fallback; a missing one
-// degrades to empty rather than throwing the whole block away
+// title and snippet each have a primary class and a fallback; if one is missing
+// just degrade to empty instead of throwing the whole block in the trash
 const DATE_TAIL = /\s*[-–—|]?\s*\d+\s+(?:second|minute|hour|day|week|month|year)s?\s+(?:ago|old)?\s*[-|–—]?/i;
 const LEADING_DATE_PATTERN = /^(\d{4}[-/]\d{1,2}[-/]\d{1,2}|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},?\s+\d{4}|\d+\s+(?:second|minute|hour|day|week|month|year)s?\s+ago)\s*[-–—|·•:]?\s*/i;
 
@@ -70,10 +70,10 @@ export const searchBrave = async (query: string, signal?: AbortSignal): Promise<
     const urlMatch = block.match(/<a[^>]+href="(https?:\/\/(?!imgs\.search\.brave|search\.brave)[^"]+)"/);
     if (!urlMatch) continue;
     const url = urlMatch[1];
-    // title: search-snippet-title first, generic "title" class as fallback
+    // title: try search-snippet-title first, fall back to generic "title" class
     const titleMatch = block.match(/class="[^"]*search[- ]snippet[- ]title[^"]*"[^>]*>([\s\S]*?)(?:<\/span>|<\/div>|<\/a>)/)
       || block.match(/class="[^"]*title[^"]*"[^>]*>([\s\S]*?)(?:<\/span>|<\/div>|<\/a>)/);
-    // snippet: generic-snippet first, snippet-content as fallback
+    // snippet: try generic-snippet first, fall back to snippet-content
     const snippetMatch = block.match(/class="[^"]*generic-snippet[^"]*"[^>]*>([\s\S]*?)<\/(?:div|p)>/)
       || block.match(/class="[^"]*snippet[- ]content[^"]*"[^>]*>([\s\S]*?)<\/(?:div|p)>/);
     const title = splitDateTrim(titleMatch?.[1] || '').split(' | ')[0];

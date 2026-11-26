@@ -9,7 +9,7 @@ import {
 } from './live-model-env';
 import { getModelConfigValue, getModelListConfigValue } from './models';
 
-// Server-side AI Relay (api_deepchat) configuration & helpers
+// Server-side AI Relay (api_deepchat) config and helpers, don't break this shit
 
 export const LIVE_CHAT_CONNECTION_ID = 'live-chat';
 export const LIVE_LITE_CONNECTION_ID = 'live-lite';
@@ -28,7 +28,7 @@ const env = (key: string) => {
   return raw;
 };
 
-// Normalize base url without trailing slash or /v1
+// strip trailing slashes and /v1 bs from the base url
 const cleanBase = (url: string) => {
   let base = url.replace(/\/+$/, '');
   if (base.endsWith('/v1')) base = base.slice(0, -3);
@@ -51,7 +51,7 @@ export const getAiRelayConfig = (): AiRelayConfig | null => {
   return { baseUrl, clientSecret };
 };
 
-// Sanitize user/session identifier to max 64 alphanumeric/_/- chars for X-Client-Id
+// scrub user/session id down to 64 alphanumeric/_/- chars for X-Client-Id so nobody injects garbage
 export const sanitizeRelayClientId = (raw: string | null | undefined): string | undefined => {
   if (!raw) return undefined;
   const cleaned = raw.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64);
@@ -150,7 +150,7 @@ export interface FormattedRelayError {
   headers: Record<string, string>;
 }
 
-// Sanitized error mapping: never expose upstream body, URLs, or secrets to the UI
+// clean error mapping, never leak upstream body, URLs, or secrets to the UI like a dumbass
 export const formatRelayError = (upstreamStatus: number, upstreamHeaders?: Headers): FormattedRelayError => {
   if (upstreamStatus === 429) {
     const waitSeconds = parseWaitSeconds(upstreamHeaders);
@@ -223,7 +223,7 @@ export const relayErrorResponse = (upstreamStatus: number, upstreamHeaders?: Hea
   );
 };
 
-// Live connections always include baseUrl
+// live connections always have baseUrl, obviously
 type LiveConnection = Omit<LlmConnection, 'baseUrl'> & { baseUrl: string };
 
 export const getLiveChatConnection = (): LiveConnection | null => {

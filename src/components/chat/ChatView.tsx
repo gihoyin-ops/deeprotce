@@ -279,7 +279,7 @@ export default function ChatView({ chatId }: { chatId: string }) {
     setIsSearchSidebarOpen(true);
   }, [isSearchSidebarOpen, searchSidebar?.messageId]);
 
-  // Mobile floating scroll-to-bottom visibility
+  // Toggle the mobile floating scroll-to-bottom button based on scroll position
   useEffect(() => {
     const scrollEl = scrollContainerRef.current;
     if (!scrollEl) return;
@@ -302,7 +302,7 @@ export default function ChatView({ chatId }: { chatId: string }) {
     };
   }, [messages.length]);
 
-  // Animate floating scroll-to-bottom pill with GSAP
+  // GSAP pop-in/out for that floating scroll-to-bottom pill
   useEffect(() => {
     const btnEl = scrollBottomBtnRef.current;
     if (!btnEl) return;
@@ -332,7 +332,7 @@ export default function ChatView({ chatId }: { chatId: string }) {
     }
   }, [showScrollBottomBtn]);
 
-  // Jump-to-message outline handler from MobileRightDrawer
+  // Handle jump-to-message outline events fired by MobileRightDrawer
   useEffect(() => {
     const handleJump = (event: Event) => {
       const msgId = (event as CustomEvent<{ messageId?: string }>).detail?.messageId;
@@ -352,7 +352,7 @@ export default function ChatView({ chatId }: { chatId: string }) {
     return () => window.removeEventListener('deepchat:jump-to-message', handleJump);
   }, []);
 
-  // Keep the in-memory vote map in sync across tabs and after each submit
+  // Keep the in-memory vote map synced across tabs and after every submit
   useEffect(() => subscribeFeedback(() => setFeedbackMap(getFeedbackMap())), [chatId]);
 
   const feedbackFor = useCallback((messageId: string, versionIndex = 1) =>
@@ -364,12 +364,11 @@ export default function ChatView({ chatId }: { chatId: string }) {
     return removed;
   }, [chatId]);
 
-  // Both thumbs open the "Share feedback" sheet, preselected to the tapped
-  // direction; the chips list adapts to the message kind. Tapping the same
-  // (filled) thumb again withdraws the vote, which is the only way to clear
-  // feedback: no separate "Remove feedback" text anywhere
-  // Votes are tracked per version so regenerating a response gives a fresh
-  // neutral state while preserving prior version votes
+  // Both thumbs open the "Share feedback" sheet preselected to whatever the user
+  // clicked; chips change depending on message kind. Clicking the same filled thumb
+  // again nukes the vote, which is the only way to clear feedback (no "Remove feedback"
+  // button anywhere). Votes are tracked per version so regenerating gives a clean
+  // slate without wiping old version votes
   const handleToolbarFeedback = useCallback((messageId: string, rating: 'like' | 'dislike', versionIndex = 1) => {
     const current = feedbackFor(messageId, versionIndex)?.rating ?? null;
     if (current === rating) {
@@ -393,7 +392,7 @@ export default function ChatView({ chatId }: { chatId: string }) {
     setFeedbackClosing(true);
     window.setTimeout(() => {
       if (target) {
-        // Return focus to the thumb that opened the sheet (static labels)
+        // Shove focus back onto whichever thumb opened the sheet
         const msgEl = document.getElementById(`msg-${target.messageId}`);
         const label = target.rating === 'like' ? 'Like response' : 'Dislike response';
         const opener = msgEl ? Array.from(msgEl.querySelectorAll('button')).find(b => b.getAttribute('aria-label') === label) : null;
@@ -497,7 +496,7 @@ export default function ChatView({ chatId }: { chatId: string }) {
 
     measureComposerReserve();
 
-    // defer state update to avoid ResizeObserver loop error
+    // Defer state update to rAF so ResizeObserver doesn't throw a loop error bs
     const resizeObserver = typeof ResizeObserver !== 'undefined'
       ? new ResizeObserver(() => { window.requestAnimationFrame(measureComposerReserve); })
       : null;
@@ -1086,7 +1085,7 @@ export default function ChatView({ chatId }: { chatId: string }) {
         </div>
       </div>
 
-      {/* Mobile Floating Scroll-to-Bottom Pill */}
+      {/* Mobile floating scroll-to-bottom pill */}
       <button
         ref={scrollBottomBtnRef}
         type="button"

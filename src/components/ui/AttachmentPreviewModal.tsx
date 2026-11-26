@@ -276,7 +276,7 @@ export default function AttachmentPreviewModal({
     file && !file.previewUrl && !file.dataUrl && typeof file.content !== 'string'
   );
 
-  // Hydrate full attachment payload (dataUrl / content / size) from IndexedDB when opening from sent messages
+  // Pull the full attachment payload (dataUrl, content, size) out of IndexedDB when opening from sent messages
   useEffect(() => {
     if (!file || !needsHydration) return;
     let cancelled = false;
@@ -308,7 +308,7 @@ export default function AttachmentPreviewModal({
   const ext = (file?.ext || file?.name.split('.').pop() || 'other').replace(/^\./, '').toLowerCase();
   const isHydrating = Boolean(file && needsHydration && !activeHydrated && hydratingKey === fileKey);
 
-  // Convert dataUrl into a blob URL for reliable PDF iframes, media playback, and downloads
+  // Turn dataUrl into a real blob URL so PDF iframes, media players, and downloads don't shit the bed
   useEffect(() => {
     if (!resolvedDataUrl || file?.previewUrl) return;
     const blob = dataUrlToBlob(resolvedDataUrl);
@@ -369,14 +369,14 @@ export default function AttachmentPreviewModal({
     return parseDelimitedText(resolvedText, ext === 'tsv' ? '\t' : ',');
   }, [ext, isCsv, resolvedText]);
 
-  // Reset per-file copy state cleanly via timer callback when opened
+  // Reset the copied flag after 1.8s via timeout
   useEffect(() => {
     if (!copied) return;
     const timer = window.setTimeout(() => setCopied(false), 1800);
     return () => window.clearTimeout(timer);
   }, [copied]);
 
-  // GSAP modal entrance / exit choreography
+  // GSAP modal open/close animation bs
   useEffect(() => {
     if (!file) {
       wasOpenRef.current = false;
@@ -438,7 +438,7 @@ export default function AttachmentPreviewModal({
     }
   }, [file, isOpen]);
 
-  // Escape dismissal & body scroll lock
+  // Close on Escape and lock body scroll so the page behind doesn't scroll like ass
   useEffect(() => {
     if (!isOpen) return;
     const prevOverflow = document.body.style.overflow;
@@ -479,7 +479,7 @@ export default function AttachmentPreviewModal({
       await navigator.clipboard.writeText(formattedText);
       setCopied(true);
     } catch {
-      // ignore clipboard errors on restricted contexts
+      // Ignore clipboard permission errors in locked-down browser contexts
     }
   };
 
@@ -530,7 +530,7 @@ export default function AttachmentPreviewModal({
               : 'max-w-lg'
         }`}
       >
-        {/* Header Bar */}
+        {/* Modal header bar */}
         <div className="flex items-center justify-between gap-3 px-4 py-3 sm:px-5 sm:py-3.5">
           <div className="flex min-w-0 items-center gap-3">
             <span className="dc-tools-icon-well h-9 w-9 rounded-xl">
@@ -626,7 +626,7 @@ export default function AttachmentPreviewModal({
           </div>
         </div>
 
-        {/* Viewport Body */}
+        {/* Main preview viewport */}
         <div className="dc-preview-surface flex min-h-[220px] flex-1 flex-col overflow-hidden">
           {isHydrating ? (
             <div className="flex flex-1 flex-col items-center justify-center gap-3 p-10 text-center">

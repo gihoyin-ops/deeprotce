@@ -62,7 +62,7 @@ const injectGroupedCitations = (markdown: string, sources: SearchSource[]): stri
 
   return segments
     .map((segment, index) => {
-      // Odd indices are fenced or inline code blocks
+      // Odd indices are fenced or inline code blocks, don't touch shit inside them
       if (index % 2 === 1) return segment;
       return segment.replace(adjacentCitationsPattern, run => {
         const bracketMatches = [...run.matchAll(singleBracketPattern)];
@@ -89,7 +89,7 @@ const injectGroupedCitations = (markdown: string, sources: SearchSource[]): stri
           return `[${primaryName}](#dc-cite-${ordered.join('-')})`;
         }
 
-        // Only a subset inside the run resolved: replace only matching brackets
+        // Only part of the run resolved, so only swap the brackets that actually matched
         return run.replace(singleBracketPattern, (singleMatch, inner) => {
           const indices = getSourceReferences(inner, sources);
           if (indices.length === 0) return singleMatch;
@@ -486,7 +486,7 @@ function GeneratedMarkdownImage({ src, alt }: { src: string; alt: string }) {
 
 function transformMarkdownUrl(url: string) {
   const value = url.trim();
-  // Deny by default so schemes like javascript:, vbscript: and protocol-relative hosts never reach a rendered attribute
+  // Deny by default so garbage like javascript:, vbscript:, or protocol-relative URLs never make it into a rendered attribute
   if (/^#dc-cite-\d+(?:-\d+)*$/.test(value)) return value;
   if (/^data:image\/(?:png|jpe?g|webp|gif);base64,[a-z0-9+/=\s]+$/i.test(value)) return value.replace(/\s/g, '');
   if (/^(https?:|mailto:)/i.test(value)) return value;
@@ -495,7 +495,7 @@ function transformMarkdownUrl(url: string) {
 }
 
 function CodeBlock({ language, value, highlighter, isStreaming }: { language: string, value: string, highlighter: Highlighter | null, isStreaming: boolean }) {
-  // Legacy model analysis fences arrive without a runnable language and must render as inert code only
+  // Old model analysis fences show up with no runnable language, render them as dead code blocks only
   let displayLanguage = language;
   if (language.startsWith('deepchat-')) {
     displayLanguage = 'text';

@@ -64,7 +64,7 @@ export function KineticThinkingDotIcon({
       }
 
       if (active) {
-        // Core organic liquid breathing + subtle squash/stretch
+        // Main blob breathing and squash/stretch bs
         gsap.fromTo(
           core,
           { scaleX: 1.06, scaleY: 0.94, transformOrigin: '50% 50%' },
@@ -78,7 +78,7 @@ export function KineticThinkingDotIcon({
           }
         );
 
-        // Droplet A: fluid figure-8 / Lissajous budding out & merging back
+        // Droplet A: figure-8 / Lissajous loop popping out and sucking back in
         gsap.set(dropA, { opacity: 0.96, scale: 1, transformOrigin: '50% 50%' });
         gsap
           .timeline({ repeat: -1 })
@@ -87,7 +87,7 @@ export function KineticThinkingDotIcon({
           .to(dropA, { x: -4.8, y: 1.6, scale: 1.02, duration: 0.68, ease: 'sine.inOut' })
           .to(dropA, { x: 0, y: 0, scale: 0.72, duration: 0.55, ease: 'sine.inOut' });
 
-        // Droplet B: counter-phase harmonic orbit
+        // Droplet B: opposite-phase orbit so it doesn't look dead ass symmetrical
         gsap.set(dropB, { opacity: 0.88, scale: 0.9, transformOrigin: '50% 50%' });
         gsap
           .timeline({ repeat: -1 })
@@ -96,7 +96,7 @@ export function KineticThinkingDotIcon({
           .to(dropB, { x: 4.2, y: 2.6, scale: 0.92, duration: 0.82, ease: 'sine.inOut' })
           .to(dropB, { x: 0, y: 0, scale: 0.65, duration: 0.6, ease: 'sine.inOut' });
 
-        // Outer soft aura pulse
+        // Outer glow halo pulse
         gsap.fromTo(
           halo,
           { scale: 0.9, opacity: 0.16, transformOrigin: '50% 50%' },
@@ -110,7 +110,7 @@ export function KineticThinkingDotIcon({
           }
         );
       } else {
-        // Coalesce smoothly into the signature settled DeepChat blue dot
+        // Suck everything back into the settled DeepChat blue dot
         gsap.to([dropA, dropB], {
           x: 0,
           y: 0,
@@ -265,7 +265,7 @@ export function ThinkingSection({
     }
   }, [isActive]);
 
-  // Active shimmer glow
+  // Active shimmer sweep while thinking
   useLayoutEffect(() => {
     const reduce = prefersReducedMotion();
     const ctx = gsap.context(() => {
@@ -290,7 +290,7 @@ export function ThinkingSection({
     return () => ctx.revert();
   }, [isActive, isSearching]);
 
-  // Chevron rotation + timeline expand/collapse
+  // Chevron spin + timeline expand/collapse crap
   useLayoutEffect(() => {
     const reduce = prefersReducedMotion();
     const chevronEl = chevronRef.current;

@@ -1,7 +1,7 @@
 import { recordTokens } from './usage';
 
-// token estimate: text is chars / 4, images are 850 flat
-// a provider's own usage object wins over the estimate when present
+// rough token math: text is chars / 4, images cost 850 flat
+// if the provider sends a real usage object, that overrides this guesswork
 
 const IMAGE_PART_TOKENS = 850;
 
@@ -16,7 +16,7 @@ const responseAsObject = (value: unknown): Record<string, unknown> | null =>
 const asNumber = (value: unknown): number | null =>
   typeof value === 'number' && Number.isFinite(value) ? Math.floor(value) : null;
 
-/** provider usage if present in a JSON response */
+/** grab real provider usage from the JSON response if it exists */
 export const providerUsageTokens = (data: unknown): number | null => {
   const usage = responseAsObject((responseAsObject(data)?.usage as unknown) ?? null);
   if (!usage) return null;
@@ -28,7 +28,7 @@ export const providerUsageTokens = (data: unknown): number | null => {
   return null;
 };
 
-/** prompt estimate from the final upstream message list */
+/** estimate prompt tokens from the final upstream message array */
 export const estimateChatPromptTokens = (messages: { role?: string; content?: unknown }[]): number => {
   let textChars = 0;
   let imageParts = 0;
@@ -47,14 +47,14 @@ export const estimateChatPromptTokens = (messages: { role?: string; content?: un
   return Math.ceil(textChars / 4) + imageParts * IMAGE_PART_TOKENS;
 };
 
-/** total for a non-stream chat turn; provider usage wins */
+/** total tokens for a non-stream chat turn, provider count wins if present */
 export const completeChatTokens = (data: unknown, promptTokens: number, completionText: string): number => {
   const provider = providerUsageTokens(data);
   if (provider !== null) return provider;
   return promptTokens + estimateTokens(completionText);
 };
 
-/** token counter for a provider SSE stream */
+/** tracks token usage across a provider SSE stream */
 export class SseUsageMeter {
   private buffer = '';
   private textChars = 0;
@@ -62,7 +62,7 @@ export class SseUsageMeter {
 
   ingest(chunk: Uint8Array): void {
     this.buffer += decoder.decode(chunk, { stream: true });
-    // cap the buffer, a newline flushes it
+    // cap the buffer so a missing newline doesn't OOM the process
     if (this.buffer.length > 1_000_000 && !this.buffer.includes('\n')) this.buffer = this.buffer.slice(-65_536);
     let newlineIndex: number;
     while ((newlineIndex = this.buffer.indexOf('\n')) !== -1) {
@@ -93,14 +93,14 @@ export class SseUsageMeter {
     }
   }
 
-  /** provider usage if seen, else char estimate */
+  /** return provider usage if we saw it, otherwise fall back to char math */
   tokens(promptTokens: number): number {
     if (this.providerTokens !== null) return this.providerTokens;
     return Math.ceil(this.textChars / 4) + promptTokens;
   }
 }
 
-/** passes the stream through and records one spend on end or cancel */
+/** proxies the SSE stream and logs token spend once on end or cancel */
 export const meterSseBody = (
   body: ReadableStream<Uint8Array> | null,
   identityKey: string,
@@ -117,7 +117,7 @@ export const meterSseBody = (
     recordTokens(identityKey, totalTokens);
     onSettled?.(totalTokens);
   };
-  // settle on every terminal path, cancel would otherwise bill zero
+  // settle on every exit path, otherwise cancelling mid-stream would bill zero
   return new ReadableStream<Uint8Array>({
     start(controller) {
       const reader = body.getReader();
@@ -130,7 +130,7 @@ export const meterSseBody = (
             controller.enqueue(value);
           }
         } catch {
-          // upstream error or consumer cancel, exit the pump
+          // upstream blew up or client bailed, kill the pump
         } finally {
           settle();
         }

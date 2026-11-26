@@ -5,17 +5,15 @@ import { DEFAULT_PLAN, getPlan, isUnlimitedPlan, parsePlan, type PlanId } from '
 import { recordAccountDailyTokens } from '@/backend/profile/stats';
 import { recordAccountUsageTokens } from '@/backend/meter/turso-usage';
 
-// Per-identity ledger, one row per identity, two windows per row
-// Local-first, no account system, so identity is the IP the
-// rate limiter already uses at src/lib/security/rate-limit.ts
-// Each window is a burst cap at the plan number
-// A window expires 5h or 7d after its first spend; hitting one 402s
-// Store unavailable means fail open, a metering bug must not
-// take chat offline
-// Serverless off: on Vercel the function file is shared by every visitor
-// as one identity and its storage resets on each cold start, so a budget
-// here would not know who is who and could block chat for everyone
-// The meter only runs on a real server (VPS or LAN self-host)
+// Per-identity ledger: one row per identity, two windows per row
+// Local-first with no account system, so identity falls back to the IP
+// from src/lib/security/rate-limit.ts
+// Each window is a hard burst cap at the plan limit
+// A window expires 5h or 7d after its first spend, hitting the cap returns 402
+// If storage craps out, fail open so a metering bug doesn't kill chat
+// Disabled on serverless: on Vercel every visitor shares the same instance file
+// and storage wipes on cold starts, so a budget here would punish everyone
+// This meter only runs on a real server (VPS or LAN self-host)
 export const USAGE_LEDGER_ENABLED = !isServerless;
 
 const DB_PATH = (() => {
@@ -24,7 +22,7 @@ const DB_PATH = (() => {
 })();
 
 export type WindowId = 'h5' | 'd7';
-/** public label for a window */
+/** public label for a usage window */
 export type WindowLabel = '5h' | '7d';
 
 export const USAGE_WINDOWS: { id: WindowId; ms: number }[] = [
@@ -60,12 +58,12 @@ const getDb = (): DatabaseSync | null => {
     }
     return db;
   } catch {
-    // no storage, fail open
+    // storage is dead, fail open
     return null;
   }
 };
 
-// row mirror of SELECT ... FROM usage, node-sqlite returns untyped rows
+// mirrors SELECT ... FROM usage since node-sqlite spits out untyped rows
 type UsageRow = {
   key: string;
   plan: string;
@@ -85,7 +83,7 @@ const readIdentity = (database: DatabaseSync, identityKey: string): UsageRow | n
 const windowStateForRow = (row: UsageRow, id: WindowId): WindowState =>
   id === 'h5' ? { start: row.h5_start, tokens: row.h5_tokens } : { start: row.d7_start, tokens: row.d7_tokens };
 
-// reset a window when it is past its spend horizon
+// wipe and reset a window once it passes its expiry horizon
 const refreshWindow = (database: DatabaseSync, row: UsageRow, id: WindowId, windowMs: number, now: number): WindowState => {
   const state = windowStateForRow(row, id);
   if (state.tokens > 0 && now - state.start >= windowMs) {
@@ -128,7 +126,7 @@ export interface UsageSnapshot {
   windows: UsageWindowSnapshot[];
 }
 
-/** current plan + window state; null when offline */
+/** current plan and window state, returns null if the DB is offline */
 export const getUsageSnapshot = (identityKey: string): UsageSnapshot | null => {
   const database = getDb();
   if (!database) return null;
@@ -183,7 +181,7 @@ export type UsageGate =
   | { allowed: true; snapshot: UsageSnapshot | null }
   | { allowed: false; status: number; error: string; exhaustedWindow?: WindowLabel; retryAfterMs?: number };
 
-/** gate a spend; fail open when offline */
+/** gate a token spend, fails open if the DB is offline */
 export const checkUsageBudget = (identityKey: string): UsageGate => {
   const snapshot = getUsageSnapshot(identityKey);
   if (!snapshot) return { allowed: true, snapshot: null };
@@ -203,7 +201,7 @@ export const checkUsageBudget = (identityKey: string): UsageGate => {
   return { allowed: true, snapshot };
 };
 
-/** add spent tokens to both windows in one atomic statement */
+/** dump spent tokens into both windows in one atomic SQL statement */
 export const recordTokens = (identityKey: string, tokens: number): void => {
   const amount = Math.max(0, Math.floor(Number.isFinite(tokens) ? tokens : 0));
   if (amount === 0) return;
@@ -220,9 +218,9 @@ export const recordTokens = (identityKey: string, tokens: number): void => {
   const now = Date.now();
   const nowIso = new Date(now).toISOString();
   ensureIdentity(database, identityKey);
-  // SQLite SET is evaluated against the original row so each
-  // branch is a pure function of the stored state, and a crash
-  // cannot skew one window relative to the other
+  // SQLite evaluates SET against the original row so each branch is
+  // deterministic from stored state, and a mid-flight crash can't
+  // desync one window from the other
   database.prepare(`
     UPDATE usage SET
       h5_start  = CASE WHEN h5_tokens = 0 THEN ? WHEN (? - h5_start) >= ? THEN ? ELSE h5_start END,
@@ -240,7 +238,7 @@ export const recordTokens = (identityKey: string, tokens: number): void => {
   );
 };
 
-/** set or change the stored plan for an identity */
+/** set or update the stored plan for an identity */
 export const setIdentityPlan = (identityKey: string, planId: PlanId): PlanId => {
   const database = getDb();
   if (!database) return planId;

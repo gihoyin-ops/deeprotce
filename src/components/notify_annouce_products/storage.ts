@@ -75,7 +75,7 @@ export function consumeProductAnnouncementImpression(
   try {
     window.localStorage.setItem(key, JSON.stringify(nextState));
   } catch {
-    // ignore quota or restricted storage modes
+    // Eat quota or locked-down storage errors, who cares
   }
 
   recentImpressions.set(key, { at: now, visible: true });
@@ -101,6 +101,6 @@ export function dismissProductAnnouncement(
     };
     window.localStorage.setItem(key, JSON.stringify(nextState));
   } catch {
-    // ignore storage errors
+    // Eat storage errors so we don't crash over a damn banner
   }
 }

@@ -170,7 +170,7 @@ export default function SharedChatPage({ params }: { params: Promise<{ id: strin
   const userMessages = useMemo(() => messages.filter((m) => m.role === 'user'), [messages]);
   const showCustomScrollbar = userMessages.length >= 3;
 
-  // GSAP entrance for messages and bottom dock
+  // GSAP slide-in for messages and the bottom dock
   useEffect(() => {
     if (loading || !chat || !pageRef.current) return;
     if (prefersReducedMotion()) return;
@@ -212,7 +212,7 @@ export default function SharedChatPage({ params }: { params: Promise<{ id: strin
     return () => ctx.revert();
   }, [loading, chat]);
 
-  // Animate dock minimize/expand smoothly
+  // Animate the dock collapsing and expanding without snapping like ass
   useEffect(() => {
     if (!dockRef.current || prefersReducedMotion()) return;
     gsap.fromTo(
@@ -222,7 +222,7 @@ export default function SharedChatPage({ params }: { params: Promise<{ id: strin
     );
   }, [isDockMinimized]);
 
-  // Scroll tracking for mobile scroll-to-bottom pill & desktop dot indicator
+  // Track scroll position for the mobile jump-to-bottom pill and desktop dot rail
   useEffect(() => {
     const el = scrollContainerRef.current;
     if (!el) return;
@@ -351,7 +351,7 @@ export default function SharedChatPage({ params }: { params: Promise<{ id: strin
       className="deepchat-chat-view relative flex min-h-0 flex-1 flex-row overflow-hidden bg-[var(--dc-canvas)] text-[var(--dc-text)]"
     >
       <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
-        {/* Desktop Top Bar (matches ChatView) */}
+        {/* Desktop top bar (cloned from ChatView) */}
         <div
           className="pointer-events-none absolute top-0 left-0 right-0 z-10 hidden h-16 items-start justify-between px-5 pt-3.5 sm:flex"
           style={{
@@ -391,7 +391,7 @@ export default function SharedChatPage({ params }: { params: Promise<{ id: strin
           </div>
         </div>
 
-        {/* Message List */}
+        {/* Message dump */}
         <div
           ref={scrollContainerRef}
           className={`flex-1 overflow-y-auto px-4 pb-4 pt-[calc(env(safe-area-inset-top,0px)+4rem)] sm:px-8 sm:pb-6 sm:pt-16 ${
@@ -438,7 +438,7 @@ export default function SharedChatPage({ params }: { params: Promise<{ id: strin
           </div>
         </div>
 
-        {/* Mobile Floating Scroll-to-Bottom Pill */}
+        {/* Mobile floating jump-to-bottom pill */}
         <button
           ref={scrollBottomBtnRef}
           type="button"
@@ -460,7 +460,7 @@ export default function SharedChatPage({ params }: { params: Promise<{ id: strin
           <ChevronDown className="h-5 w-5" strokeWidth={2.25} />
         </button>
 
-        {/* Desktop Dot Jump Scrollbar */}
+        {/* Desktop dot-jump scrollbar rail */}
         {showCustomScrollbar && (
           <div className="absolute right-4 top-1/2 z-30 hidden -translate-y-1/2 flex-col items-center justify-center sm:flex">
             <div className="rounded-full border border-slate-200/60 bg-slate-200/30 px-2 py-4 shadow-sm backdrop-blur-sm transition-colors hover:bg-slate-200/50 dark:border-slate-700/70 dark:bg-slate-950/80 dark:shadow-black/30 dark:hover:bg-slate-900/90">
@@ -490,7 +490,7 @@ export default function SharedChatPage({ params }: { params: Promise<{ id: strin
           </div>
         )}
 
-        {/* Bottom Floating Dock: Continue or Just View */}
+        {/* Bottom floating dock: fork this chat or just lurk */}
         <div className="pointer-events-none absolute bottom-0 left-0 z-20 flex w-full flex-col items-center bg-transparent px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 sm:px-8 sm:pb-5 sm:pt-2">
           <div
             ref={dockRef}

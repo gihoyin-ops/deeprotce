@@ -168,7 +168,7 @@ export async function getSharedChat(shareId: string): Promise<StoredChat | null>
         if (data.chat) return data.chat;
       }
     } catch {
-      // Fallback to local snapshot when offline or guest-only
+      // Network is dead or guest-only, fall back to the local snapshot
     }
     const localShared = await getSharedSnapshot(shareId);
     if (localShared) return localShared;

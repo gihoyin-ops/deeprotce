@@ -15,7 +15,7 @@ interface State {
 const cache = new Map<string, CacheEntry>();
 const states = new Map<string, State>();
 
-// short-lived responses keep repeat deep research queries off rate limited endpoints
+// short-lived cache keeps repeat deep research queries from hammering rate-limited endpoints
 export const cacheGet = (key: string): string | null => {
   const entry = cache.get(key);
   if (!entry) return null;
@@ -39,7 +39,7 @@ export const isCoolingDown = (key: string): boolean => {
   return Boolean(state && state.cooldownUntil > Date.now());
 };
 
-// exponential backoff after failures, capped; steady wins reset the provider
+// exponential backoff when shit breaks, capped; a clean win resets the provider
 export const markFailure = (key: string) => {
   const failures = (states.get(key)?.failures || 0) + 1;
   const cooldownUntil = Date.now() + Math.min(MAX_COOLDOWN_MS, COOLDOWN_MS * Math.pow(2, failures - 1));
@@ -50,5 +50,5 @@ export const markSuccess = (key: string) => {
   states.delete(key);
 };
 
-// returns the failure count a provider is backing off (0 when active)
+// returns how many failures a provider is backing off for (0 when healthy)
 export const failureCount = (key: string): number => states.get(key)?.failures || 0;

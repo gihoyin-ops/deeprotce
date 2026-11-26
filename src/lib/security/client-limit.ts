@@ -44,7 +44,7 @@ export function setActiveLimit(limit: ActiveLimitState): void {
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(limit));
   } catch {
-    // ignore storage quota errors
+    // swallow storage quota bs if localStorage is full
   }
   window.dispatchEvent(new Event(LIMIT_EVENT));
 }
@@ -54,7 +54,7 @@ export function clearActiveLimit(): void {
   try {
     window.localStorage.removeItem(STORAGE_KEY);
   } catch {
-    // ignore
+    // whatever, ignore localStorage errors
   }
   window.dispatchEvent(new Event(LIMIT_EVENT));
 }
@@ -83,14 +83,14 @@ export function useActiveLimit(isGuest: boolean): ActiveLimitState | null {
     };
   }, []);
 
-  // Clear guest limit automatically once the user signs in
+  // Nuke the guest limit as soon as this mf signs in
   useEffect(() => {
     if (!isGuest && limit?.reason === 'guest') {
       clearActiveLimit();
     }
   }, [isGuest, limit?.reason]);
 
-  // Auto-clear when resetAt is reached
+  // Wipe the limit automatically once resetAt hits
   useEffect(() => {
     if (!limit) return;
     const remainingMs = Math.max(0, limit.resetAt - Date.now());
@@ -100,7 +100,7 @@ export function useActiveLimit(isGuest: boolean): ActiveLimitState | null {
     return () => window.clearTimeout(timer);
   }, [limit]);
 
-  // Also check /api/usage for signed-in users so limit state clears when window resets
+  // Poll /api/usage for signed-in users so stale limit state clears when the window resets
   useEffect(() => {
     if (isGuest) return;
     let active = true;

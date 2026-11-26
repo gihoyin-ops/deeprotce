@@ -156,7 +156,7 @@ export const searchOpenAICompatible = async (query: string, tool: SearchRuntimeI
   const baseUrl = tool.config.OPENAI_COMPATIBLE_SEARCH_BASE_URL?.replace(/\/+$/, '');
   const apiKey = tool.config.OPENAI_COMPATIBLE_SEARCH_API_KEY;
   if (!baseUrl || !apiKey) throw new Error('OpenAI compatible search configuration is missing');
-  // client-configured base URL; refuse private/metadata targets before the key is sent
+  // client-configured base URL, block private/metadata targets before we yeet the API key at it
   await assertEgressUrl(baseUrl);
   return apiCall('openai-compatible-search', 'OpenAI Compatible', baseUrl, ['results', 'data'], {
     method: 'POST',

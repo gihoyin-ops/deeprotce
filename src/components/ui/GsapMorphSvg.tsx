@@ -6,18 +6,18 @@ import { gsap } from 'gsap';
 interface GsapMorphSvgProps {
   children: React.ReactElement;
   className?: string;
-  /** Custom morph rotation angle on desktop hover in degrees, default 12 */
+  /** Hover rotation angle on desktop in degrees, defaults to 12 */
   rotate?: number;
-  /** Scale on hover, default 1.15 */
+  /** Hover scale factor, defaults to 1.15 */
   scale?: number;
-  /** Whether to apply magnetic fluid cursor tracking on desktop */
+  /** Pull the icon toward the cursor on desktop hover */
   magnetic?: boolean;
 }
 
 /**
- * High-performance GSAP wrapper for SVG icons
- * On desktop PC (hover: hover and pointer: fine), applies smooth spring micro-animations,
- * path morphing/stroke animations, and magnetic fluid reactions on hover
+ * GSAP hover wrapper for SVG icons.
+ * On real desktop pointers (hover: hover and pointer: fine), runs spring scale/rotate,
+ * stroke tweaks, and magnetic cursor tracking.
  */
 export default function GsapMorphSvg({
   children,
@@ -30,13 +30,13 @@ export default function GsapMorphSvg({
   const isDesktopRef = useRef(false);
 
   useEffect(() => {
-    // Detect PC (desktop with hover capability)
+    // Check if we're actually on a desktop with hover/fine pointer
     isDesktopRef.current = typeof window !== 'undefined' && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
 
     const el = containerRef.current;
     if (!el) return;
 
-    // Fast setters for 60fps performance
+    // quickTo setters so cursor tracking doesn't lag like shit
     const xTo = gsap.quickTo(el, 'x', { duration: 0.25, ease: 'power3.out' });
     const yTo = gsap.quickTo(el, 'y', { duration: 0.25, ease: 'power3.out' });
 
@@ -45,10 +45,10 @@ export default function GsapMorphSvg({
       const svg = el.querySelector('svg');
       if (!svg) return;
 
-      // Kill any in-flight tweens
+      // Nuke any running tweens first
       gsap.killTweensOf([el, svg]);
 
-      // Elastic spring scale and rotation on SVG
+      // Bouncy spring scale and rotation on the SVG
       gsap.to(svg, {
         scale,
         rotate,
@@ -58,7 +58,7 @@ export default function GsapMorphSvg({
         filter: 'drop-shadow(0 2px 6px rgba(99, 102, 241, 0.35))'
       });
 
-      // Animate SVG child paths (stroke/dash/morph wave)
+      // Thicken the child paths slightly on hover
       const paths = svg.querySelectorAll('path, circle, rect, polygon');
       if (paths.length > 0) {
         gsap.to(paths, {

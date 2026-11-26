@@ -27,7 +27,7 @@ export async function generateMetadata({
         }
       }
     } catch {
-      // Fallback gracefully if DB is temporarily unavailable during metadata generation
+      // Eat the error and fall back if the DB is down during metadata generation
     }
   }
 

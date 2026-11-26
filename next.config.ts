@@ -1,15 +1,15 @@
 import type { NextConfig } from "next";
 
-// script-src-elem (not script-src) so only element scripts are governed:
-// Next's SSR/Hydration output carries inline bootstrap scripts (Turbopack
-// preinit + RSC flight data), and the sandboxed srcDoc iframe in
-// components/ui/CodePreview.tsx inherits this policy for its preview scripts.
-// There are no inline on* event-handler attributes (React attaches listeners
-// via addEventListener), so script-src-attr is locked to 'none'.
+// Use script-src-elem (not script-src) so CSP only polices script elements.
+// Next SSR/Hydration shits out inline bootstrap scripts (Turbopack preinit
+// + RSC flight data), and the sandboxed srcDoc iframe in
+// components/ui/CodePreview.tsx inherits this policy for preview scripts.
+// Zero inline on* handler attributes exist (React wires listeners via
+// addEventListener), so script-src-attr stays locked to 'none'.
 const nextConfig: NextConfig = {
   experimental: {
-    // routing-level 404 page that bypasses the root layout, so unmatched
-    // URLs render standalone (no chat frame), like the global error page
+    // Routing-level 404 that skips the root layout, so dead URLs render
+    // standalone without the chat frame, same as the global error page
     globalNotFound: true
   },
   async headers() {

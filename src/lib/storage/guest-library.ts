@@ -1,7 +1,7 @@
 'use client';
 
-export const GUEST_STORAGE_LIMIT_BYTES = 50 * 1024 * 1024; // 50 MB local-only for guests
-const GUEST_TRASH_RETENTION_MS = 48 * 60 * 60 * 1000; // 2 days auto-purge
+export const GUEST_STORAGE_LIMIT_BYTES = 50 * 1024 * 1024; // 50 MB local-only cap for guests
+const GUEST_TRASH_RETENTION_MS = 48 * 60 * 60 * 1000; // 2 days before trashed shit auto-purges
 const DB_NAME = 'deepchat-guest-library';
 const DB_VERSION = 1;
 const STORE_NAME = 'state';
@@ -151,7 +151,7 @@ export const uploadGuestLibraryImage = async (
   const autoSpaceUp = options?.autoSpaceUp ?? true;
 
   if (usedBytes + file.size > GUEST_STORAGE_LIMIT_BYTES && autoSpaceUp) {
-    // Delete trashed items first, then oldest non-favorites, then oldest items
+    // Nuke trashed items first, then oldest non-favorites, then whatever oldest crap is left
     const sortedForEviction = [...next.items].sort((a, b) => {
       const aTrash = a.trashedAt !== null ? 0 : 1;
       const bTrash = b.trashedAt !== null ? 0 : 1;

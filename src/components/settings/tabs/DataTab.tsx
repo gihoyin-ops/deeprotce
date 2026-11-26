@@ -101,7 +101,7 @@ export function DataTab({
       </header>
 
       <div className="divide-y divide-[var(--dc-border-subtle)] border-t border-[var(--dc-border-subtle)]">
-        {/* Shared links */}
+        {/* Shared chat links */}
         <div className="flex items-center justify-between gap-6 py-4">
           <div className="min-w-0">
             <p className="text-sm font-medium text-[var(--dc-text-strong)]">Shared links</p>
@@ -118,7 +118,7 @@ export function DataTab({
           </button>
         </div>
 
-        {/* Improve the model for everyone */}
+        {/* Opt in or out of letting them train on your chats */}
         <div className="flex items-center justify-between gap-6 py-4">
           <div className="min-w-0">
             <p className="text-sm font-medium text-[var(--dc-text-strong)]">Improve the model for everyone</p>
@@ -134,7 +134,7 @@ export function DataTab({
           />
         </div>
 
-        {/* Location */}
+        {/* Location permission toggle */}
         <div className="flex items-center justify-between gap-6 py-4">
           <div className="min-w-0">
             <p className="text-sm font-medium text-[var(--dc-text-strong)]">Location</p>
@@ -151,7 +151,7 @@ export function DataTab({
           </button>
         </div>
 
-        {/* Archived chats (navigates to Archived chats tab) */}
+        {/* Jumps straight to the Archived chats tab */}
         <button
           type="button"
           onClick={onOpenArchivedChats}
@@ -166,7 +166,7 @@ export function DataTab({
           <ChevronRight className="h-4 w-4 shrink-0 text-[var(--dc-text-muted)]" />
         </button>
 
-        {/* Archive all chats */}
+        {/* Shove every chat into archive */}
         <div className="flex items-center justify-between gap-6 py-4">
           <div className="min-w-0">
             <p className="text-sm font-medium text-[var(--dc-text-strong)]">Archive all chats</p>
@@ -185,7 +185,7 @@ export function DataTab({
           </button>
         </div>
 
-        {/* Delete all chats */}
+        {/* Nuke all chats permanently */}
         <div className="flex items-center justify-between gap-6 py-4">
           <div className="min-w-0">
             <p className="text-sm font-medium text-[var(--dc-text-strong)]">Delete all chats</p>
@@ -204,7 +204,7 @@ export function DataTab({
           </button>
         </div>
 
-        {/* Export data */}
+        {/* Dump all your data to JSON */}
         <div className="flex items-center justify-between gap-6 py-4">
           <div className="min-w-0">
             <p className="text-sm font-medium text-[var(--dc-text-strong)]">Export data</p>
@@ -223,7 +223,7 @@ export function DataTab({
           </button>
         </div>
 
-        {/* Cookie preferences */}
+        {/* Cookie and localStorage consent bs */}
         <div className="flex items-center justify-between gap-6 py-4">
           <div className="min-w-0">
             <p className="text-sm font-medium text-[var(--dc-text-strong)]">Cookie preferences</p>
@@ -241,7 +241,7 @@ export function DataTab({
         </div>
       </div>
 
-      {/* Cookie Preferences modal */}
+      {/* Cookie Preferences modal, portaled outside SettingsModal */}
       {isCookieModalOpen && typeof document !== 'undefined' && createPortal(
         <div
           className="fixed inset-0 z-[10050] flex items-center justify-center bg-black/55 p-4 backdrop-blur-[2px]"

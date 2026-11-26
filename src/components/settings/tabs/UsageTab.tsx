@@ -95,7 +95,7 @@ export function UsageTab() {
         <p className="mt-1 text-sm text-[var(--dc-text-muted)]">Track your usage and check your limits</p>
       </header>
 
-      {/* 2 tabs: Overview | Analytics */}
+      {/* Two tabs: Overview and Analytics */}
       <div className="flex items-center gap-1.5" role="tablist" aria-label="Usage views">
         <button
           type="button"
@@ -133,7 +133,7 @@ export function UsageTab() {
         </div>
       ) : subTab === 'overview' ? (
         <div className="space-y-8">
-          {/* Your plan */}
+          {/* Current plan tier */}
           <section>
             <h4 className="border-b border-[var(--dc-border-subtle)] pb-3 text-base font-medium text-[var(--dc-text-strong)]">
               Your plan
@@ -156,7 +156,7 @@ export function UsageTab() {
             </div>
           </section>
 
-          {/* Plan limits */}
+          {/* Rolling usage limits bs */}
           <section className="space-y-4">
             <div className="border-b border-[var(--dc-border-subtle)] pb-3">
               <h4 className="text-base font-medium text-[var(--dc-text-strong)]">Plan limits</h4>
@@ -207,7 +207,7 @@ export function UsageTab() {
           </section>
         </div>
       ) : (
-        /* Analytics tab */
+        /* Analytics tab with the usage numbers */
         <div className="space-y-6">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="rounded-2xl border border-[var(--dc-border)] bg-[var(--dc-surface)] p-4">

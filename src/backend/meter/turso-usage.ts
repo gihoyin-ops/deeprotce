@@ -195,7 +195,7 @@ export const recordAccountUsageTokens = async (accountId: string, tokens: number
       );
     }
   } catch {
-    // Non-critical; never block chat responses
+    // Non-critical shit, never block chat responses over this
   }
 };
 

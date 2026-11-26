@@ -66,7 +66,7 @@ export const recordAccountDailyTokens = async (
       [accountId, day, amount]
     );
   } catch {
-    // Non-critical telemetry; never block chat responses
+    // Non-critical telemetry bs, never block chat responses
   }
 };
 
@@ -93,7 +93,7 @@ export const recordAccountModelUsage = async (
       [accountId, cleanModel, amount, nowIso]
     );
   } catch {
-    // Non-critical telemetry; never block chat responses
+    // Non-critical telemetry bs, never block chat responses
   }
 };
 
@@ -202,7 +202,7 @@ export const getAccountProfileAndStats = async (
 
   const { currentStreak, longestStreak } = computeStreaks(activeDays);
 
-  // Build last 182 days (26 weeks) for GitHub-style activity heatmap
+  // Build the last 182 days (26 weeks) for the GitHub-style activity heatmap
   const today = toUtcDayKey(new Date());
   const totalDays = 182;
   const dailyActivity: DailyTokenPoint[] = [];

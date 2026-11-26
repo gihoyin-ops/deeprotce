@@ -4,10 +4,10 @@ import { useRouter } from 'next/navigation';
 import ErrorPage from '@/components/ErrorPage';
 import { GLOBAL_CSS, THEME_SCRIPT } from '@/lib/standaloneTheme';
 
-// Routing-level 404 (experimental.globalNotFound): Next bypasses the whole
-// route tree, so this must be a complete standalone document, the same way
-// global-error.tsx is one. Only unmatched URLs land here, so the in-frame
-// chrome (sidebar/header) does not appear: the 404 is its own page
+// Routing-level 404 (experimental.globalNotFound): Next skips the whole
+// route tree, so this has to be a standalone HTML document just like
+// global-error.tsx. Only unmatched URLs land here, so the sidebar and
+// header don't show up, the 404 owns the whole page
 const GlobalNotFound = () => {
   const router = useRouter();
   return (

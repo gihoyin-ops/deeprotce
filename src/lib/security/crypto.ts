@@ -2,13 +2,13 @@ import crypto from 'node:crypto';
 import type { AccountRole, BackendPlanId } from '@/backend/types';
 
 export interface SignedAccountClaims {
-  sub: string; // account_id
-  sid: string; // auth_sessions.id
+  sub: string; // account_id, don't mix this up
+  sid: string; // auth_sessions.id, session row key
   email: string;
   plan: BackendPlanId;
   role?: AccountRole;
   name: string;
-  exp: number; // unix ms
+  exp: number; // unix ms, not seconds dumbass
 }
 
 const DEV_FALLBACK_SECRET = 'deepchat-local-dev-session-secret-change-in-prod';
@@ -23,7 +23,7 @@ const getSessionSecret = (): string | null => {
 const getEncryptionKey = (): Buffer => {
   const raw = process.env.ENCRYPTION_KEY?.trim();
   if (raw) {
-    // Accept 64-char hex or arbitrary passphrase hashed to 32 bytes
+    // Take a 64-char hex key or hash whatever passphrase they gave into 32 bytes
     if (/^[0-9a-fA-F]{64}$/.test(raw)) {
       return Buffer.from(raw, 'hex');
     }
@@ -44,7 +44,7 @@ export const hashIp = (ip: string): string => {
   return crypto.createHmac('sha256', salt).update(ip).digest('hex').slice(0, 32);
 };
 
-// Scrypt password hashing: format `scrypt$<saltHex>$<hashHex>`
+// Scrypt password hashing, spits out `scrypt$<saltHex>$<hashHex>`
 export const hashPassword = async (password: string): Promise<string> => {
   const salt = crypto.randomBytes(16);
   const derived = await new Promise<Buffer>((resolve, reject) => {
@@ -75,8 +75,8 @@ export const verifyPassword = async (password: string, storedHash: string): Prom
   return crypto.timingSafeEqual(derived, expected);
 };
 
-// AES-256-GCM encryption for sensitive DB columns (e.g. user API keys)
-// Format: `v1$<ivBase64Url>$<tagBase64Url>$<cipherBase64Url>`
+// AES-256-GCM encryption for sensitive DB columns like user API keys
+// Spits out `v1$<ivBase64Url>$<tagBase64Url>$<cipherBase64Url>`
 export const encryptSecret = (plaintext: string): string => {
   const key = getEncryptionKey();
   const iv = crypto.randomBytes(12);
@@ -101,7 +101,7 @@ export const decryptSecret = (ciphertext: string): string => {
   return decrypted.toString('utf8');
 };
 
-// Signed account session cookie: `<payloadBase64Url>.<hmacBase64Url>`
+// Signed account session cookie, `<payloadBase64Url>.<hmacBase64Url>`
 export const signAccountClaims = (claims: SignedAccountClaims): string => {
   const secret = getSessionSecret();
   if (!secret) {

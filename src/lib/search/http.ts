@@ -4,8 +4,8 @@ const SEARCH_TIMEOUT_MS = 15000;
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 DeepChat/1.0';
 
 /**
- * Typed transport error so the engine can classify failures (rate limit vs
- * offline vs timeout) instead of parsing English messages
+ * Typed transport error so the engine can sort failures (rate limit vs
+ * offline vs timeout) instead of regex-parsing English error strings like a dumbass
  */
 export class SearchTransportError extends Error {
   readonly kind: SearchErrorKind;
@@ -29,7 +29,7 @@ const statusToKind = (status: number): SearchErrorKind => {
 const ABORT_MARKERS: ReadonlyArray<readonly [RegExp, SearchErrorKind]> = [
   [/timed out|timeout|deadline/i, 'timeout'],
   [/(aborted|abort)/i, 'timeout'],
-  // fetch network failures: 'fetch failed', 'ECONNREFUSED', 'ENOTFOUND', 'network error', HTTPS tunnels...
+  // fetch network shitshow: 'fetch failed', 'ECONNREFUSED', 'ENOTFOUND', 'network error', HTTPS tunnels...
   [/fetch failed|network|connection|econn|enotfound|eai_again|etimedout|socket|tls|handshake/i, 'unreachable']
 ];
 

@@ -137,7 +137,7 @@ export default function MobileComposerToolsSheet({
     [onClose]
   );
 
-  // Sheet & staggered card entrance
+  // Pop the sheet up and stagger the cards in so it doesn't look like ass
   useEffect(() => {
     if (!isOpen) {
       isAnimatingOutRef.current = false;
@@ -190,7 +190,7 @@ export default function MobileComposerToolsSheet({
     return () => ctx.revert();
   }, [isOpen]);
 
-  // Smooth reveal for aspect ratio row when Image Generation is toggled on
+  // Fade the aspect ratio row in when Image Generation gets flipped on
   useEffect(() => {
     const rowEl = ratioRowRef.current;
     if (!isOpen || !imageGenerationEnabled || !rowEl || prefersReducedMotion()) return;
@@ -326,7 +326,7 @@ export default function MobileComposerToolsSheet({
           ref={contentRef}
           className="custom-scrollbar max-h-[60svh] space-y-3 overflow-y-auto overscroll-contain pb-1"
         >
-          {/* Upload Action Card */}
+          {/* Upload button card */}
           <button
             type="button"
             disabled={isUploading || closingPending}
@@ -350,7 +350,7 @@ export default function MobileComposerToolsSheet({
             </span>
           </button>
 
-          {/* Grouped Capability Toggles */}
+          {/* Capability toggle switches grouped together */}
           <div className="dc-mob-tool-card dc-tools-glass-card overflow-hidden rounded-2xl divide-y divide-[var(--dc-border-subtle)]">
             <div className="flex min-h-[56px] items-center justify-between gap-3 px-4 py-2.5">
               <div className="flex min-w-0 items-center gap-3">
@@ -444,7 +444,7 @@ export default function MobileComposerToolsSheet({
             )}
           </div>
 
-          {/* Recent Files + Library */}
+          {/* Recent files and library shortcut */}
           <div className="dc-mob-tool-card dc-tools-glass-card rounded-2xl p-3.5">
             <div className="mb-2.5 flex items-center justify-between">
               <span className="text-[12px] font-semibold uppercase tracking-wider text-[var(--dc-text-muted)]">

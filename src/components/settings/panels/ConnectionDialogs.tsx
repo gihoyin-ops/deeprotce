@@ -5,7 +5,7 @@ import { Copy, ExternalLink, Link as LinkIcon, Loader2 } from '@/components/ui/i
 import { Dialog, DialogHeader, dialogBody } from '../dialog';
 import type { SharedLinkItem } from '../types';
 
-// shared links modal
+// Modal listing all shared chat URLs so the user can manage them
 export function SharedLinksDialog({ open, closing, links, isLoading, onClose, onCopy }: {
   open: boolean;
   closing: boolean;

@@ -34,7 +34,7 @@ html {
 }
 </style>`;
 
-// targetOrigin stays '*' because the sandboxed frame has an opaque origin; the random per-mount previewId nonce is what authenticates console entries
+// targetOrigin has to stay '*' because the sandboxed iframe has an opaque origin, the random per-mount previewId nonce is what actually authenticates console messages
 const getConsoleBridge = (previewId: string) => `
 <script>
 (() => {

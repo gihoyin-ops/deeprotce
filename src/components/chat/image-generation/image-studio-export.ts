@@ -5,21 +5,21 @@ export type ImageStudioMode = 'view' | 'edit' | 'annotate' | 'resize' | 'remove'
 
 export interface EditPin {
   id: string;
-  x: number; // normalized 0..1 relative to image width
-  y: number; // normalized 0..1 relative to image height
+  x: number; // normalized 0..1 against image width, don't pass raw px
+  y: number; // normalized 0..1 against image height, don't pass raw px
   note: string;
 }
 
 export interface StrokePoint {
-  x: number; // normalized 0..1
-  y: number; // normalized 0..1
+  x: number; // normalized 0..1 bs
+  y: number; // normalized 0..1 bs
 }
 
 export interface AnnotationStroke {
   id: string;
   kind: 'draw' | 'mask' | 'erase';
   color: string;
-  size: number; // normalized relative to min(width, height)
+  size: number; // normalized against min(width, height)
   points: StrokePoint[];
 }
 
@@ -186,8 +186,8 @@ export function exportCompactThumbnailJpeg(
 }
 
 /**
- * Generates an OpenAI-compatible RGBA PNG mask where transparent pixels (alpha = 0)
- * indicate the regions to edit or remove, and opaque pixels (alpha = 255) are preserved
+ * Spits out an OpenAI-compatible RGBA PNG mask: transparent pixels (alpha = 0)
+ * mark what to edit or nuke, opaque pixels (alpha = 255) stay untouched
  */
 export function exportOpenAiAlphaMaskPng(
   width: number,

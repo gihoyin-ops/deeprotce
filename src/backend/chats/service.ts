@@ -452,7 +452,7 @@ export async function saveAccountMessage(
       : `m_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
   const role = typeof message.role === 'string' ? message.role : 'user';
 
-  // Ensure parent chat exists for this account
+  // Make sure the parent chat actually exists for this account before saving messages
   const chatCheck = await pool.query<{ id: string }>(
     'SELECT id FROM chats WHERE id = ? AND account_id = ? LIMIT 1',
     [chatId, accountId]
@@ -502,7 +502,7 @@ export async function saveAccountMessage(
     [msgId, chatId, role, chatIndex, currentVersionIndex, createdAt]
   );
 
-  // Replace versions cleanly so edits/regenerations stay exact
+  // Wipe and rewrite versions so edits and regenerations don't leave stale garbage behind
   await pool.exec('DELETE FROM message_versions WHERE message_id = ?', [msgId]);
 
   const versions: StoredMessageVersion[] =

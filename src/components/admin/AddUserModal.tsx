@@ -175,7 +175,7 @@ export function AddUserModal({ isOpen, onClose, onCreated }: AddUserModalProps) 
         </div>
 
         <form onSubmit={handleSubmit} className="mt-5 space-y-4">
-          {/* Avatar */}
+          {/* User avatar upload/URL bs */}
           <div className="flex items-center gap-4">
             <img
               src={previewAvatar}

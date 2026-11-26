@@ -29,7 +29,7 @@ export default function ProfileRedirectPage() {
           return;
         }
       } catch {
-        // Fallback to local profile
+        // Fall back to the local profile if the server shits the bed
       }
 
       const local = await getUserProfileClient();

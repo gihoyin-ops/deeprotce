@@ -12,7 +12,7 @@ const saveButton = 'flex-1 rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-bold
 
 const isSecretKey = (key: string) => ['TOKEN', 'SECRET', 'PASSWORD', 'KEY'].some(marker => key.includes(marker));
 
-// env config rows
+// Env var input row, masks secrets automatically
 function EnvField({ envKey, value, onChange }: { envKey: string; value: string; onChange: (value: string) => void }) {
   return (
     <div>
@@ -42,7 +42,7 @@ interface EnvDialogProps {
   onSave: (values: Record<string, string>) => void;
 }
 
-// shared config dialog layout
+// Shared env config dialog layout
 export function EnvConfigDialog({ title, category, description, envKeys, command, icon, initialValues, zIndex, closing, onClose, onSave }: EnvDialogProps) {
   const [draft, setDraft] = useState<Record<string, string>>(initialValues);
 
@@ -80,7 +80,7 @@ export function EnvConfigDialog({ title, category, description, envKeys, command
   );
 }
 
-// search tool config wrapper
+// Wrapper for configuring a specific search tool's env vars
 export function ToolConfigDialog({ tool, closing, onClose, onSaved }: {
   tool: InstalledTool;
   closing: boolean;

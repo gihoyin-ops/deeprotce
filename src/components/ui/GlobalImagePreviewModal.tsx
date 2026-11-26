@@ -170,7 +170,7 @@ export default function GlobalImagePreviewModal({
       onPointerCancel={handlePointerUp}
       className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/85 backdrop-blur-md"
     >
-      {/* Minimal top-right controls: Download PNG + X */}
+      {/* Top-right controls: Download PNG and close */}
       <div
         onClick={e => e.stopPropagation()}
         className="fixed right-4 top-4 z-10 flex items-center gap-2"
@@ -203,7 +203,7 @@ export default function GlobalImagePreviewModal({
         </button>
       </div>
 
-      {/* Pure centered image — zero card/background */}
+      {/* Just the centered image, no card or background bs */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         ref={imgRef}

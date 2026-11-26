@@ -4,7 +4,7 @@ import { TOOL_CATALOG, type ToolCategory } from '@/lib/settings/tool-settings';
 import type { DropdownOption } from '@/components/ui/CustomDropdown';
 import type { MobileSettingsMenuSection, SettingsTab } from './types';
 
-// shared dropdown options
+// Shared dropdown options so we don't repeat this bs everywhere
 export const STYLE_TONE_OPTIONS: DropdownOption[] = [
   { label: 'Default', value: 'default', description: 'Standard AI behavior.' },
   { label: 'Professional', value: 'professional', description: 'Formal, polite, and objective.' },

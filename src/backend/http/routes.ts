@@ -1,10 +1,10 @@
-// planned public routes for the future server
-// the local-first /api/usage and /api/chat surface stays unchanged
-// /api/account and /api/admin mount as child routers on the server
+// Planned public routes for the future server.
+// The local-first /api/usage and /api/chat surface stays as-is.
+// /api/account and /api/admin mount as child routers on the server.
 
 import type { Account, BackendAuthSession, BackendUsageLedger } from '../types';
 
-// shape only, framework is picked at cutover
+// Interface shape only, framework gets picked at cutover
 export interface BackendRouter {
   get(path: string, handler: (ctx: BackendContext) => Promise<unknown>): void;
   post(path: string, handler: (ctx: BackendContext) => Promise<unknown>): void;
@@ -13,7 +13,7 @@ export interface BackendRouter {
 }
 
 export interface BackendContext {
-  // resolved by auth or admin, blocks anonymous access on admin routes
+  // Resolved by auth or admin middleware, blocks unauthenticated randos on admin routes
   principal: {
     account_id: string;
     kind: 'account' | 'admin';
@@ -25,7 +25,7 @@ export interface BackendContext {
   headers: Record<string, string>;
 }
 
-// same invariants as GET and POST /api/usage today, re-keyed on account
+// Same invariants as GET and POST /api/usage today, just re-keyed on account_id
 export type AccountRoutes = {
   'GET  /api/account': () => Promise<Account>;
   'POST /api/account': () => Promise<Account>;
@@ -34,11 +34,11 @@ export type AccountRoutes = {
   'POST /api/account/plans': () => Promise<BackendAuthSession>;
   'POST /api/account/auth': () => Promise<BackendAuthSession>;
 } & {
-  // admin only, becomes AdminService.grant
+  // Admin only, wired to AdminService.grant
   'POST /api/admin/grant': () => Promise<unknown>;
   'GET  /api/admin/audit': () => Promise<unknown[]>;
 };
 
-// cutover hint, existing usage handlers become read-only proxies that
+// Cutover note: existing usage handlers turn into read-only proxies that
 // resolve the dc_session cookie to a BackendAuthSession and forward to
-// /api/account/usage, the write path retires
+// /api/account/usage, then the old write path dies

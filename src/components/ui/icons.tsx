@@ -843,8 +843,8 @@ export const ICONS_DATA: Record<IconName, IconMeta> = {
     strokeLinejoin: 'round',
     inner: "<path d=\"M7 10v12\"/><path d=\"M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z\"/>"
   },
-  // Solid state of the same thumbs-up glyph: drawn in the accent color to
-  // mark an active vote (the outline version stays the neutral state)
+  // Solid thumbs-up glyph drawn in accent color for an active vote
+  // (outline stays the neutral state)
   'thumbs-up-fill': {
     viewBox: '0 0 24 24',
     fill: 'currentColor',
@@ -863,7 +863,7 @@ export const ICONS_DATA: Record<IconName, IconMeta> = {
     strokeLinejoin: 'round',
     inner: "<path d=\"M17 14V2\"/><path d=\"M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88Z\"/>"
   },
-  // Solid counterpart of thumbs-down for the active dislike state
+  // Solid thumbs-down glyph for when you actually hit dislike
   'thumbs-down-fill': {
     viewBox: '0 0 24 24',
     fill: 'currentColor',
@@ -876,8 +876,8 @@ export const ICONS_DATA: Record<IconName, IconMeta> = {
 };
 
 /**
- * Universal SVG Icon component sourced directly from @public/icons/
- * Supports currentColor, custom size, strokeWidth, and className
+ * Shared SVG Icon component pulled straight from @public/icons/.
+ * Takes currentColor, size, strokeWidth, and className.
  */
 export function Icon({
   name,
@@ -912,7 +912,7 @@ export function Icon({
 
 export default Icon;
 
-// Named Icon exports mapped from @public/icons/
+// Named Icon exports mapped from @public/icons/ so imports aren't annoying as shit
 export const Agent: React.FC<IconProps> = (props) => <Icon name="agent" {...props} />;
 export const AlertCircle: React.FC<IconProps> = (props) => <Icon name="alert-circle" {...props} />;
 export const Archive: React.FC<IconProps> = (props) => <Icon name="archive" {...props} />;
@@ -1001,7 +1001,7 @@ export const Zap: React.FC<IconProps> = (props) => <Icon name="zap" {...props} /
 export const LikeIcon = ThumbsUp;
 export const DislikeIcon = ThumbsDown;
 
-// Convenient aliases for common component naming
+// Extra aliases for common icon names
 export const SettingsIcon = Settings;
 export const ImageIcon = Image;
 export const LinkIcon = Link;

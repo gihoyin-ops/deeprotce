@@ -115,7 +115,7 @@ export const assertEgressUrl = async (raw: string): Promise<string> => {
   const hostname = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, '');
   if (hostname === '') deny();
 
-  // http egress is only for loopback local dev targets
+  // plain http egress is locked to loopback local dev only, fuck sending unencrypted shit elsewhere
   if (parsed.protocol === 'http:') {
     if (hostname !== '127.0.0.1' && hostname !== 'localhost') deny();
     return raw;
@@ -143,7 +143,7 @@ export const assertEgressUrl = async (raw: string): Promise<string> => {
     if (isBlockedIp(entry.address)) deny();
   }
 
-  // dns rebinding residual risk documented in the audit report: the name
-  // could flip to a loopback record between this check and the fetch
+  // known dns rebinding hole from the audit report, the domain can flip
+  // to a loopback IP between this check and the actual fetch
   return raw;
 };

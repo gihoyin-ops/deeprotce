@@ -134,7 +134,7 @@ export default function PricingPage() {
 
   return (
     <div className="min-h-full w-full bg-[var(--dc-canvas)] text-[var(--dc-text)]">
-      {/* Standalone top bar (no chat wireframe) */}
+      {/* Standalone top bar without the chat wireframe bs */}
       <header className="border-b border-[var(--dc-border-subtle)] bg-[var(--dc-panel)]/80 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-6">
           <Link href="/" aria-label="DeepChat" className="inline-flex items-center">
@@ -256,7 +256,7 @@ export default function PricingPage() {
           </div>
         )}
 
-        {/* Bottom-right region currency selector */}
+        {/* Bottom-right currency region picker */}
         <div className="mt-10 flex items-center justify-end">
           <PillDropdown
             value={region}

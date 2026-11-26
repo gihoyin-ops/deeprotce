@@ -103,7 +103,7 @@ export function KeyboardTab({
         <p className="mt-1 text-sm text-[var(--dc-text-muted)]">Review and change keyboard shortcuts</p>
       </header>
 
-      {/* Search + Reset all */}
+      {/* Search bar and reset all button */}
       <div className="relative flex items-center">
         <Search className="pointer-events-none absolute left-3.5 h-4 w-4 text-[var(--dc-text-muted)]" />
         <input
@@ -128,7 +128,7 @@ export function KeyboardTab({
         </div>
       </div>
 
-      {/* Category filter pills */}
+      {/* Category filter pills so you don't have to scroll forever */}
       <div className="flex flex-wrap items-center gap-2">
         {CATEGORIES.map(category => {
           const active = activeCategory === category;
@@ -149,7 +149,7 @@ export function KeyboardTab({
         })}
       </div>
 
-      {/* Shortcut sections */}
+      {/* Grouped shortcut sections */}
       <div className="space-y-8 pt-1">
         {filteredSections.length === 0 ? (
           <p className="py-8 text-center text-sm text-[var(--dc-text-muted)]">

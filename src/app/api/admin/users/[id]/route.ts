@@ -226,7 +226,7 @@ export async function PATCH(
       return NextResponse.json({ ok: true, plan: activePlan, validUntil: nextValidUntil });
     }
 
-    // All actions below strictly require Manager Staff
+    // Everything below requires Manager Staff, no exceptions
     if (!isManager) {
       return NextResponse.json(
         { error: 'Manager Staff authority required for this action.' },
@@ -288,7 +288,7 @@ export async function PATCH(
         [reason.slice(0, 500), nowIso, actor.id, nowIso, target.id]
       );
 
-      // Immediately terminate all active sessions for the banned user
+      // Kill all active sessions for the banned dumbass immediately
       await revokeAllSessionsForAccount(pool, target.id);
 
       await recordAdminAudit(pool, {

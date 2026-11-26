@@ -1,7 +1,7 @@
 @import "tailwindcss";
 @import "./scrollbar.css";
 
-/* class-based theme (html.dark) */
+/* Class-based dark mode via html.dark */
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
@@ -96,7 +96,7 @@ html[data-accent-color="black"] {
   --deepchat-accent-text: #020617;
 }
 
-/* reduce motion */
+/* Kill animations for reduce-motion users */
 html[data-reduce-motion="on"] *,
 html[data-reduce-motion="on"] *::before,
 html[data-reduce-motion="on"] *::after {
@@ -106,7 +106,7 @@ html[data-reduce-motion="on"] *::after {
   scroll-behavior: auto !important;
 }
 
-/* code font size */
+/* Code block font sizing */
 pre code {
   font-size: var(--dc-code-font-size, 12px);
 }
@@ -118,7 +118,7 @@ pre code {
   --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
-/* theme tokens: light-first, dark overrides */
+/* Theme tokens: light-first defaults, dark mode overrides below */
 :root:not(.dark) {
   color-scheme: light;
   --dc-canvas: #ffffff;
@@ -195,7 +195,7 @@ html.dark {
   --dc-composer-dock: var(--dc-canvas);
 }
 
-/* theme presets (placed after base light/dark tokens) */
+/* Theme presets (must sit after base light/dark tokens or shit breaks) */
 html[data-theme="slate"]:not(.dark) {
   --background: #eef2f7;
   --dc-canvas: #eef2f7;
@@ -336,7 +336,7 @@ html.dark[data-theme="midnight"] {
   --dc-composer-dock: var(--dc-canvas);
 }
 
-/* dark mode slate and zinc overrides */
+/* Dark mode slate and zinc hacks */
 html.dark,
 html[data-appearance="dark"] {
   --color-slate-50: #f1f5f9;
@@ -354,7 +354,7 @@ html[data-appearance="dark"] {
   --color-zinc-950: #0b0d11;
 }
 
-/* system theme fallback */
+/* System theme media query fallback */
 @media (prefers-color-scheme: dark) {
   :root:not([data-appearance]) {
     --background: #0b0d11;
@@ -469,7 +469,7 @@ html[data-appearance="dark"] .border-slate-200 {
   border-color: var(--dc-border) !important;
 }
 
-/* text and chrome theme overrides */
+/* Text and chrome theme overrides */
 html.dark input,
 html.dark textarea,
 html.dark select,
@@ -488,13 +488,13 @@ html[data-appearance="dark"] textarea::placeholder {
   opacity: 1;
 }
 
-/* native picker indicator dark mode filter */
+/* Invert native date/time picker icons in dark mode so they aren't invisible as shit */
 html.dark input[type="date"]::-webkit-calendar-picker-indicator,
 html.dark input[type="time"]::-webkit-calendar-picker-indicator {
   filter: invert(1) opacity(0.7);
 }
 
-/* gradient stop dark mode overrides */
+/* Gradient stop overrides for dark mode */
 html.dark .from-white,
 html[data-appearance="dark"] .from-white {
   --tw-gradient-from: #1a1a1a !important;
@@ -638,7 +638,7 @@ html[data-appearance="dark"] .hover\:border-indigo-300:hover {
   border-color: rgb(129 140 248 / 0.55) !important;
 }
 
-/* dark mode palette bridges */
+/* Dark mode palette bridges */
 html.dark .deepchat-home-light,
 html.dark .deepchat-chat-view,
 html.dark .deepchat-model-selector-light,
@@ -696,7 +696,7 @@ html.dark .deepchat-chat-view .prose li {
   }
 }
 
-/* dark mode sidebar rails */
+/* Dark mode sidebar rails */
 html.dark .deepchat-sidebar-light,
 html[data-appearance="dark"] .deepchat-sidebar-light,
 html.dark .deepchat-sidebar-light.bg-\[\#efeeee\],
@@ -720,7 +720,7 @@ html.dark .deepchat-sidebar-light .bg-black\/5 {
   background-color: rgb(255 255 255 / 0.06) !important;
 }
 
-/* sidebar seam */
+/* Sidebar border seam */
 html.dark .deepchat-sidebar-light {
   border-right: 1px solid var(--dc-sidebar-border) !important;
   box-shadow: none !important;
@@ -740,7 +740,7 @@ html.dark .deepchat-sidebar-light .ring-black\/5 {
   --tw-ring-color: var(--dc-border) !important;
 }
 
-/* collapsed rail styling */
+/* Collapsed sidebar rail styling */
 html.dark .deepchat-rail-light {
   background-color: var(--dc-sidebar) !important;
   border-right: 1px solid var(--dc-sidebar-border) !important;
@@ -756,7 +756,7 @@ html.dark .deepchat-rail-light .hover\:bg-black\/5:hover {
   background-color: rgb(255 255 255 / 0.06) !important;
 }
 
-/* sidebar popovers */
+/* Sidebar popovers */
 html.dark .deepchat-sidebar-light .bg-white,
 html.dark .deepchat-sidebar-light .bg-\[\#ffffff\],
 html.dark .deepchat-sidebar-light .bg-\[\#ffffff\]\/95 {
@@ -764,7 +764,7 @@ html.dark .deepchat-sidebar-light .bg-\[\#ffffff\]\/95 {
   border-color: var(--dc-border) !important;
 }
 
-/* warm grey surfaces */
+/* Warm grey surface overrides */
 html.dark .bg-\[\#efeeee\],
 html.dark .bg-\[\#f5f2f2\],
 html.dark .bg-\[\#f4f1f1\],
@@ -783,7 +783,7 @@ html.dark .hover\:bg-\[\#f5f2f2\]:hover {
   background-color: var(--dc-fill-hover) !important;
 }
 
-/* inverted pills and primary buttons */
+/* Inverted pills and primary buttons */
 html.dark .bg-black {
   background-color: var(--dc-invert) !important;
 }
@@ -793,7 +793,7 @@ html.dark .hover\:bg-black:hover {
   background-color: var(--dc-invert-hover) !important;
 }
 
-/* text color for dark pills */
+/* Text color on dark pills */
 html.dark .bg-black.text-white,
 html.dark .bg-black .text-white,
 html.dark .bg-black.text-\[\#202020\],
@@ -861,7 +861,7 @@ html.dark .text-slate-400 {
   color: var(--dc-text-muted) !important;
 }
 
-/* user prompt bubbles */
+/* User prompt bubbles */
 html.dark .bg-\[\#aeeefa\] {
   background-color: var(--dc-user-bubble-sm) !important;
 }
@@ -870,7 +870,7 @@ html.dark .bg-\[\#d7d7d7\] {
   background-color: var(--dc-user-bubble) !important;
 }
 
-/* model selector panel */
+/* Model selector panel */
 .deepchat-model-selector-light {
   border-color: var(--dc-border);
   box-shadow: 0 28px 68px -48px rgb(0 0 0 / 0.34);
@@ -888,7 +888,7 @@ html.dark .deepchat-model-selector-light .border-black {
   border-color: #4d4d4d !important;
 }
 
-/* model selector inverted pills */
+/* Model selector inverted pills */
 .deepchat-model-selector-light .model-selector-invert,
 .deepchat-model-selector-light .model-selector-invert *,
 html.dark .bg-black .model-selector-invert,
@@ -896,13 +896,13 @@ html.dark .bg-black .model-selector-invert * {
   color: var(--dc-text-on-invert) !important;
 }
 
-/* tooltip text */
+/* Tooltip text */
 .deepchat-tooltip-content,
 .deepchat-tooltip-content span {
   color: var(--dc-tooltip-text) !important;
 }
 
-/* shared conversation page canvas */
+/* Shared chat page canvas */
 html.dark .bg-\[\#F8FAFC\] {
   background-color: var(--dc-canvas) !important;
 }
@@ -912,20 +912,20 @@ html.dark .bg-white\/60 {
   background-color: rgb(0 0 0 / 0.6) !important;
 }
 
-/* dark mode translucent text */
+/* Dark mode translucent text */
 html.dark .text-black\/90 { color: rgb(250 250 250 / 0.92) !important; }
 html.dark .text-black\/80 { color: rgb(235 235 235 / 0.9) !important; }
 html.dark .text-black\/60 { color: rgb(200 200 200 / 0.95) !important; }
 html.dark .text-black\/40 { color: rgb(200 200 200 / 0.75) !important; }
 
-/* dark mode hover overlay */
+/* Dark mode hover overlay */
 html.dark .hover\:bg-black\/5:hover { background-color: rgb(255 255 255 / 0.06) !important; }
 html.dark .bg-black\/5 { background-color: rgb(255 255 255 / 0.06) !important; }
 
-/* active sidebar row */
+/* Active sidebar row */
 html.dark .bg-black\/5.text-black { color: var(--dc-text-strong) !important; }
 
-/* settings field styles */
+/* Settings form field styles */
 .deepchat-field {
   width: 100%;
   border-radius: 0.85rem;
@@ -974,7 +974,7 @@ textarea.deepchat-field {
   field-sizing: content;
 }
 
-/* amber tips callout */
+/* Amber tips callout */
 html.dark .bg-amber-50\/50 {
   background-color: rgb(120 53 15 / 0.22) !important;
 }
@@ -983,7 +983,7 @@ html.dark .border-amber-100 {
   border-color: rgb(251 191 36 / 0.25) !important;
 }
 
-/* tooltip container */
+/* Tooltip container */
 html.dark .deepchat-tooltip-content {
   background-color: var(--dc-tooltip-bg) !important;
   box-shadow: 0 0 0 1px rgb(212 212 212 / 0.14), 0 10px 24px -12px rgb(0 0 0 / 0.8) !important;
@@ -1005,7 +1005,7 @@ select {
   font: inherit;
 }
 
-/* base-layer affordance: enabled controls say they are clickable */
+/* Base-layer affordance: make enabled controls actually look clickable as fuck */
 @layer base {
   a,
   button:not(:disabled),
@@ -1260,7 +1260,7 @@ html[data-contrast="increased"] .dc-img-studio {
   }
 }
 
-/* === Generated Image Lightbox & Interactive Studio === */
+/* === Generated Image Lightbox & Studio Shit === */
 dialog.dc-img-lightbox {
   margin: 0;
   padding: 0;
@@ -1514,7 +1514,7 @@ dialog.dc-img-lightbox textarea::placeholder {
   }
 }
 
-/* Global ultra-thin scrollbar across the entire website */
+/* Skinny ass global scrollbar across the whole site */
 * {
   scrollbar-width: thin;
   scrollbar-color: rgba(128, 128, 136, 0.32) transparent;
@@ -1596,7 +1596,7 @@ html[data-appearance="dark"] .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   display: none;
 }
 
-/* home experience */
+/* Home screen shit */
 .dc-home-canvas {
   background-color: var(--dc-canvas);
   background-image:
@@ -1829,7 +1829,7 @@ html[data-contrast="increased"] .dc-product-announce-card {
   outline-offset: 2px;
 }
 
-/* model selector */
+/* Model selector */
 @keyframes dc-ms-prism-shift {
   0% {
     background-position: 0% 50%;
@@ -2227,7 +2227,7 @@ html[data-appearance="dark"] .dc-ms-slider-knob {
   }
 }
 
-/* === Mobile Architecture (< 640px) === */
+/* === Mobile Layout Bullshit (< 640px) === */
 .dc-mob-navbar {
   background: linear-gradient(to bottom, var(--dc-canvas) 0%, var(--dc-canvas) 62%, transparent 100%);
   padding-top: env(safe-area-inset-top, 0px);
@@ -2317,7 +2317,7 @@ html[data-appearance="dark"] .dc-mob-drawer {
   }
 }
 
-/* === Composer Tools Glass, Attachments & Document Preview === */
+/* === Composer Tools Glass, Attachments & Doc Preview === */
 @layer components {
   .dc-composer-shell {
     transition:

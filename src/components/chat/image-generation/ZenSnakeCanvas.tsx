@@ -176,7 +176,7 @@ export default function ZenSnakeCanvas({ isExiting = false }: ZenSnakeCanvasProp
     setHasInteracted(true);
   }, [isExiting]);
 
-  // Fade away steering hint quietly after first manual input
+  // Fade out the steering hint once the user actually touches a key or swipes
   useEffect(() => {
     const hintEl = hintRef.current;
     if (!hintEl || !hasInteracted) return;
@@ -192,7 +192,7 @@ export default function ZenSnakeCanvas({ isExiting = false }: ZenSnakeCanvasProp
     });
   }, [hasInteracted]);
 
-  // Keyboard navigation (Arrows + WASD), yielding to any focused form control or menu
+  // Arrow + WASD steering, backing off if an input or menu has focus
   useEffect(() => {
     if (isExiting) return;
 
@@ -248,7 +248,7 @@ export default function ZenSnakeCanvas({ isExiting = false }: ZenSnakeCanvasProp
     };
   }, [enqueueDirection, isExiting]);
 
-  // Responsive HiDPI canvas sizing, theme observation, and GSAP ticker simulation
+  // HiDPI canvas resize, theme observer, and GSAP ticker game loop
   useEffect(() => {
     const containerEl = containerRef.current;
     const canvasEl = canvasRef.current;
@@ -365,7 +365,7 @@ export default function ZenSnakeCanvas({ isExiting = false }: ZenSnakeCanvasProp
       }
       sim.snake = nextBody;
 
-      // Keep prevSnake aligned in length for tail interpolation
+      // Keep prevSnake the same length so tail interpolation doesn't shit itself
       while (sim.prevSnake.length < sim.snake.length) {
         const last = sim.prevSnake[sim.prevSnake.length - 1] || nextHead;
         sim.prevSnake.push({ ...last });
@@ -377,7 +377,7 @@ export default function ZenSnakeCanvas({ isExiting = false }: ZenSnakeCanvasProp
       const cellW = sim.width / sim.cols;
       const cellH = sim.height / sim.rows;
 
-      // Consume ambient embers peacefully (no points, no game over)
+      // Eat ambient embers (no score, no game over, just chill shit)
       for (let i = 0; i < sim.embers.length; i += 1) {
         const ember = sim.embers[i];
         if (ember.x === nextHead.x && ember.y === nextHead.y) {
@@ -425,7 +425,7 @@ export default function ZenSnakeCanvas({ isExiting = false }: ZenSnakeCanvasProp
       const cellH = height / rows;
       const cellMin = Math.min(cellW, cellH);
 
-      // Subtle architectural dot matrix
+      // Background grid dot matrix
       ctx.fillStyle = palette.dot;
       for (let gx = 0; gx < cols; gx += 1) {
         for (let gy = 0; gy < rows; gy += 1) {
@@ -437,7 +437,7 @@ export default function ZenSnakeCanvas({ isExiting = false }: ZenSnakeCanvasProp
         }
       }
 
-      // Expanding watercolor ripples
+      // Expanding hit ripples
       for (let i = sim.ripples.length - 1; i >= 0; i -= 1) {
         const ripple = sim.ripples[i];
         const age = (now - ripple.bornAt) / 860;
@@ -457,7 +457,7 @@ export default function ZenSnakeCanvas({ isExiting = false }: ZenSnakeCanvasProp
         ctx.restore();
       }
 
-      // Soft pulsing ambient embers
+      // Pulsing ember pickups
       for (const ember of sim.embers) {
         const cx = (ember.x + 0.5) * cellW;
         const cy = (ember.y + 0.5) * cellH;
@@ -482,7 +482,7 @@ export default function ZenSnakeCanvas({ isExiting = false }: ZenSnakeCanvasProp
         ctx.restore();
       }
 
-      // Compute sub-pixel interpolated snake points (tail -> head)
+      // Sub-pixel interpolated snake body points (tail to head)
       const t = sim.stepProgress;
       const pts: Point[] = [];
       for (let i = sim.snake.length - 1; i >= 0; i -= 1) {
@@ -503,7 +503,7 @@ export default function ZenSnakeCanvas({ isExiting = false }: ZenSnakeCanvasProp
         });
       }
 
-      // Calligraphic ink ribbon with clean split across toroidal boundary wraps
+      // Ink ribbon body; skip segments that wrap across screen edges so we don't draw a giant line across the canvas
       const len = pts.length;
       if (len > 1) {
         ctx.lineCap = 'round';
@@ -527,7 +527,7 @@ export default function ZenSnakeCanvas({ isExiting = false }: ZenSnakeCanvasProp
         }
       }
 
-      // Warm terracotta head with subtle specular highlight
+      // Terracotta snake head with a tiny highlight dot
       if (len > 0) {
         const head = pts[len - 1];
         const headRadius = Math.max(4.5, cellMin * 0.32);
@@ -633,7 +633,7 @@ export default function ZenSnakeCanvas({ isExiting = false }: ZenSnakeCanvasProp
         className="block h-full w-full cursor-grab active:cursor-grabbing"
       />
 
-      {/* Quiet bottom-left whisper that fades after the first steering input */}
+      {/* Bottom-left control hint that disappears after first input */}
       <div
         ref={hintRef}
         className="pointer-events-none absolute bottom-3 left-3 flex items-center gap-2 rounded-full px-2.5 py-1 text-[11px] font-medium"
@@ -651,7 +651,7 @@ export default function ZenSnakeCanvas({ isExiting = false }: ZenSnakeCanvasProp
         <span>Swipe or arrow keys</span>
       </div>
 
-      {/* Responsive touch D-Pad on coarse-pointer screens */}
+      {/* Touch D-Pad for mobile/tablet screens */}
       <div
         className="dc-snake-dpad absolute bottom-2.5 right-2.5 grid-cols-3 gap-1"
         data-gesture-ignore="true"

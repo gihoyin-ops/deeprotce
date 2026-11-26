@@ -192,7 +192,7 @@ export default function ModelSelector({
     setView(nextView);
   }, []);
 
-  // detect mobile viewport under 640px
+  // Check if the viewport is under 640px mobile width
   useEffect(() => {
     const updateViewport = () => {
       setIsMobileViewport(window.matchMedia('(max-width: 639px)').matches);
@@ -205,7 +205,7 @@ export default function ModelSelector({
     };
   }, []);
 
-  // fetch env-defined models from api without remote lookup
+  // Pull env-defined models from the API without any remote lookup bs
   useEffect(() => {
     let cancelled = false;
     void fetchLiveModels().then((result) => {
@@ -250,7 +250,7 @@ export default function ModelSelector({
     };
   }, []);
 
-  // sync state with external events and storage
+  // Keep state synced with window events and localStorage
   useEffect(() => {
     const syncModel = () => {
       const stored = loadStoredModel();
@@ -292,7 +292,7 @@ export default function ModelSelector({
     };
   }, [closeSelector, desktopOnly, mobileOnly, openSelector]);
 
-  // close on outside click or escape
+  // Bail out on outside click or Escape key
   useEffect(() => {
     if (!isOpen) return;
 
@@ -319,7 +319,7 @@ export default function ModelSelector({
     };
   }, [closeSelector, isOpen]);
 
-  // animate trigger chevron smoothly with GSAP
+  // Flip the trigger chevron with GSAP
   useEffect(() => {
     const chevronEl = chevronRef.current;
     if (!chevronEl) return;
@@ -336,7 +336,7 @@ export default function ModelSelector({
     });
   }, [isOpen]);
 
-  // animate desktop dropup & mobile bottom sheet open/close with GSAP
+  // GSAP open/close for the desktop dropup and mobile bottom sheet
   useEffect(() => {
     if (!isRendered) return;
 
@@ -417,7 +417,7 @@ export default function ModelSelector({
     };
   }, [isOpen, isRendered, isMobileViewport]);
 
-  // animate view transitions, staggered rows, and fine-pointer SVG micro-interactions
+  // GSAP view slide, staggered rows, and fine-pointer SVG hover tweaks
   useEffect(() => {
     if (!isOpen || !isRendered) return;
     const panelEl = viewPanelRef.current;
@@ -618,7 +618,7 @@ export default function ModelSelector({
     [fireConfetti, maxTierIndex]
   );
 
-  // initialize sparkles particles
+  // Seed the sparkles particles array
   const initParticles = useCallback((w: number, h: number) => {
     const count = Math.max(6, Math.round(w / 24));
     particlesRef.current = Array.from({ length: count }, () => ({
@@ -631,7 +631,7 @@ export default function ModelSelector({
     }));
   }, []);
 
-  // draw sparkles canvas
+  // Render the sparkles canvas loop
   useEffect(() => {
     if (!isOpen || !isRendered || view !== 'advanced') {
       cancelAnimationFrame(sparkRafRef.current);
@@ -697,7 +697,7 @@ export default function ModelSelector({
     };
   }, []);
 
-  // slider pointer drag handling
+  // Pointer drag handlers for the reasoning effort slider
   const handleSliderPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (activePointerRef.current !== null) return;
     activePointerRef.current = e.pointerId;
@@ -765,7 +765,7 @@ export default function ModelSelector({
     }
   };
 
-  // computed knob position
+  // Computed slider knob position
   const effectivePos = dragPos ?? (maxTierIndex > 0 ? effectiveTierIndex / maxTierIndex : 0);
   const knobStyle = {
     left: `calc(17px + ${effectivePos} * (100% - 34px))`,

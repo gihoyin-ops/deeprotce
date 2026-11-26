@@ -123,7 +123,7 @@ export default function GeneratedImagePreviewModal({
   const [statusAnnouncement, setStatusAnnouncement] = useState('');
   const [isExporting, setIsExporting] = useState(false);
 
-  // Zoom & Pan state
+  // Zoom and pan state bs
   const [viewTransform, setViewTransform] = useState({ scale: 1, tx: 0, ty: 0 });
   const viewTransformRef = useRef(viewTransform);
   const activePointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
@@ -152,12 +152,12 @@ export default function GeneratedImagePreviewModal({
   const lastTouchDoubleTapAtRef = useRef(0);
   const isSpacePressedRef = useRef(false);
 
-  // Mode: Edit (Tap-to-pin + compact textarea)
+  // Edit mode (tap to drop pin + tiny textarea)
   const [pins, setPins] = useState<EditPin[]>([]);
   const [activePinId, setActivePinId] = useState<string | null>(null);
   const [editPrompt, setEditPrompt] = useState('');
 
-  // Mode: Annotate (Draw / Mask / Eraser -> Done -> Slide-up compact textarea)
+  // Annotate mode (Draw / Mask / Eraser, then Done, then slide-up textarea)
   const [annotateStage, setAnnotateStage] = useState<'drawing' | 'prompt'>('drawing');
   const [annotateTool, setAnnotateTool] = useState<'draw' | 'mask' | 'erase'>('draw');
   const [annotateColor, setAnnotateColor] = useState(ANNOTATE_COLORS[0].hex);
@@ -165,15 +165,15 @@ export default function GeneratedImagePreviewModal({
   const [annotateStrokes, setAnnotateStrokes] = useState<AnnotationStroke[]>([]);
   const [annotatePrompt, setAnnotatePrompt] = useState('');
 
-  // Mode: Resize
+  // Resize mode state
   const [resizeRatio, setResizeRatio] = useState<Exclude<ImageAspectRatio, 'auto'>>('1:1');
   const [resizeNote, setResizeNote] = useState('');
 
-  // Mode: Remove (Minimalist mask size + send)
+  // Remove mode (just mask size + send, no extra crap)
   const [removeBrushPx, setRemoveBrushPx] = useState(26);
   const [removeStrokes, setRemoveStrokes] = useState<AnnotationStroke[]>([]);
 
-  // Active live drawing stroke
+  // Live stroke being drawn right now
   const activeStrokeRef = useRef<AnnotationStroke | null>(null);
   const [pointerPreview, setPointerPreview] = useState<{
     x: number;
@@ -263,7 +263,7 @@ export default function GeneratedImagePreviewModal({
     });
   }, []);
 
-  // Open native modal <dialog> & run GSAP entrance
+  // Open native <dialog> modal and run the GSAP entrance bs
   useEffect(() => {
     const dialogEl = dialogRef.current;
     if (!dialogEl || !isOpen || !image) return;
@@ -306,7 +306,7 @@ export default function GeneratedImagePreviewModal({
     };
   }, [isOpen, image]);
 
-  // Animate mode transitions & slide-up compact bars
+  // Animate mode switches and slide-up bars
   useEffect(() => {
     if (prefersReducedMotion()) return;
     if (bottomBarRef.current) {
@@ -366,7 +366,7 @@ export default function GeneratedImagePreviewModal({
     );
   }, [mode, resizeRatio]);
 
-  // Observe rendered image box size to keep overlay canvas crisp and aligned
+  // Watch the rendered image box size so the overlay canvas stays sharp and lined up
   useEffect(() => {
     const boxEl = imageBoxRef.current;
     if (!boxEl) return;
@@ -388,7 +388,7 @@ export default function GeneratedImagePreviewModal({
     };
   }, [naturalSize, mode]);
 
-  // Repaint annotation or removal strokes onto the HiDPI overlay canvas
+  // Redraw annotation or removal strokes onto the HiDPI overlay canvas
   const redrawOverlayCanvas = useCallback(
     (extraStroke?: AnnotationStroke | null) => {
       const canvasEl = canvasRef.current;
@@ -457,7 +457,7 @@ export default function GeneratedImagePreviewModal({
     redrawOverlayCanvas();
   }, [redrawOverlayCanvas, boxSize]);
 
-  // Non-passive wheel zoom listener + keyboard zoom / spacebar pan shortcuts
+  // Non-passive wheel zoom listener + keyboard zoom / spacebar pan shortcuts so preventDefault actually works
   useEffect(() => {
     const vpEl = viewportRef.current;
     if (!vpEl || !isOpen) return;
@@ -527,7 +527,7 @@ export default function GeneratedImagePreviewModal({
     };
   }, [isOpen, clampTransform, animateZoomTo]);
 
-  // Roving keyboard arrow fallback inside toolbar when native focusGroup is unavailable
+  // Roving arrow-key fallback inside toolbar when native focusGroup isn't supported
   useEffect(() => {
     const bar = toolbarRef.current;
     if (!bar || 'focusGroup' in HTMLElement.prototype) return;
@@ -602,7 +602,7 @@ export default function GeneratedImagePreviewModal({
       y: event.clientY,
     });
 
-    // 2-finger pinch-to-zoom + 2-finger pan across ALL modes
+    // Two-finger pinch-to-zoom and pan in ALL modes
     if (activePointersRef.current.size === 2) {
       if (activeStrokeRef.current && activeStrokeRef.current.points.length <= 5) {
         activeStrokeRef.current = null;
@@ -628,7 +628,7 @@ export default function GeneratedImagePreviewModal({
 
     if (activePointersRef.current.size !== 1) return;
 
-    // Middle mouse or Space+Drag always pans
+    // Middle mouse or Space+Drag always pans, no matter what mode we're in
     if (event.button === 1 || (isSpacePressedRef.current && viewTransformRef.current.scale > 1)) {
       panDragRef.current = {
         pointerId: event.pointerId,
@@ -670,7 +670,7 @@ export default function GeneratedImagePreviewModal({
       try {
         event.currentTarget.setPointerCapture(event.pointerId);
       } catch {
-        // ignore pointer capture issues
+        // Eat pointer capture errors, browsers throw this bs randomly
       }
       return;
     }
@@ -705,7 +705,7 @@ export default function GeneratedImagePreviewModal({
       return;
     }
 
-    // 'view' or 'resize' mode
+    // 'view' or 'resize' mode fallback
     if (viewTransformRef.current.scale > 1) {
       panDragRef.current = {
         pointerId: event.pointerId,
@@ -1021,7 +1021,7 @@ export default function GeneratedImagePreviewModal({
   const selectedResizeOption =
     RESIZE_RATIOS.find((item) => item.value === resizeRatio) || RESIZE_RATIOS[0];
 
-  // Compute live target crop/extend guide proportions over the rendered image
+  // Calculate target crop/extend guide box over the rendered image
   const imageRatio = boxSize.width / Math.max(1, boxSize.height);
   const guideRatio = selectedResizeOption.ratio;
   const resizeGuideStyle: React.CSSProperties =
@@ -1057,7 +1057,7 @@ export default function GeneratedImagePreviewModal({
         {statusAnnouncement}
       </p>
 
-      {/* Top Floating Chrome (Zoom Left, Mode Chip Center, Download & Close Right) */}
+      {/* Top floating bar (zoom left, mode chip center, download and close right) */}
       <div
         ref={topBarRef}
         className="pointer-events-none relative z-30 flex w-full items-center justify-between gap-2 px-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-6 sm:pt-5"
@@ -1159,7 +1159,7 @@ export default function GeneratedImagePreviewModal({
         </div>
       </div>
 
-      {/* Central Pure Image Canvas Stage */}
+      {/* Center image stage */}
       <div
         ref={viewportRef}
         data-gesture-ignore="true"
@@ -1229,7 +1229,7 @@ export default function GeneratedImagePreviewModal({
                 }`}
               />
 
-              {/* Drawing / Mask Overlay Canvas (Annotate & Remove) */}
+              {/* Drawing / mask overlay canvas (annotate and remove modes) */}
               {(mode === 'annotate' || mode === 'remove') && (
                 <canvas
                   ref={canvasRef}
@@ -1238,7 +1238,7 @@ export default function GeneratedImagePreviewModal({
                 />
               )}
 
-              {/* Live Aspect Ratio Guide Overlay (Resize mode) */}
+              {/* Live aspect ratio guide box (resize mode) */}
               {mode === 'resize' && (
                 <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-2xl bg-black/30">
                   <div
@@ -1253,7 +1253,7 @@ export default function GeneratedImagePreviewModal({
                 </div>
               )}
 
-              {/* Numbered Edit Pins Overlay */}
+              {/* Numbered edit pins */}
               {mode === 'edit' && (
                 <div className="pointer-events-none absolute inset-0">
                   {pins.map((pin, idx) => {
@@ -1284,7 +1284,7 @@ export default function GeneratedImagePreviewModal({
                           {idx + 1}
                         </button>
 
-                        {/* Desktop Floating Callout beside Pin */}
+                        {/* Desktop floating input next to the pin */}
                         {isActive && (
                           <div
                             data-lb-interactive="true"
@@ -1350,7 +1350,7 @@ export default function GeneratedImagePreviewModal({
           </div>
         </div>
 
-        {/* Desktop Floating Brush Circle Preview */}
+        {/* Desktop floating brush size circle */}
         {isDrawingMode && pointerPreview.visible && (
           <div
             aria-hidden="true"
@@ -1365,13 +1365,13 @@ export default function GeneratedImagePreviewModal({
         )}
       </div>
 
-      {/* Bottom Floating Studio Dock */}
+      {/* Bottom floating dock */}
       <div
         ref={bottomBarRef}
         data-lb-interactive="true"
         className="relative z-30 flex w-full flex-col items-center gap-2 px-3 pb-[max(0.9rem,env(safe-area-inset-bottom))] pt-1 sm:px-6 sm:pb-6"
       >
-        {/* Mode: VIEW, Primary Studio Mode Selector Toolbar */}
+        {/* VIEW mode: main mode switcher toolbar */}
         {mode === 'view' && (
           <div
             ref={toolbarRef}
@@ -1425,10 +1425,10 @@ export default function GeneratedImagePreviewModal({
           </div>
         )}
 
-        {/* Mode: EDIT, Pin Editor (mobile safe) + Pin Chips + Compact Textarea */}
+        {/* EDIT mode: mobile-safe pin editor + pin chips + compact textarea */}
         {mode === 'edit' && (
           <div className="flex w-full max-w-[34rem] flex-col gap-2">
-            {/* Mobile Inline Active Pin Description Editor (never obscured by virtual keyboard) */}
+            {/* Mobile inline pin editor so the damn virtual keyboard doesn't cover it */}
             {activePin && (
               <div className="dc-lb-compact-composer flex items-center gap-2 rounded-2xl px-3 py-2 sm:hidden">
                 <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#e28666] text-[11.5px] font-bold text-[#151412]">
@@ -1476,7 +1476,7 @@ export default function GeneratedImagePreviewModal({
               </div>
             )}
 
-            {/* Pin Chips Strip */}
+            {/* Pin chips row */}
             {pins.length > 0 && (
               <div className="dc-lb-toolbar-scroll flex items-center gap-1.5 px-1">
                 {pins.map((pin, idx) => (
@@ -1514,7 +1514,7 @@ export default function GeneratedImagePreviewModal({
               </div>
             )}
 
-            {/* Compact Textarea */}
+            {/* Compact edit prompt textarea */}
             <div className="dc-lb-compact-composer flex items-end gap-2 px-3.5 py-2">
               <textarea
                 ref={editTextareaRef}
@@ -1552,10 +1552,10 @@ export default function GeneratedImagePreviewModal({
           </div>
         )}
 
-        {/* Mode: ANNOTATE, Stage A (Drawing/Mask Dock) OR Stage B (Slide-up Compact Textarea) */}
+        {/* ANNOTATE mode: stage A (draw/mask dock) or stage B (slide-up textarea) */}
         {mode === 'annotate' && annotateStage === 'drawing' && (
           <div className="dc-lb-glass dc-lb-toolbar-scroll flex max-w-full items-center gap-1.5 rounded-full px-2.5 py-1.5">
-            {/* Tool Switcher */}
+            {/* Tool switcher */}
             <div
               ref={toolbarRef}
               role="toolbar"
@@ -1607,7 +1607,7 @@ export default function GeneratedImagePreviewModal({
 
             <span className="h-5 w-px shrink-0 bg-white/15" aria-hidden="true" />
 
-            {/* Brush Size Control */}
+            {/* Brush size slider */}
             <div className="flex shrink-0 items-center gap-1.5 px-1">
               <span
                 aria-hidden="true"
@@ -1628,7 +1628,7 @@ export default function GeneratedImagePreviewModal({
               />
             </div>
 
-            {/* Color Swatches (only when Pencil is active) */}
+            {/* Color swatches (only shown when Pencil is picked) */}
             {annotateTool === 'draw' && (
               <>
                 <span className="h-5 w-px shrink-0 bg-white/15" aria-hidden="true" />
@@ -1655,7 +1655,7 @@ export default function GeneratedImagePreviewModal({
 
             <span className="h-5 w-px shrink-0 bg-white/15" aria-hidden="true" />
 
-            {/* Undo & Clear */}
+            {/* Undo and nuke buttons */}
             <button
               type="button"
               disabled={annotateStrokes.length === 0}
@@ -1681,7 +1681,7 @@ export default function GeneratedImagePreviewModal({
               <Trash2 className="h-3.5 w-3.5" />
             </button>
 
-            {/* Done -> Reveals compact textarea from bottom to top */}
+            {/* Done button: slides up the prompt textarea */}
             <button
               type="button"
               onClick={() => {
@@ -1746,7 +1746,7 @@ export default function GeneratedImagePreviewModal({
           </div>
         )}
 
-        {/* Mode: RESIZE, Compact Responsive Ratio Picker + Send */}
+        {/* RESIZE mode: ratio picker + send */}
         {mode === 'resize' && (
           <div className="dc-lb-compact-composer flex w-full max-w-[34rem] flex-col gap-2 p-2.5">
             <div className="dc-lb-toolbar-scroll flex items-center gap-1.5">
@@ -1803,7 +1803,7 @@ export default function GeneratedImagePreviewModal({
           </div>
         )}
 
-        {/* Mode: REMOVE, Minimalist: ONLY Mask Size (small/large) + Send */}
+        {/* REMOVE mode: dead simple, just mask size (small/large) + send */}
         {mode === 'remove' && (
           <div className="dc-lb-glass flex items-center gap-2 rounded-full px-3 py-1.5">
             <button

@@ -72,7 +72,7 @@ interface MarqueeRect {
   currentY: number;
 }
 
-// Unique modern tuning/control nodes SVG with animated circular nodes
+// Overengineered tuning/control sliders SVG with bouncy animated circles
 function LibrarySettingsSvg({
   className = 'h-4 w-4',
   active = false,
@@ -137,7 +137,7 @@ function LibrarySettingsSvg({
   );
 }
 
-// New custom SVG: Cloud Storage
+// Custom cloud storage SVG so we don't pull another icon
 function CloudStorageSvg({ className = 'h-4 w-4' }: { className?: string }) {
   return (
     <svg
@@ -335,7 +335,7 @@ export default function LibraryPage() {
     }
   }, [loadLibrary]);
 
-  // Subtle entrance without opacity: 0 flicker
+  // Slide-in entrance without that ugly opacity: 0 flicker
   useEffect(() => {
     const el = pageRef.current;
     if (isLoading || !el || prefersReducedMotion()) return;
@@ -355,7 +355,7 @@ export default function LibraryPage() {
     return () => ctx.revert();
   }, [isLoading]);
 
-  // Advanced GSAP fluid morph choreography for "New" pill & dropdown
+  // Fancy GSAP morph shit for the "New" pill and its dropdown
   useEffect(() => {
     if (prefersReducedMotion()) return;
     if (newChevronRef.current) {
@@ -421,7 +421,7 @@ export default function LibraryPage() {
     return () => ctx.revert();
   }, [isNewMenuOpen]);
 
-  // Smooth GSAP choreography for Settings dropmenu
+  // GSAP pop-in for the Settings dropdown
   useEffect(() => {
     const menuEl = settingsMenuRef.current;
     if (!isSettingsMenuOpen || !menuEl || prefersReducedMotion()) return;
@@ -435,7 +435,7 @@ export default function LibraryPage() {
     return () => ctx.revert();
   }, [isSettingsMenuOpen]);
 
-  // Smooth GSAP entrance for Trash & New Folder centered modals
+  // GSAP entrance for Trash and New Folder centered modals
   useEffect(() => {
     const cardEl = trashCardRef.current;
     if (!isTrashModalOpen || !cardEl || prefersReducedMotion()) return;
@@ -462,7 +462,7 @@ export default function LibraryPage() {
     return () => ctx.revert();
   }, [isNewFolderModalOpen]);
 
-  // Smooth GSAP entrance for floating selection bar & "..." menu
+  // GSAP entrance for the floating selection bar and "..." menu
   useEffect(() => {
     const barEl = selectionBarRef.current;
     if (!isSelecting || !barEl || prefersReducedMotion()) return;
@@ -489,7 +489,7 @@ export default function LibraryPage() {
     return () => ctx.revert();
   }, [isMoreMenuOpen]);
 
-  // Close dropdowns on outside click
+  // Nuke dropdowns when clicking outside
   useEffect(() => {
     const onPointerDown = (e: MouseEvent) => {
       if (newMenuWrapRef.current && !newMenuWrapRef.current.contains(e.target as Node)) {
@@ -503,7 +503,7 @@ export default function LibraryPage() {
     return () => document.removeEventListener('mousedown', onPointerDown);
   }, []);
 
-  // Desktop marquee / rubber-band drag selection
+  // Desktop rubber-band marquee drag selection
   useEffect(() => {
     const onWindowMouseMove = (e: MouseEvent) => {
       if (!marqueeActiveRef.current) return;
@@ -649,7 +649,7 @@ export default function LibraryPage() {
     holdOriginRef.current = null;
   };
 
-  // Mobile/touch long-press selection
+  // Touch long-press selection for mobile
   const handleItemPointerDown = (e: React.PointerEvent, id: string) => {
     if (e.pointerType === 'mouse') return;
     clearHoldTimer();
@@ -855,7 +855,7 @@ export default function LibraryPage() {
       className="custom-scrollbar relative h-full w-full select-none overflow-y-auto bg-[var(--dc-canvas)] text-[var(--dc-text)]"
     >
       <div ref={pageRef} className="mx-auto max-w-4xl px-4 pb-28 pt-[64px] sm:px-8 sm:pt-8">
-        {/* Clean minimal header */}
+        {/* Barebones top header */}
         <header data-lib-stagger className="flex items-center justify-between gap-3">
           <h1 className="text-2xl font-semibold tracking-tight text-[var(--dc-text-strong)]">
             Library
@@ -871,7 +871,7 @@ export default function LibraryPage() {
               className="hidden"
             />
 
-            {/* Advanced GSAP "+ New" dropdown */}
+            {/* GSAP "+ New" dropdown */}
             <div ref={newMenuWrapRef} className="relative">
               <button
                 ref={newBtnRef}
@@ -942,7 +942,7 @@ export default function LibraryPage() {
               )}
             </div>
 
-            {/* Settings Icon -> Dropmenu with ONLY Storage & Trash */}
+            {/* Settings cog -> dropdown with only Storage & Trash */}
             <div ref={settingsMenuWrapRef} className="relative">
               <button
                 type="button"
@@ -998,7 +998,7 @@ export default function LibraryPage() {
           </div>
         </header>
 
-        {/* Search + Filter Tabs */}
+        {/* Search bar + filter tabs */}
         <div
           data-lib-stagger
           className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
@@ -1038,7 +1038,7 @@ export default function LibraryPage() {
           </div>
         </div>
 
-        {/* Active Folder Breadcrumb */}
+        {/* Active folder breadcrumb */}
         {activeFolder && (
           <div
             data-lib-stagger
@@ -1056,7 +1056,7 @@ export default function LibraryPage() {
           </div>
         )}
 
-        {/* Folders Section (clean minimal cards, NO circular background behind icons, NO inline create form) */}
+        {/* Folders grid (plain cards, zero circle crap behind icons, zero inline create form) */}
         {!activeFolderId &&
           (activeTab === 'folders' || (activeTab === 'all' && filteredFolders.length > 0)) && (
             <section data-lib-stagger className="mt-6">
@@ -1109,7 +1109,7 @@ export default function LibraryPage() {
             </section>
           )}
 
-        {/* Images Grid */}
+        {/* Images grid */}
         {(activeTab !== 'folders' || activeFolderId) && (
           <section data-lib-stagger className="mt-6">
             {filteredItems.length === 0 ? (
@@ -1189,7 +1189,7 @@ export default function LibraryPage() {
         )}
       </div>
 
-      {/* Desktop blue marquee selection box */}
+      {/* Desktop blue marquee drag box */}
       {marqueeBoxStyle && (
         <div
           aria-hidden="true"
@@ -1203,7 +1203,7 @@ export default function LibraryPage() {
         />
       )}
 
-      {/* Floating Selection Bar */}
+      {/* Floating selection bar */}
       {isSelecting && (
         <div className="fixed inset-x-0 bottom-5 z-40 flex justify-center px-4">
           <div
@@ -1282,7 +1282,7 @@ export default function LibraryPage() {
         </div>
       )}
 
-      {/* Centered New Folder Modal */}
+      {/* Centered New Folder modal */}
       {isNewFolderModalOpen && (
         <div
           onClick={() => setIsNewFolderModalOpen(false)}
@@ -1333,7 +1333,7 @@ export default function LibraryPage() {
         </div>
       )}
 
-      {/* Move to Folder Modal */}
+      {/* Move to Folder modal */}
       {isMoveModalOpen && (
         <div
           onClick={() => setIsMoveModalOpen(false)}
@@ -1377,7 +1377,7 @@ export default function LibraryPage() {
         </div>
       )}
 
-      {/* Focused Centered Trash Modal */}
+      {/* Centered Trash modal */}
       {isTrashModalOpen && (
         <div
           onClick={() => setIsTrashModalOpen(false)}
@@ -1482,7 +1482,7 @@ export default function LibraryPage() {
         </div>
       )}
 
-      {/* Global Pure Image Preview */}
+      {/* Fullscreen image preview modal */}
       <GlobalImagePreviewModal
         isOpen={Boolean(previewItem)}
         src={previewItem?.url || ''}

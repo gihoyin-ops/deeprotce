@@ -47,7 +47,7 @@ export async function POST(req: Request) {
     const ext = resolveAudioFormat(mimeType);
     const langShort = lang ? lang.split('-')[0] : '';
 
-    // 1. Try OpenAI-compatible Whisper endpoint
+    // 1. Hit the OpenAI-compatible Whisper endpoint first
     const upstreamForm = new FormData();
     upstreamForm.append('file', audio, `dictation.${ext}`);
     upstreamForm.append('model', 'whisper-1');
@@ -70,7 +70,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true, text: (data.text || '').trim() });
     }
 
-    // 2. Fallback to multimodal chat completions with input_audio if Whisper endpoint is unavailable
+    // 2. Whisper endpoint is missing or busted, fall back to multimodal chat completions with input_audio
     if (whisperRes.status === 404 || whisperRes.status === 405 || whisperRes.status === 501) {
       const liveConn = getLiveLiteConnection() || getLiveChatConnection();
       if (!liveConn?.model) {

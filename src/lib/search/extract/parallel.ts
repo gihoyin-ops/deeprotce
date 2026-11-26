@@ -33,7 +33,7 @@ const rpcRequest = async (request: object, signal?: AbortSignal): Promise<JsonRp
   return body;
 };
 
-// free hosted extraction, no key; one request per call, no session handshake
+// free hosted extraction, no key, one-shot request with zero session handshake bs
 export const parallelExtract = async (rawUrl: string, signal?: AbortSignal): Promise<{ url: string; text: string }> => {
   const url = await assertEgressUrl(rawUrl);
   const result = await rpcRequest({
