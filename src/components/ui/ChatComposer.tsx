@@ -244,6 +244,10 @@ export default function ChatComposer({
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const liveTranscribeTimerRef = useRef<number | null>(null);
+  const liveTranscribeAbortRef = useRef<AbortController | null>(null);
+  const liveTranscribeInFlightRef = useRef(false);
+  const lastTranscribedChunkCountRef = useRef(0);
   const dictationBaseRef = useRef('');
   const toggleDictationRef = useRef<() => void>(() => {});
   const [dictationStream, setDictationStream] = useState<MediaStream | null>(null);
@@ -622,6 +626,16 @@ export default function ChatComposer({
     });
     return () => {
       recognitionRef.current?.abort();
+      if (liveTranscribeTimerRef.current !== null) {
+        window.clearInterval(liveTranscribeTimerRef.current);
+      }
+      liveTranscribeAbortRef.current?.abort();
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.stop();
+      }
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach((t) => t.stop());
+      }
       unsubscribe();
     };
   }, []);
@@ -686,7 +700,65 @@ export default function ChatComposer({
     return () => window.removeEventListener('keydown', handleUploadShortcut, true);
   }, [openFilePicker]);
 
+  const transcribeSnapshot = useCallback(
+    async (chunks: Blob[], mimeType: string, isFinal: boolean) => {
+      if (chunks.length === 0) return;
+      const blob = new Blob(chunks, { type: mimeType || 'audio/webm' });
+      if (blob.size < 400) return;
+
+      if (!isFinal && liveTranscribeInFlightRef.current) return;
+      if (isFinal) {
+        liveTranscribeAbortRef.current?.abort();
+      }
+
+      const controller = new AbortController();
+      liveTranscribeAbortRef.current = controller;
+      liveTranscribeInFlightRef.current = true;
+      if (isFinal) setIsTranscribing(true);
+
+      try {
+        const settings = loadGeneralSettings();
+        const ext = mimeType.includes('mp4')
+          ? 'm4a'
+          : mimeType.includes('ogg')
+            ? 'ogg'
+            : 'webm';
+        const form = new FormData();
+        form.append('audio', blob, `dictation.${ext}`);
+        form.append('lang', getDictationLanguage(settings));
+        const res = await fetch('/api/chat/transcribe', {
+          method: 'POST',
+          credentials: 'same-origin',
+          signal: controller.signal,
+          body: form,
+        });
+        if (!res.ok) {
+          if (isFinal) throw new Error('Transcription failed');
+          return;
+        }
+        const data = (await res.json()) as { text?: string };
+        const spokenText = (data.text || '').trim();
+        if (spokenText) {
+          const base = dictationBaseRef.current.trimEnd();
+          onChange(base ? `${base} ${spokenText}` : spokenText);
+        }
+      } catch (err) {
+        if (isFinal && !(err instanceof Error && err.name === 'AbortError')) {
+          toast.error('Could not transcribe audio.');
+        }
+      } finally {
+        liveTranscribeInFlightRef.current = false;
+        if (isFinal) setIsTranscribing(false);
+      }
+    },
+    [onChange]
+  );
+
   const stopMediaRecorderDictation = useCallback(() => {
+    if (liveTranscribeTimerRef.current !== null) {
+      window.clearInterval(liveTranscribeTimerRef.current);
+      liveTranscribeTimerRef.current = null;
+    }
     const recorder = mediaRecorderRef.current;
     if (recorder && recorder.state !== 'inactive') {
       recorder.stop();
@@ -707,11 +779,14 @@ export default function ChatComposer({
     }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const preferredMime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-        ? 'audio/webm;codecs=opus'
-        : MediaRecorder.isTypeSupported('audio/webm')
-          ? 'audio/webm'
-          : '';
+      const mimeCandidates = [
+        'audio/webm;codecs=opus',
+        'audio/webm',
+        'audio/mp4',
+        'audio/ogg;codecs=opus',
+      ];
+      const preferredMime =
+        mimeCandidates.find((m) => MediaRecorder.isTypeSupported(m)) || '';
       const recorder = preferredMime
         ? new MediaRecorder(stream, { mimeType: preferredMime })
         : new MediaRecorder(stream);
@@ -719,6 +794,7 @@ export default function ChatComposer({
       mediaStreamRef.current = stream;
       mediaRecorderRef.current = recorder;
       audioChunksRef.current = [];
+      lastTranscribedChunkCountRef.current = 0;
       dictationBaseRef.current = value;
       setDictationStream(stream);
       setIsDictating(true);
@@ -729,9 +805,32 @@ export default function ChatComposer({
         }
       };
 
+      // Real-time streaming transcription every ~2.2s while speaking (no need to press stop)
+      if (liveTranscribeTimerRef.current !== null) {
+        window.clearInterval(liveTranscribeTimerRef.current);
+      }
+      liveTranscribeTimerRef.current = window.setInterval(() => {
+        if (
+          audioChunksRef.current.length > lastTranscribedChunkCountRef.current &&
+          !liveTranscribeInFlightRef.current
+        ) {
+          lastTranscribedChunkCountRef.current = audioChunksRef.current.length;
+          void transcribeSnapshot(
+            [...audioChunksRef.current],
+            recorder.mimeType || preferredMime || 'audio/webm',
+            false
+          );
+        }
+      }, 2200);
+
       recorder.onstop = async () => {
+        if (liveTranscribeTimerRef.current !== null) {
+          window.clearInterval(liveTranscribeTimerRef.current);
+          liveTranscribeTimerRef.current = null;
+        }
         const chunks = audioChunksRef.current;
         audioChunksRef.current = [];
+        lastTranscribedChunkCountRef.current = 0;
         mediaRecorderRef.current = null;
         if (mediaStreamRef.current) {
           mediaStreamRef.current.getTracks().forEach((t) => t.stop());
@@ -740,39 +839,19 @@ export default function ChatComposer({
         setDictationStream(null);
         setIsDictating(false);
 
-        if (chunks.length === 0) return;
-        const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
-        if (blob.size < 400) return;
-
-        setIsTranscribing(true);
-        try {
-          const settings = loadGeneralSettings();
-          const form = new FormData();
-          form.append('audio', blob, 'dictation.webm');
-          form.append('lang', getDictationLanguage(settings));
-          const res = await fetch('/api/chat/transcribe', {
-            method: 'POST',
-            credentials: 'same-origin',
-            body: form,
-          });
-          if (!res.ok) {
-            throw new Error('Transcription failed');
-          }
-          const data = (await res.json()) as { text?: string };
-          const spokenText = (data.text || '').trim();
-          if (spokenText) {
-            const base = dictationBaseRef.current.trimEnd();
-            onChange(base ? `${base} ${spokenText}` : spokenText);
-          }
-        } catch {
-          toast.error('Could not transcribe audio.');
-        } finally {
-          setIsTranscribing(false);
-        }
+        await transcribeSnapshot(
+          chunks,
+          recorder.mimeType || preferredMime || 'audio/webm',
+          true
+        );
       };
 
-      recorder.start(250);
+      recorder.start(300);
     } catch {
+      if (liveTranscribeTimerRef.current !== null) {
+        window.clearInterval(liveTranscribeTimerRef.current);
+        liveTranscribeTimerRef.current = null;
+      }
       if (mediaStreamRef.current) {
         mediaStreamRef.current.getTracks().forEach((t) => t.stop());
         mediaStreamRef.current = null;
@@ -781,7 +860,7 @@ export default function ChatComposer({
       setIsDictating(false);
       toast.error('Microphone permission denied.');
     }
-  }, [onChange, value]);
+  }, [transcribeSnapshot, value]);
 
   const toggleDictation = () => {
     if (!isDictationEnabled || isTranscribing) return;
