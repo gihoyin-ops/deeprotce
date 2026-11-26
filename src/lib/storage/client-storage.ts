@@ -222,6 +222,15 @@ const normalizeVersions = (message: StoredMessage): StoredMessage => {
   };
 };
 
+const isAuthenticatedClient = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  try {
+    return localStorage.getItem('deepchat-auth-hint') === '1';
+  } catch {
+    return false;
+  }
+};
+
 export const createChatRecord = async (title = 'New Chat', attachedFiles?: StoredAttachment[]): Promise<StoredChat> => {
   const id = generateRandomId('chat');
   const now = new Date().toISOString();
@@ -236,12 +245,52 @@ export const createChatRecord = async (title = 'New Chat', attachedFiles?: Store
     pendingAttachedFiles: attachedFiles || [],
     tags: []
   };
+
+  if (isAuthenticatedClient()) {
+    try {
+      const res = await fetch('/api/chats', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ id, title, attachedFiles })
+      });
+      if (res.ok) {
+        const data = (await res.json()) as { chat?: StoredChat };
+        const created = data.chat || chat;
+        notifyChatUpdated(created.id || id);
+        return created;
+      }
+      if (res.status !== 401) {
+        return chat;
+      }
+    } catch {
+      return chat;
+    }
+  }
+
   await idbSet('chats', chat);
   notifyChatUpdated(id);
   return chat;
 };
 
 export const getChatRecord = async (id: string): Promise<StoredChat | null> => {
+  if (isAuthenticatedClient()) {
+    try {
+      const res = await fetch(`/api/chats/${encodeURIComponent(id)}`, {
+        credentials: 'same-origin'
+      });
+      if (res.ok) {
+        const data = (await res.json()) as { chat?: StoredChat };
+        return data.chat || null;
+      }
+      if (res.status !== 401) {
+        return null;
+      }
+    } catch {
+      return null;
+    }
+  }
+
   const chat = await idbGet<StoredChat>('chats', id);
   if (!chat) return null;
   return {
@@ -251,6 +300,23 @@ export const getChatRecord = async (id: string): Promise<StoredChat | null> => {
 };
 
 export const listChatRecords = async (archived = false): Promise<StoredChat[]> => {
+  if (isAuthenticatedClient()) {
+    try {
+      const res = await fetch(`/api/chats?archived=${archived ? '1' : '0'}`, {
+        credentials: 'same-origin'
+      });
+      if (res.ok) {
+        const data = (await res.json()) as { chats?: StoredChat[] };
+        return Array.isArray(data.chats) ? data.chats : [];
+      }
+      if (res.status !== 401) {
+        return [];
+      }
+    } catch {
+      return [];
+    }
+  }
+
   const allChats = await idbGetAll<StoredChat>('chats');
   return allChats
     .filter(chat => Boolean(chat.archived) === archived)
@@ -258,6 +324,25 @@ export const listChatRecords = async (archived = false): Promise<StoredChat[]> =
 };
 
 export const listSharedLinkRecords = async () => {
+  if (isAuthenticatedClient()) {
+    try {
+      const res = await fetch('/api/chats?shared=1', {
+        credentials: 'same-origin'
+      });
+      if (res.ok) {
+        const data = (await res.json()) as {
+          links?: Array<{ id: string; shareId: string; title: string; createdAt: string; messageCount: number }>;
+        };
+        return Array.isArray(data.links) ? data.links : [];
+      }
+      if (res.status !== 401) {
+        return [];
+      }
+    } catch {
+      return [];
+    }
+  }
+
   const allChats = await idbGetAll<StoredChat>('chats');
   return allChats
     .filter(chat => typeof chat.shareId === 'string' && chat.shareId.length > 0)
@@ -272,10 +357,31 @@ export const listSharedLinkRecords = async () => {
 };
 
 export const saveMessageRecord = async (id: string, message: StoredMessage): Promise<StoredChat | null> => {
-  const chat = await getChatRecord(id);
+  const normalized = normalizeVersions(message);
+  if (isAuthenticatedClient()) {
+    try {
+      const res = await fetch(`/api/chats/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ message: normalized })
+      });
+      if (res.ok) {
+        const data = (await res.json()) as { chat?: StoredChat };
+        notifyChatUpdated(id);
+        return data.chat || null;
+      }
+      if (res.status !== 401) {
+        return null;
+      }
+    } catch {
+      return null;
+    }
+  }
+
+  const chat = await idbGet<StoredChat>('chats', id);
   if (!chat) return null;
   const messages = Array.isArray(chat.messages) ? [...chat.messages] : [];
-  const normalized = normalizeVersions(message);
   const existingIndex = messages.findIndex(m => m.id === message.id);
   if (existingIndex >= 0) {
     messages[existingIndex] = {
@@ -298,7 +404,28 @@ export const saveMessageRecord = async (id: string, message: StoredMessage): Pro
 };
 
 export const updateChatRecord = async (id: string, patch: Partial<StoredChat>): Promise<StoredChat | null> => {
-  const chat = await getChatRecord(id);
+  if (isAuthenticatedClient()) {
+    try {
+      const res = await fetch(`/api/chats/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ updates: patch })
+      });
+      if (res.ok) {
+        const data = (await res.json()) as { chat?: StoredChat };
+        notifyChatUpdated(id);
+        return data.chat || null;
+      }
+      if (res.status !== 401) {
+        return null;
+      }
+    } catch {
+      return null;
+    }
+  }
+
+  const chat = await idbGet<StoredChat>('chats', id);
   if (!chat) return null;
   const updated: StoredChat = {
     ...chat,
@@ -310,6 +437,25 @@ export const updateChatRecord = async (id: string, patch: Partial<StoredChat>): 
 };
 
 export const deleteChatRecord = async (id: string): Promise<boolean> => {
+  if (isAuthenticatedClient()) {
+    try {
+      const res = await fetch(`/api/chats/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        credentials: 'same-origin'
+      });
+      if (res.ok) {
+        await deleteChatReferencesClient(id);
+        notifyChatUpdated(id);
+        return true;
+      }
+      if (res.status !== 401) {
+        return false;
+      }
+    } catch {
+      return false;
+    }
+  }
+
   await idbDelete('chats', id);
   await deleteChatReferencesClient(id);
   notifyChatUpdated(id);
@@ -317,6 +463,25 @@ export const deleteChatRecord = async (id: string): Promise<boolean> => {
 };
 
 export const deleteAllChatRecords = async (): Promise<boolean> => {
+  if (isAuthenticatedClient()) {
+    try {
+      const res = await fetch('/api/chats', {
+        method: 'DELETE',
+        credentials: 'same-origin'
+      });
+      if (res.ok) {
+        await clearChatHistoryClient();
+        notifyChatUpdated();
+        return true;
+      }
+      if (res.status !== 401) {
+        return false;
+      }
+    } catch {
+      return false;
+    }
+  }
+
   await idbClear('chats');
   await idbClear('shared_chats');
   await clearChatHistoryClient();
@@ -325,6 +490,10 @@ export const deleteAllChatRecords = async (): Promise<boolean> => {
 };
 
 export const saveSharedSnapshot = async (shareId: string, chatId: string, chat: StoredChat) => {
+  if (isAuthenticatedClient()) {
+    // Already persisted in Turso via updateChatRecord({ isShared: true, shareId })
+    return;
+  }
   await idbSet('shared_chats', {
     shareId,
     chatId,
@@ -334,6 +503,14 @@ export const saveSharedSnapshot = async (shareId: string, chatId: string, chat: 
 };
 
 export const getSharedSnapshot = async (shareId: string): Promise<StoredChat | null> => {
+  try {
+    const res = await fetch(`/api/chats/share/${encodeURIComponent(shareId)}`);
+    if (res.ok) {
+      const data = (await res.json()) as { chat?: StoredChat };
+      if (data.chat) return data.chat;
+    }
+  } catch {}
+
   const shared = await idbGet<{ shareId: string; snapshot: StoredChat }>('shared_chats', shareId);
   if (shared?.snapshot) return shared.snapshot;
   const all = await idbGetAll<StoredChat>('chats');
