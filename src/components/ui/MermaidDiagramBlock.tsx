@@ -1,92 +1,63 @@
 'use client';
 
-import React, { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { gsap } from 'gsap';
-import { Check, Code2, Copy, Maximize2, X } from '@/components/ui/icons';
-import KineticDot from '@/components/ui/KineticDot';
-import { buildMermaidDocument } from '@/lib/code/mermaid-preview';
+import { Check, Copy, Maximize2, X } from '@/components/ui/icons';
 
 interface MermaidDiagramBlockProps {
   code: string;
   isStreaming?: boolean;
 }
 
-function detectDiagramLabel(code: string): string {
-  const firstLine = code
-    .trim()
-    .replace(/^%%\{[\s\S]*?\}%%\s*/, '')
-    .split('\n')[0]
-    ?.trim()
-    .toLowerCase() || '';
-
-  if (firstLine.startsWith('flowchart') || firstLine.startsWith('graph')) return 'Flowchart';
-  if (firstLine.startsWith('sequencediagram')) return 'Sequence Diagram';
-  if (firstLine.startsWith('classdiagram')) return 'Class Diagram';
-  if (firstLine.startsWith('statediagram')) return 'State Diagram';
-  if (firstLine.startsWith('erdiagram')) return 'ER Diagram';
-  if (firstLine.startsWith('gantt')) return 'Gantt Chart';
-  if (firstLine.startsWith('pie')) return 'Pie Chart';
-  if (firstLine.startsWith('mindmap')) return 'Mindmap';
-  if (firstLine.startsWith('timeline')) return 'Timeline';
-  if (firstLine.startsWith('gitgraph')) return 'Git Graph';
-  return 'Diagram';
+function encodeMermaidBase64(source: string): string {
+  try {
+    const bytes = new TextEncoder().encode(source);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i += 1) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  } catch {
+    return '';
+  }
 }
 
 export default function MermaidDiagramBlock({
   code,
   isStreaming = false,
 }: MermaidDiagramBlockProps) {
-  const previewId = useId().replace(/:/g, '');
-  const [view, setView] = useState<'diagram' | 'code'>('diagram');
+  const [loaded, setLoaded] = useState(false);
+  const [hasError, setHasError] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [frameHeight, setFrameHeight] = useState(280);
   const [fullscreen, setFullscreen] = useState(false);
 
-  const bodyRef = useRef<HTMLDivElement | null>(null);
+  const imgRef = useRef<HTMLImageElement | null>(null);
   const fullscreenShellRef = useRef<HTMLDivElement | null>(null);
-  const prevViewRef = useRef<'diagram' | 'code'>('diagram');
 
-  const diagramLabel = useMemo(() => detectDiagramLabel(code), [code]);
-  const srcDoc = useMemo(
-    () => (isStreaming ? '' : buildMermaidDocument(code, '', '', previewId)),
-    [code, isStreaming, previewId]
-  );
-
-  useEffect(() => {
-    const onMessage = (event: MessageEvent) => {
-      const data = event.data as { source?: string; previewId?: string; height?: number } | null;
-      if (!data || data.source !== 'deepchat-mermaid-resize' || data.previewId !== previewId) return;
-      if (typeof data.height === 'number' && Number.isFinite(data.height)) {
-        setFrameHeight(Math.max(220, Math.min(680, Math.round(data.height))));
-      }
-    };
-    window.addEventListener('message', onMessage);
-    return () => window.removeEventListener('message', onMessage);
-  }, [previewId]);
+  const diagramUrl = useMemo(() => {
+    if (isStreaming) return '';
+    const encoded = encodeMermaidBase64(code.trim());
+    return encoded ? `https://mermaid.ink/svg/${encoded}?bgColor=!ffffff` : '';
+  }, [code, isStreaming]);
 
   useLayoutEffect(() => {
-    if (prevViewRef.current === view) return;
-    prevViewRef.current = view;
-    const el = bodyRef.current;
-    if (!el) return;
+    if (!loaded || !imgRef.current) return;
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     gsap.fromTo(
-      el,
-      { opacity: 0, y: 5 },
-      { opacity: 1, y: 0, duration: 0.28, ease: 'expo.out', clearProps: 'transform,opacity', force3D: true }
-    );
-  }, [view]);
-
-  useLayoutEffect(() => {
-    if (!fullscreen) return;
-    const el = fullscreenShellRef.current;
-    if (!el) return;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    gsap.fromTo(
-      el,
+      imgRef.current,
       { opacity: 0, scale: 0.985 },
-      { opacity: 1, scale: 1, duration: 0.3, ease: 'expo.out', clearProps: 'transform', force3D: true }
+      { opacity: 1, scale: 1, duration: 0.36, ease: 'expo.out', clearProps: 'transform', force3D: true }
+    );
+  }, [loaded]);
+
+  useLayoutEffect(() => {
+    if (!fullscreen || !fullscreenShellRef.current) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    gsap.fromTo(
+      fullscreenShellRef.current,
+      { opacity: 0, scale: 0.985 },
+      { opacity: 1, scale: 1, duration: 0.28, ease: 'expo.out', clearProps: 'transform', force3D: true }
     );
   }, [fullscreen]);
 
@@ -97,132 +68,96 @@ export default function MermaidDiagramBlock({
   };
 
   return (
-    <div className="not-prose mb-4 overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm dark:border-slate-800 dark:bg-[#0d1117]">
-      {/* Minimalist Dedicated Diagram Header */}
-      <div className="flex items-center justify-between gap-2 border-b border-slate-100 bg-slate-50/80 px-3.5 py-2.5 dark:border-slate-800/80 dark:bg-slate-900/70">
-        <div className="flex min-w-0 items-center gap-2">
-          <span className="inline-flex h-7 items-center gap-2 rounded-lg bg-white px-2.5 text-[11.5px] font-semibold tracking-tight text-slate-700 ring-1 ring-slate-200/80 dark:bg-slate-800 dark:text-slate-200 dark:ring-slate-700/80">
-            <KineticDot mode={isStreaming ? 'thinking' : 'idle'} size="sm" />
-            <span>{diagramLabel}</span>
-          </span>
-        </div>
-
-        <div className="flex items-center gap-1.5">
-          {/* Diagram / Code segmented switch */}
-          <div className="inline-flex h-7 items-center rounded-lg bg-slate-200/70 p-0.5 ring-1 ring-slate-200/90 dark:bg-slate-800 dark:ring-slate-700/80">
-            <button
-              type="button"
-              onClick={() => setView('diagram')}
-              className={`h-6 rounded-md px-2.5 text-[11px] font-semibold transition-colors ${
-                view === 'diagram'
-                  ? 'bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-slate-100'
-                  : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
-              }`}
-            >
-              Diagram
-            </button>
-            <button
-              type="button"
-              onClick={() => setView('code')}
-              className={`inline-flex h-6 items-center gap-1 rounded-md px-2 text-[11px] font-semibold transition-colors ${
-                view === 'code'
-                  ? 'bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-slate-100'
-                  : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
-              }`}
-            >
-              <Code2 className="h-3 w-3" />
-              <span>Code</span>
-            </button>
-          </div>
-
+    <div className="group/diagram not-prose relative mb-4 overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm dark:border-slate-800 dark:bg-white">
+      {/* Subtle floating top-right actions on hover */}
+      {!isStreaming && (
+        <div className="absolute right-2.5 top-2.5 z-10 flex items-center gap-1 opacity-100 transition-opacity duration-200 sm:opacity-0 sm:group-hover/diagram:opacity-100 sm:group-focus-within/diagram:opacity-100">
           <button
             type="button"
             onClick={() => void handleCopy()}
-            title={copied ? 'Copied' : 'Copy Mermaid source'}
-            aria-label={copied ? 'Copied' : 'Copy Mermaid source'}
-            className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-slate-600 transition-colors hover:bg-slate-200/70 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+            title={copied ? 'Copied' : 'Copy diagram source'}
+            aria-label={copied ? 'Copied' : 'Copy diagram source'}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200/80 bg-white/90 text-slate-600 shadow-xs backdrop-blur-xs transition-colors hover:bg-slate-50 hover:text-slate-950"
           >
             {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
           </button>
-
-          {!isStreaming && (
+          {!hasError && loaded && (
             <button
               type="button"
               onClick={() => setFullscreen(true)}
               title="Expand diagram"
               aria-label="Expand diagram"
-              className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-slate-600 transition-colors hover:bg-slate-200/70 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200/80 bg-white/90 text-slate-600 shadow-xs backdrop-blur-xs transition-colors hover:bg-slate-50 hover:text-slate-950"
             >
               <Maximize2 className="h-3.5 w-3.5" />
             </button>
           )}
         </div>
-      </div>
+      )}
 
-      {/* Body */}
-      <div ref={bodyRef}>
-        {view === 'code' ? (
-          <pre className="modern-scrollbar m-0 max-h-[420px] overflow-auto bg-white p-4 font-mono text-[13px] leading-6 text-slate-800 dark:bg-[#0d1117] dark:text-slate-200">
-            <code>{code}</code>
-          </pre>
-        ) : isStreaming ? (
-          <div className="flex h-52 flex-col items-center justify-center gap-3 bg-slate-50/50 dark:bg-[#0d1117]">
-            <KineticDot mode="thinking" size="lg" />
-            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
-              Drawing {diagramLabel.toLowerCase()}...
+      {isStreaming ? (
+        <div className="flex h-44 items-center justify-center bg-white">
+          <span className="text-xs font-medium text-slate-400">Drawing diagram...</span>
+        </div>
+      ) : hasError || !diagramUrl ? (
+        <pre className="modern-scrollbar m-0 max-h-[380px] overflow-auto bg-white p-4 font-mono text-[13px] leading-6 text-slate-800">
+          <code>{code}</code>
+        </pre>
+      ) : (
+        <div className="relative flex min-h-[160px] items-center justify-center p-5">
+          {!loaded && (
+            <span className="absolute text-xs font-medium text-slate-400">
+              Loading diagram...
             </span>
-          </div>
-        ) : (
-          <iframe
-            title={`${diagramLabel} preview`}
-            srcDoc={srcDoc}
-            sandbox="allow-scripts"
-            style={{ height: `${frameHeight}px` }}
-            className="block w-full border-0 bg-white transition-[height] duration-300 ease-out"
+          )}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            ref={imgRef}
+            src={diagramUrl}
+            alt="Diagram"
+            onLoad={() => {
+              setHasError(false);
+              setLoaded(true);
+            }}
+            onError={() => {
+              setHasError(true);
+              setLoaded(false);
+            }}
+            onClick={() => loaded && setFullscreen(true)}
+            className={`max-h-[520px] max-w-full cursor-zoom-in object-contain transition-opacity duration-200 ${
+              loaded ? 'opacity-100' : 'opacity-0'
+            }`}
           />
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Fullscreen Diagram Modal */}
       {fullscreen &&
+        diagramUrl &&
         typeof document !== 'undefined' &&
         createPortal(
           <div
             ref={fullscreenShellRef}
-            className="fixed inset-0 z-[999999] flex flex-col bg-white dark:bg-[#0b0d11]"
+            onClick={() => setFullscreen(false)}
+            className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
           >
-            <div className="flex h-12 items-center justify-between border-b border-slate-100 px-4 dark:border-slate-800">
-              <div className="flex items-center gap-2">
-                <KineticDot mode="idle" size="sm" />
-                <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                  {diagramLabel}
-                </span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => void handleCopy()}
-                  className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
-                >
-                  {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
-                  <span>{copied ? 'Copied' : 'Copy'}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFullscreen(false)}
-                  aria-label="Close diagram"
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-            <div className="min-h-0 flex-1 p-3">
-              <iframe
-                title={`${diagramLabel} fullscreen preview`}
-                srcDoc={srcDoc}
-                sandbox="allow-scripts"
-                className="h-full w-full rounded-xl border border-slate-200 bg-white dark:border-slate-800"
+            <div
+              onClick={e => e.stopPropagation()}
+              className="relative flex max-h-[92dvh] max-w-[94vw] items-center justify-center overflow-auto rounded-2xl bg-white p-6 shadow-2xl"
+            >
+              <button
+                type="button"
+                onClick={() => setFullscreen(false)}
+                aria-label="Close diagram"
+                className="fixed right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-white backdrop-blur-xs transition-colors hover:bg-white/25"
+              >
+                <X className="h-4 w-4" />
+              </button>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={diagramUrl}
+                alt="Diagram fullscreen"
+                className="max-h-[84dvh] max-w-full object-contain"
               />
             </div>
           </div>,
