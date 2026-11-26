@@ -1,4 +1,4 @@
-import { USAGE_LEDGER_ENABLED, recordTokens } from './usage';
+import { recordTokens } from './usage';
 
 // token estimate: text is chars / 4, images are 850 flat
 // a provider's own usage object wins over the estimate when present
@@ -108,10 +108,6 @@ export const meterSseBody = (
   onSettled?: (totalTokens: number) => void
 ): ReadableStream<Uint8Array> | null => {
   if (!body) return null;
-  if (!USAGE_LEDGER_ENABLED) {
-    onSettled?.(promptTokens);
-    return body;
-  }
   const meter = new SseUsageMeter();
   let settled = false;
   const settle = () => {
