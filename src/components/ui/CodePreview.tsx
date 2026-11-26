@@ -378,6 +378,8 @@ export default function CodePreview({ language, value, highlighter, isStreaming 
   const consolePaneRef = useRef<HTMLDivElement | null>(null);
   const inlineBodyRef = useRef<HTMLDivElement | null>(null);
   const prevInlineModeRef = useRef<'preview' | 'code'>('code');
+  const splitPaneMountedRef = useRef(false);
+  const consoleMountedRef = useRef(false);
   const [consoleEntries, setConsoleEntries] = useState<ConsoleEntry[]>([
     { id: 1, type: 'system', text: 'Run started' }
   ]);
@@ -564,109 +566,128 @@ export default function CodePreview({ language, value, highlighter, isStreaming 
 
   // GSAP precision split-pane choreography for "Show code" / "Hide code"
   useLayoutEffect(() => {
-    if (!fullscreen || fullscreenClosing) return;
+    if (!fullscreen) {
+      splitPaneMountedRef.current = false;
+      return;
+    }
+    if (fullscreenClosing) return;
+
     const paneEl = editorPaneRef.current;
     const innerEl = editorInnerRef.current;
     if (!paneEl || !innerEl) return;
 
-    const mm = gsap.matchMedia();
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const isDesktop = window.matchMedia('(min-width: 768px)').matches;
+    const targetWidth = showFullscreenCode ? (isDesktop ? '38%' : '100%') : '0%';
 
-    mm.add('(prefers-reduced-motion: reduce)', () => {
-      const isDesktop = window.matchMedia('(min-width: 768px)').matches;
+    gsap.killTweensOf([paneEl, innerEl]);
+
+    if (!splitPaneMountedRef.current || reduce) {
+      splitPaneMountedRef.current = true;
       gsap.set(paneEl, {
-        width: showFullscreenCode ? (isDesktop ? '38%' : '100%') : '0%',
+        width: targetWidth,
         opacity: showFullscreenCode ? 1 : 0,
       });
-      gsap.set(innerEl, { opacity: showFullscreenCode ? 1 : 0, x: 0 });
-    });
+      gsap.set(innerEl, {
+        opacity: showFullscreenCode ? 1 : 0,
+        x: 0,
+      });
+      return;
+    }
 
-    mm.add('(prefers-reduced-motion: no-preference)', () => {
-      const isDesktop = window.matchMedia('(min-width: 768px)').matches;
-      const targetWidth = showFullscreenCode ? (isDesktop ? '38%' : '100%') : '0%';
+    const tl = gsap.timeline({ defaults: { force3D: true } });
 
-      gsap.killTweensOf([paneEl, innerEl]);
-      const tl = gsap.timeline({ defaults: { force3D: true } });
-
-      if (showFullscreenCode) {
-        tl.to(paneEl, {
+    if (showFullscreenCode) {
+      tl.to(
+        paneEl,
+        {
           width: targetWidth,
           opacity: 1,
-          duration: 0.52,
+          duration: 0.42,
           ease: 'expo.out',
-        }).fromTo(
-          innerEl,
-          { opacity: 0, x: -16 },
-          { opacity: 1, x: 0, duration: 0.4, ease: 'power3.out', clearProps: 'transform' },
-          0.08
-        );
-      } else {
-        tl.to(innerEl, {
+        },
+        0
+      ).fromTo(
+        innerEl,
+        { opacity: 0, x: -12 },
+        { opacity: 1, x: 0, duration: 0.34, ease: 'power3.out', clearProps: 'transform' },
+        0.04
+      );
+    } else {
+      tl.to(
+        innerEl,
+        {
           opacity: 0,
-          x: -12,
-          duration: 0.22,
-          ease: 'power2.inOut',
-        }).to(
-          paneEl,
-          {
-            width: '0%',
-            opacity: 0,
-            duration: 0.44,
-            ease: 'power3.inOut',
-          },
-          0.04
-        );
-      }
+          x: -8,
+          duration: 0.2,
+          ease: 'power2.out',
+        },
+        0
+      ).to(
+        paneEl,
+        {
+          width: '0%',
+          opacity: 0,
+          duration: 0.34,
+          ease: 'power3.inOut',
+        },
+        0
+      );
+    }
 
-      return () => tl.kill();
-    });
-
-    return () => mm.revert();
+    return () => {
+      tl.kill();
+    };
   }, [fullscreen, fullscreenClosing, showFullscreenCode]);
 
   // GSAP smooth console drawer reveal/collapse
   useLayoutEffect(() => {
-    if (!fullscreen || fullscreenClosing) return;
+    if (!fullscreen) {
+      consoleMountedRef.current = false;
+      return;
+    }
+    if (fullscreenClosing) return;
+
     const consoleEl = consolePaneRef.current;
     if (!consoleEl) return;
 
-    const mm = gsap.matchMedia();
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    gsap.killTweensOf(consoleEl);
 
-    mm.add('(prefers-reduced-motion: reduce)', () => {
+    if (!consoleMountedRef.current || reduce) {
+      consoleMountedRef.current = true;
       gsap.set(consoleEl, {
         height: consoleOpen ? 'auto' : 0,
         opacity: consoleOpen ? 1 : 0,
+        y: 0,
       });
-    });
+      return;
+    }
 
-    mm.add('(prefers-reduced-motion: no-preference)', () => {
-      gsap.killTweensOf(consoleEl);
-      if (consoleOpen) {
-        gsap.fromTo(
-          consoleEl,
-          { height: 0, opacity: 0, y: 10 },
-          {
-            height: 'auto',
-            opacity: 1,
-            y: 0,
-            duration: 0.4,
-            ease: 'expo.out',
-            clearProps: 'transform',
-            force3D: true,
-          }
-        );
-      } else {
-        gsap.to(consoleEl, {
-          height: 0,
-          opacity: 0,
-          y: 8,
-          duration: 0.28,
-          ease: 'power3.inOut',
+    if (consoleOpen) {
+      gsap.fromTo(
+        consoleEl,
+        { height: 0, opacity: 0, y: 10 },
+        {
+          height: 'auto',
+          opacity: 1,
+          y: 0,
+          duration: 0.38,
+          ease: 'expo.out',
+          clearProps: 'transform',
           force3D: true,
-        });
-      }
-    });
-
-    return () => mm.revert();
+        }
+      );
+    } else {
+      gsap.to(consoleEl, {
+        height: 0,
+        opacity: 0,
+        y: 8,
+        duration: 0.26,
+        ease: 'power3.inOut',
+        force3D: true,
+      });
+    }
   }, [fullscreen, fullscreenClosing, consoleOpen]);
 
   const openFullscreen = (withCode: boolean) => {
