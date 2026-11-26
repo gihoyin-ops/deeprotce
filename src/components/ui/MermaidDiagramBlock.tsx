@@ -3,7 +3,8 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { gsap } from 'gsap';
-import { Check, Copy, Download, Maximize2, PenLine, Plus, X } from '@/components/ui/icons';
+import { ArrowUp, Check, Copy, Download, Maximize2, Plus, X } from '@/components/ui/icons';
+import KineticDot from '@/components/ui/KineticDot';
 import { downloadImageAsPng } from '@/lib/images/client-webp';
 
 interface MermaidDiagramBlockProps {
@@ -27,27 +28,114 @@ function encodeMermaidBase64(source: string): string {
   }
 }
 
+function stripMermaidFences(raw: string): string {
+  return raw
+    .trim()
+    .replace(/^```(?:mermaid|mmd)?\s*\n?/i, '')
+    .replace(/\n?```\s*$/i, '')
+    .trim();
+}
+
+async function requestAiDiagramEdit(
+  currentMermaid: string,
+  instruction: string,
+  signal: AbortSignal
+): Promise<string> {
+  let connectionId: string | undefined;
+  let modelId: string | undefined;
+  try {
+    const raw = localStorage.getItem('selectedModelObj');
+    if (raw) {
+      const parsed = JSON.parse(raw) as { id?: string; connectionId?: string };
+      connectionId = parsed.connectionId;
+      modelId = parsed.id;
+    }
+  } catch {}
+
+  const res = await fetch('/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+    signal,
+    body: JSON.stringify({
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You are a Mermaid diagram editor. Return ONLY the updated valid Mermaid diagram syntax. Do not include markdown fences (```), explanations, or extra text.',
+        },
+        {
+          role: 'user',
+          content: `Current Mermaid diagram:\n${currentMermaid}\n\nEdit instruction: ${instruction}`,
+        },
+      ],
+      connectionId,
+      modelId,
+      tools: [],
+      manualSearch: false,
+    }),
+  });
+
+  if (!res.ok || !res.body) {
+    throw new Error('Could not update diagram');
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let content = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() ?? '';
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith('data:')) continue;
+      const data = trimmed.slice(5).trim();
+      if (!data || data === '[DONE]') continue;
+      try {
+        const json = JSON.parse(data) as {
+          choices?: Array<{ delta?: { content?: string } }>;
+        };
+        const delta = json.choices?.[0]?.delta?.content;
+        if (typeof delta === 'string') {
+          content += delta;
+        }
+      } catch {}
+    }
+  }
+
+  return stripMermaidFences(content);
+}
+
 export default function MermaidDiagramBlock({
   code,
   isStreaming = false,
 }: MermaidDiagramBlockProps) {
+  const [activeCode, setActiveCode] = useState(code);
   const [loaded, setLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
   const [copied, setCopied] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [fullscreenClosing, setFullscreenClosing] = useState(false);
 
-  // Fullscreen editor & zoom/pan state
-  const [draftCode, setDraftCode] = useState(code);
-  const [debouncedCode, setDebouncedCode] = useState(code);
-  const [isEditing, setIsEditing] = useState(false);
+  // Fullscreen AI prompt & zoom/pan state
+  const [prompt, setPrompt] = useState('');
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
 
   const imgRef = useRef<HTMLImageElement | null>(null);
+  const fullscreenImgRef = useRef<HTMLImageElement | null>(null);
   const fullscreenShellRef = useRef<HTMLDivElement | null>(null);
-  const editorDrawerRef = useRef<HTMLDivElement | null>(null);
-  const editorMountedRef = useRef(false);
+  const promptDockRef = useRef<HTMLDivElement | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
   const dragRef = useRef<{
     active: boolean;
     startX: number;
@@ -56,31 +144,17 @@ export default function MermaidDiagramBlock({
     originY: number;
   }>({ active: false, startX: 0, startY: 0, originX: 0, originY: 0 });
 
-  // Sync incoming code when not actively editing
   useEffect(() => {
-    setDraftCode(code);
-    setDebouncedCode(code);
+    setActiveCode(code);
   }, [code]);
 
-  // Debounce live edits in fullscreen textarea
-  useEffect(() => {
-    if (!fullscreen) return;
-    const timer = window.setTimeout(() => {
-      setDebouncedCode(draftCode);
-    }, 320);
-    return () => window.clearTimeout(timer);
-  }, [draftCode, fullscreen]);
+  useEffect(() => () => abortRef.current?.abort(), []);
 
-  const inlineUrl = useMemo(() => {
+  const diagramUrl = useMemo(() => {
     if (isStreaming) return '';
-    const encoded = encodeMermaidBase64(code.trim());
+    const encoded = encodeMermaidBase64(activeCode.trim());
     return encoded ? `https://mermaid.ink/svg/${encoded}?bgColor=!ffffff` : '';
-  }, [code, isStreaming]);
-
-  const fullscreenUrl = useMemo(() => {
-    const encoded = encodeMermaidBase64(debouncedCode.trim());
-    return encoded ? `https://mermaid.ink/svg/${encoded}?bgColor=!ffffff` : '';
-  }, [debouncedCode]);
+  }, [activeCode, isStreaming]);
 
   useLayoutEffect(() => {
     if (!loaded || !imgRef.current) return;
@@ -90,67 +164,43 @@ export default function MermaidDiagramBlock({
       { opacity: 0, scale: 0.985 },
       { opacity: 1, scale: 1, duration: 0.36, ease: 'expo.out', clearProps: 'transform', force3D: true }
     );
-  }, [loaded]);
+  }, [loaded, diagramUrl]);
 
-  // GSAP fullscreen entrance
+  // GSAP fullscreen entrance + bottom prompt dock glide
   useLayoutEffect(() => {
     if (!fullscreen || fullscreenClosing || !fullscreenShellRef.current) return;
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    gsap.fromTo(
+    const tl = gsap.timeline({ defaults: { force3D: true } });
+    tl.fromTo(
       fullscreenShellRef.current,
       { opacity: 0, scale: 0.985 },
-      { opacity: 1, scale: 1, duration: 0.32, ease: 'expo.out', clearProps: 'transform', force3D: true }
+      { opacity: 1, scale: 1, duration: 0.34, ease: 'expo.out', clearProps: 'transform' }
     );
+    if (promptDockRef.current) {
+      tl.fromTo(
+        promptDockRef.current,
+        { opacity: 0, y: 14 },
+        { opacity: 1, y: 0, duration: 0.4, ease: 'expo.out', clearProps: 'transform' },
+        0.08
+      );
+    }
+    return () => {
+      tl.kill();
+    };
   }, [fullscreen, fullscreenClosing]);
 
-  // GSAP smooth bottom "Edit your diagrams" textarea drawer
+  // Subtle GSAP pulse on fullscreen diagram while AI updates it
   useLayoutEffect(() => {
-    if (!fullscreen) {
-      editorMountedRef.current = false;
-      return;
-    }
-    if (fullscreenClosing) return;
-    const drawerEl = editorDrawerRef.current;
-    if (!drawerEl) return;
-
-    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    gsap.killTweensOf(drawerEl);
-
-    if (!editorMountedRef.current || reduce) {
-      editorMountedRef.current = true;
-      gsap.set(drawerEl, {
-        height: isEditing ? 'auto' : 0,
-        opacity: isEditing ? 1 : 0,
-        y: 0,
-      });
-      return;
-    }
-
-    if (isEditing) {
-      gsap.fromTo(
-        drawerEl,
-        { height: 0, opacity: 0, y: 14 },
-        {
-          height: 'auto',
-          opacity: 1,
-          y: 0,
-          duration: 0.42,
-          ease: 'expo.out',
-          clearProps: 'transform',
-          force3D: true,
-        }
-      );
+    if (!fullscreen || !fullscreenImgRef.current) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const el = fullscreenImgRef.current;
+    gsap.killTweensOf(el);
+    if (isUpdating) {
+      gsap.to(el, { opacity: 0.45, duration: 0.4, ease: 'sine.inOut', repeat: -1, yoyo: true });
     } else {
-      gsap.to(drawerEl, {
-        height: 0,
-        opacity: 0,
-        y: 10,
-        duration: 0.28,
-        ease: 'power3.inOut',
-        force3D: true,
-      });
+      gsap.to(el, { opacity: 1, duration: 0.3, ease: 'power2.out' });
     }
-  }, [fullscreen, fullscreenClosing, isEditing]);
+  }, [fullscreen, isUpdating]);
 
   // Keyboard shortcuts in fullscreen
   useEffect(() => {
@@ -183,13 +233,14 @@ export default function MermaidDiagramBlock({
   const openFullscreen = () => {
     setZoom(1);
     setOffset({ x: 0, y: 0 });
-    setIsEditing(false);
+    setEditError(null);
     setFullscreenClosing(false);
     setFullscreen(true);
   };
 
   const closeFullscreen = () => {
     if (fullscreenClosing) return;
+    abortRef.current?.abort();
     setFullscreenClosing(true);
     const shellEl = fullscreenShellRef.current;
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -213,15 +264,14 @@ export default function MermaidDiagramBlock({
   };
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(fullscreen ? draftCode : code);
+    await navigator.clipboard.writeText(activeCode);
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1800);
   };
 
   const handleDownload = () => {
-    const targetUrl = fullscreen ? fullscreenUrl : inlineUrl;
-    if (!targetUrl) return;
-    void downloadImageAsPng(targetUrl, 'diagram');
+    if (!diagramUrl) return;
+    void downloadImageAsPng(diagramUrl, 'diagram');
   };
 
   const resetView = () => {
@@ -260,6 +310,38 @@ export default function MermaidDiagramBlock({
 
   const handlePointerUp = () => {
     dragRef.current.active = false;
+  };
+
+  const handleSubmitAiEdit = async () => {
+    const instruction = prompt.trim();
+    if (!instruction || isUpdating) return;
+
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    setIsUpdating(true);
+    setEditError(null);
+    setPrompt('');
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+    }
+
+    try {
+      const updatedMermaid = await requestAiDiagramEdit(activeCode, instruction, controller.signal);
+      if (updatedMermaid) {
+        setHasError(false);
+        setActiveCode(updatedMermaid);
+      } else {
+        setEditError('Could not update diagram.');
+      }
+    } catch (err) {
+      if (!(err instanceof Error && err.name === 'AbortError')) {
+        setEditError('Failed to update diagram. Try again.');
+      }
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   return (
@@ -305,9 +387,9 @@ export default function MermaidDiagramBlock({
         <div className="flex h-44 items-center justify-center bg-white">
           <span className="text-xs font-medium text-slate-400">Drawing diagram...</span>
         </div>
-      ) : hasError || !inlineUrl ? (
+      ) : hasError || !diagramUrl ? (
         <pre className="modern-scrollbar m-0 max-h-[380px] overflow-auto bg-white p-4 font-mono text-[13px] leading-6 text-slate-800">
-          <code>{code}</code>
+          <code>{activeCode}</code>
         </pre>
       ) : (
         <div className="relative flex min-h-[160px] items-center justify-center p-5">
@@ -319,7 +401,7 @@ export default function MermaidDiagramBlock({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             ref={imgRef}
-            src={inlineUrl}
+            src={diagramUrl}
             alt="Diagram"
             onLoad={() => {
               setHasError(false);
@@ -337,7 +419,7 @@ export default function MermaidDiagramBlock({
         </div>
       )}
 
-      {/* Fullscreen Interactive Diagram Editor Modal (Responsive Mobile & Desktop) */}
+      {/* Pure Minimalist Fullscreen Modal with AI Prompt Bar */}
       {(fullscreen || fullscreenClosing) &&
         typeof document !== 'undefined' &&
         createPortal(
@@ -345,36 +427,20 @@ export default function MermaidDiagramBlock({
             ref={fullscreenShellRef}
             className="fixed inset-0 z-[999999] flex h-[100dvh] w-screen flex-col overflow-hidden bg-white dark:bg-[#0b0d11]"
           >
-            {/* Top Toolbar */}
-            <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-3 py-2 sm:px-4 dark:border-slate-800">
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={closeFullscreen}
-                  title="Close"
-                  aria-label="Close"
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-700 transition-colors hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setIsEditing(prev => !prev)}
-                  className={`inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold ring-1 transition-colors sm:text-sm ${
-                    isEditing
-                      ? 'bg-slate-900 text-white ring-slate-900 dark:bg-slate-100 dark:text-slate-900 dark:ring-slate-100'
-                      : 'bg-slate-100 text-slate-800 ring-slate-200 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:ring-slate-700 dark:hover:bg-slate-700'
-                  }`}
-                >
-                  <PenLine className="h-3.5 w-3.5" />
-                  <span>Edit your diagrams</span>
-                </button>
-              </div>
+            {/* Pure Borderless Top Navbar */}
+            <div className="flex shrink-0 items-center justify-between gap-2 px-3 py-2.5 sm:px-4">
+              <button
+                type="button"
+                onClick={closeFullscreen}
+                title="Close"
+                aria-label="Close"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-700 transition-colors hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
+              >
+                <X className="h-4 w-4" />
+              </button>
 
               <div className="flex items-center gap-1 sm:gap-1.5">
-                {/* Zoom In / Out Controls */}
-                <div className="inline-flex h-9 items-center rounded-lg bg-slate-100 p-0.5 ring-1 ring-slate-200/80 dark:bg-slate-800 dark:ring-slate-700">
+                <div className="inline-flex h-9 items-center rounded-lg bg-slate-100/80 p-0.5 dark:bg-slate-800/80">
                   <button
                     type="button"
                     onClick={() =>
@@ -442,12 +508,13 @@ export default function MermaidDiagramBlock({
               onPointerCancel={handlePointerUp}
               onDoubleClick={() => (zoom > 1.05 ? resetView() : setZoom(2))}
               style={{ touchAction: zoom > 1 ? 'none' : 'pan-y' }}
-              className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-white p-3 sm:p-6"
+              className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-white px-3 py-2 sm:px-6"
             >
-              {fullscreenUrl ? (
+              {diagramUrl && (
                 /* eslint-disable-next-line @next/next/no-img-element */
                 <img
-                  src={fullscreenUrl}
+                  ref={fullscreenImgRef}
+                  src={diagramUrl}
                   alt="Diagram fullscreen"
                   draggable={false}
                   style={{
@@ -456,39 +523,53 @@ export default function MermaidDiagramBlock({
                   }}
                   className="h-full w-full select-none object-contain transition-transform duration-150 ease-out"
                 />
-              ) : (
-                <span className="text-xs font-medium text-slate-400">
-                  Enter Mermaid syntax below to preview
-                </span>
               )}
             </div>
 
-            {/* Smooth GSAP Bottom "Edit your diagrams" Textarea Drawer */}
+            {/* Pure Minimalist Bottom AI Prompt Bar (No divider lines) */}
             <div
-              ref={editorDrawerRef}
-              className="shrink-0 overflow-hidden border-t border-slate-200 bg-slate-50/90 dark:border-slate-800 dark:bg-[#0d1117]"
+              ref={promptDockRef}
+              className="shrink-0 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 sm:px-6 sm:pb-5"
             >
-              <div className="mx-auto flex w-full max-w-4xl flex-col gap-1.5 p-3 sm:p-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                    Edit your diagrams
-                  </span>
+              <div className="mx-auto w-full max-w-2xl">
+                {editError && (
+                  <p className="mb-1.5 text-center text-xs text-red-500">{editError}</p>
+                )}
+                <div className="flex items-end gap-2 rounded-2xl bg-slate-100/90 px-3.5 py-2 shadow-xs ring-1 ring-slate-200/70 dark:bg-slate-900/90 dark:ring-slate-800">
+                  <textarea
+                    ref={textareaRef}
+                    rows={1}
+                    value={prompt}
+                    disabled={isUpdating}
+                    onChange={e => {
+                      setPrompt(e.target.value);
+                      e.target.style.height = 'auto';
+                      e.target.style.height = `${Math.min(e.target.scrollHeight, 108)}px`;
+                    }}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        void handleSubmitAiEdit();
+                      }
+                    }}
+                    placeholder={isUpdating ? 'Updating diagram...' : 'Edit your diagrams...'}
+                    style={{ outline: 'none' }}
+                    className="max-h-[108px] min-h-[24px] flex-1 resize-none bg-transparent py-1 text-[14px] leading-5 text-slate-900 placeholder:text-slate-400 outline-none disabled:opacity-60 dark:text-slate-100 dark:placeholder:text-slate-500"
+                  />
                   <button
                     type="button"
-                    onClick={() => setIsEditing(false)}
-                    className="text-xs font-medium text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
+                    disabled={isUpdating || !prompt.trim()}
+                    onClick={() => void handleSubmitAiEdit()}
+                    aria-label="Send diagram edit"
+                    className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-white transition-opacity hover:opacity-90 disabled:opacity-35 dark:bg-slate-100 dark:text-slate-900"
                   >
-                    Done
+                    {isUpdating ? (
+                      <KineticDot mode="thinking" size="sm" />
+                    ) : (
+                      <ArrowUp className="h-4 w-4" />
+                    )}
                   </button>
                 </div>
-                <textarea
-                  value={draftCode}
-                  onChange={e => setDraftCode(e.target.value)}
-                  spellCheck={false}
-                  placeholder="flowchart TD..."
-                  style={{ outline: 'none' }}
-                  className="modern-scrollbar h-[28dvh] min-h-[130px] max-h-[240px] w-full resize-none rounded-xl border border-slate-200 bg-white p-3 font-mono text-[13px] leading-5 text-slate-900 outline-none focus:border-slate-400 dark:border-slate-700 dark:bg-[#11161f] dark:text-slate-100 dark:focus:border-slate-500"
-                />
               </div>
             </div>
           </div>,
