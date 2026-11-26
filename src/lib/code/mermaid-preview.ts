@@ -1,10 +1,12 @@
 export function buildMermaidDocument(
   code: string,
   previewScrollbarStyle: string,
-  consoleBridge: string
+  consoleBridge: string,
+  previewId = ''
 ): string {
   const bridge = `${previewScrollbarStyle}${consoleBridge}`;
   const serializedCode = JSON.stringify(code).replace(/</g, '\\u003c');
+  const serializedId = JSON.stringify(previewId);
   return `<!doctype html>
 <html>
 <head>
@@ -19,11 +21,11 @@ ${bridge}
     color: #0f172a;
   }
   #stage {
-    min-height: 100vh;
+    min-height: 220px;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 24px;
+    padding: 20px;
     box-sizing: border-box;
     overflow: auto;
   }
@@ -61,7 +63,12 @@ ${bridge}
 <script type="module">
   import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
   const source = ${serializedCode};
+  const previewId = ${serializedId};
   const target = document.getElementById('diagram');
+  const notifyHeight = () => {
+    const h = Math.max(220, Math.min(680, document.documentElement.scrollHeight || 280));
+    parent.postMessage({ source: 'deepchat-mermaid-resize', previewId, height: h }, '*');
+  };
   try {
     mermaid.initialize({
       startOnLoad: false,
@@ -80,10 +87,12 @@ ${bridge}
     const { svg } = await mermaid.render('dc-mermaid-' + Date.now(), source);
     target.className = '';
     target.innerHTML = svg;
+    requestAnimationFrame(notifyHeight);
   } catch (err) {
     target.className = 'error-box';
     target.textContent = err && err.message ? err.message : String(err);
     console.error(target.textContent);
+    requestAnimationFrame(notifyHeight);
   }
 <\/script>
 </body>

@@ -12,6 +12,8 @@ import { createHighlighter, createJavaScriptRegexEngine, type Highlighter } from
 import 'katex/dist/katex.min.css';
 import { ClientOnly } from '@/lib/utils';
 import CodePreview from '@/components/ui/CodePreview';
+import MermaidDiagramBlock from '@/components/ui/MermaidDiagramBlock';
+import { extractWebPreviewSource } from '@/lib/code/code-web-preview';
 import { CitationPill } from '@/components/chat/search/CitationPill';
 import {
   getSourceByUrl,
@@ -502,6 +504,9 @@ function CodeBlock({ language, value, highlighter, isStreaming }: { language: st
       if (parsed && typeof parsed === 'object') displayLanguage = 'json';
     } catch {
     }
+  }
+  if (extractWebPreviewSource(value, displayLanguage).kind === 'mermaid') {
+    return <MermaidDiagramBlock code={value} isStreaming={isStreaming} />;
   }
   return <CodePreview language={displayLanguage} value={value} highlighter={highlighter} isStreaming={isStreaming} />;
 }

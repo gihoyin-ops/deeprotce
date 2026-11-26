@@ -62,7 +62,9 @@ export async function getInjectedSystemPrompt(baseSystemPrompt: string = '', cur
   const persona = await getPersona();
   let finalPrompt = baseSystemPrompt;
   
-  const parts: string[] = [];
+  const parts: string[] = [
+    '- Native Diagram Rendering: When the user asks for a flowchart, sequence diagram, architecture diagram, ER diagram, state diagram, Gantt chart, mindmap, or timeline, ALWAYS output a standard ```mermaid fenced code block (never ASCII box-art) so DeepChat renders it as an interactive visual diagram.'
+  ];
 
   if (persona.styleTone && persona.styleTone !== 'default') {
     parts.push(`- Style and Tone: ${persona.styleTone}`);
