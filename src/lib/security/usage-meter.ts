@@ -104,16 +104,22 @@ export class SseUsageMeter {
 export const meterSseBody = (
   body: ReadableStream<Uint8Array> | null,
   identityKey: string,
-  promptTokens: number
+  promptTokens: number,
+  onSettled?: (totalTokens: number) => void
 ): ReadableStream<Uint8Array> | null => {
   if (!body) return null;
-  if (!USAGE_LEDGER_ENABLED) return body;
+  if (!USAGE_LEDGER_ENABLED) {
+    onSettled?.(promptTokens);
+    return body;
+  }
   const meter = new SseUsageMeter();
   let settled = false;
   const settle = () => {
     if (settled) return;
     settled = true;
-    recordTokens(identityKey, meter.tokens(promptTokens));
+    const totalTokens = meter.tokens(promptTokens);
+    recordTokens(identityKey, totalTokens);
+    onSettled?.(totalTokens);
   };
   // settle on every terminal path, cancel would otherwise bill zero
   return new ReadableStream<Uint8Array>({

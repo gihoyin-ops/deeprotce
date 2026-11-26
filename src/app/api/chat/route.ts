@@ -1000,6 +1000,7 @@ export async function POST(req: Request) {
             }
 
             const loopMessages: OpenAICompatibleMessage[] = await buildOpenAICompatibleMessages(dynamicMessages, providerName, mistralTarget);
+            let modelUsageRecorded = false;
 
             for (let round = 0; round < MAX_TOOL_ROUNDS; round += 1) {
               const roundPromptTokens = estimateChatPromptTokens(loopMessages as Array<{ role?: string; content?: unknown }>);
@@ -1053,7 +1054,11 @@ export async function POST(req: Request) {
                   return;
                 }
                 const fbStream = isAiLogEnabled() ? streamWithAiLog(fbRes.body, aiLogPayload) : fbRes.body;
-                const fbMetered = meterSseBody(fbStream, identityKey, fbTokens);
+                const fbMetered = meterSseBody(fbStream, identityKey, fbTokens, (totalTokens) => {
+                  if (verifiedAccount) {
+                    void recordAccountModelUsage(verifiedAccount.sub, modelToUse, totalTokens);
+                  }
+                });
                 if (fbMetered) {
                   const fbReader = fbMetered.getReader();
                   while (true) {
@@ -1076,7 +1081,12 @@ export async function POST(req: Request) {
               }
 
               const streamBody = isAiLogEnabled() ? streamWithAiLog(res.body, aiLogPayload) : res.body;
-              const meteredBody = meterSseBody(streamBody, identityKey, roundPromptTokens);
+              const meteredBody = meterSseBody(streamBody, identityKey, roundPromptTokens, (totalTokens) => {
+                if (!modelUsageRecorded && verifiedAccount) {
+                  modelUsageRecorded = true;
+                  void recordAccountModelUsage(verifiedAccount.sub, modelToUse, totalTokens);
+                }
+              });
               if (!meteredBody) {
                 controller.enqueue(DONE_BYTES);
                 controller.close();
@@ -1447,10 +1457,11 @@ export async function POST(req: Request) {
     }
 
     const streamBody = isAiLogEnabled() ? streamWithAiLog(res.body, aiLogPayload) : res.body;
-    const meteredBody = meterSseBody(streamBody, identityKey, promptTokens);
-    if (verifiedAccount) {
-      void recordAccountModelUsage(verifiedAccount.sub, selectedModel || conn.model, promptTokens);
-    }
+    const meteredBody = meterSseBody(streamBody, identityKey, promptTokens, (totalTokens) => {
+      if (verifiedAccount) {
+        void recordAccountModelUsage(verifiedAccount.sub, selectedModel || conn.model, totalTokens);
+      }
+    });
     return new Response(prependSseEvents(meteredBody, integrationEvents), {
       headers: streamHeaders(p)
     });
