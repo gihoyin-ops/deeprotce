@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from
 import Link from 'next/link';
 import NextImage from 'next/image';
 import { useQuery } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
 import { gsap } from 'gsap';
 import {
   AlertCircle,
