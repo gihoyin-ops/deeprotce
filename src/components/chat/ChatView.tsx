@@ -635,8 +635,11 @@ export default function ChatView({ chatId }: { chatId: string }) {
       if (detail?.title) {
         setChatTitle(detail.title);
       }
+      if (getChatGenerationState(chatId)?.isStreaming) {
+        return;
+      }
       const chat = await getChat(chatId) as ChatPayload | null;
-      if (!mounted) return;
+      if (!mounted || getChatGenerationState(chatId)?.isStreaming) return;
       if (chat?.title) setChatTitle(chat.title);
       if (!chat?.messages) return;
       setMessages(mergeActiveGeneration(chatId, chat.messages.map(normalizeMessageForDisplay)));
@@ -689,21 +692,19 @@ export default function ChatView({ chatId }: { chatId: string }) {
       chatIndex: messagesRef.current.length + 1
     };
 
+    const apiMessages = [...messagesRef.current, userMessage];
+
     setMessages(prev => [...prev, userMessage, assistantMessage]);
     setInput('');
     filesToUse.forEach(revokeAttachedPreview);
     setAttachedFiles([]);
     localStorage.removeItem(`deepchat-draft-${chatId}`);
 
-    await saveMessage(chatId, userMessage);
-    await saveMessage(chatId, assistantMessage);
-    window.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chatId } }));
-
-    const currentMessages = await getChat(chatId).then(c => (c as ChatPayload | null)?.messages || []);
-    const apiMessages = [...currentMessages.filter((m) => m.id !== assistantMsgId)];
-
     const snapshot = startChatGeneration(chatId, apiMessages, assistantMsgId, overrideImageEdit);
     applyGenerationSnapshot(snapshot);
+
+    await saveMessage(chatId, userMessage);
+    await saveMessage(chatId, assistantMessage);
   }, [applyGenerationSnapshot, attachedFiles, chatId, imageAspectRatio, imageGenerationEnabled, isLoading, webSearchEnabled]);
 
   useEffect(() => {
