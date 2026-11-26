@@ -1,6 +1,7 @@
 import ts from 'typescript';
 import { browserScriptLanguages, normalizeCodeLanguage } from '@/lib/code/code-runner-detection';
 import { buildCssPreviewMarkup, extractWebPreviewSource } from '@/lib/code/code-web-preview';
+import { buildMermaidDocument } from '@/lib/code/mermaid-preview';
 import { escapeScriptClose } from '@/lib/utils';
 
 const previewScrollbarStyle = `
@@ -408,6 +409,9 @@ export const buildPreviewDocument = (code: string, language: string, previewId: 
   const bridge = `${previewScrollbarStyle}${getConsoleBridge(previewId)}`;
   const normalizedLanguage = normalizeCodeLanguage(language);
   const extracted = extractWebPreviewSource(code, normalizedLanguage);
+  if (extracted.kind === 'mermaid') {
+    return buildMermaidDocument(extracted.code, previewScrollbarStyle, getConsoleBridge(previewId));
+  }
   if (extracted.kind === 'svg') {
     return `<!doctype html><html><head><meta charset="utf-8">${bridge}<style>html,body{margin:0;min-height:100%;display:grid;place-items:center;background:#ffffff}svg{max-width:100%;height:auto}</style></head><body>${escapeScriptClose(extracted.code)}</body></html>`;
   }

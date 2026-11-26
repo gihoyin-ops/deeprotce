@@ -1,13 +1,15 @@
 import { browserScriptLanguages, normalizeCodeLanguage } from '@/lib/code/code-runner-detection';
 
 export type WebPreviewSource = {
-  kind: 'html' | 'svg' | 'css' | 'none';
+  kind: 'html' | 'svg' | 'css' | 'mermaid' | 'none';
   code: string;
 };
 
 const htmlLanguages = new Set(['html', 'htm']);
 const svgLanguages = new Set(['svg']);
 const cssLanguages = new Set(['css', 'scss', 'sass', 'less']);
+const mermaidLanguages = new Set(['mermaid', 'mmd']);
+const mermaidStartPattern = /^(?:%%\{[\s\S]*?\}%%\s*)?(?:flowchart|graph|sequenceDiagram|classDiagram|stateDiagram(?:-v2)?|erDiagram|journey|gantt|pie|quadrantChart|requirementDiagram|gitGraph|mindmap|timeline|zenuml|sankey-beta|xychart-beta|block-beta|packet-beta|kanban|architecture-beta)\b/i;
 const templateLanguages = new Set([
   'vue',
   'svelte',
@@ -158,6 +160,12 @@ export const buildCssPreviewMarkup = (code: string) => `<style>${escapeStyleText
 
 export const extractWebPreviewSource = (code: string, language: string): WebPreviewSource => {
   const normalizedLanguage = normalizeCodeLanguage(language);
+  if (mermaidLanguages.has(normalizedLanguage)) {
+    return { kind: 'mermaid', code };
+  }
+  if ((normalizedLanguage === 'text' || normalizedLanguage === 'txt' || !normalizedLanguage) && mermaidStartPattern.test(code.trim())) {
+    return { kind: 'mermaid', code };
+  }
   if (svgLanguages.has(normalizedLanguage)) {
     return { kind: 'svg', code };
   }
@@ -199,7 +207,12 @@ export const extractWebPreviewSource = (code: string, language: string): WebPrev
 
 export const isWebPreviewCode = (language: string, code: string) => {
   const normalizedLanguage = normalizeCodeLanguage(language);
-  if (htmlLanguages.has(normalizedLanguage) || svgLanguages.has(normalizedLanguage) || cssLanguages.has(normalizedLanguage)) return true;
+  if (
+    htmlLanguages.has(normalizedLanguage) ||
+    svgLanguages.has(normalizedLanguage) ||
+    cssLanguages.has(normalizedLanguage) ||
+    mermaidLanguages.has(normalizedLanguage)
+  ) return true;
   if (extractWebPreviewSource(code, normalizedLanguage).kind !== 'none') return true;
   if (browserScriptLanguages.has(normalizedLanguage)) {
     return /\b(document|window|localStorage|sessionStorage|customElements)\b|querySelector|getElementById|addEventListener|createElement|innerHTML|appendChild|ReactDOM|createRoot|<\w+[\s>]/.test(code);
