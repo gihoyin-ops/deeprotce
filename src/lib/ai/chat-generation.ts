@@ -903,9 +903,27 @@ const consumeStream = async (task: ChatGenerationTask, res: Response) => {
   }
 };
 
+const maybeGenerateChatTitleEarly = async (
+  chatId: string,
+  prompt: string,
+  connection: SelectedModelConnection | null
+) => {
+  if (!prompt.trim()) return;
+  try {
+    const currentChat = await getChat(chatId);
+    if (isGenericChatTitle(currentChat?.title)) {
+      await generateChatTitle(chatId, prompt, connection);
+    }
+  } catch {
+  }
+};
+
 const runTask = async (task: ChatGenerationTask) => {
   try {
     const latestUserMessage = getLatestUserMessage(task.apiMessages);
+    if (latestUserMessage?.content) {
+      void maybeGenerateChatTitleEarly(task.chatId, latestUserMessage.content, task.connection);
+    }
     const isImageTask = task.generationMode === 'image' || Boolean(task.imageEdit);
     const manualSearch = !isImageTask && latestUserMessage?.webSearchEnabled === true;
     const formattedMessages = formatMessages(task.apiMessages);
