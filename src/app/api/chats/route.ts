@@ -3,6 +3,7 @@ import { requireDbPool } from '@/backend/auth/turso-auth';
 import {
   createAccountChat,
   deleteAllAccountChats,
+  listAccountChatSummaries,
   listAccountChats,
   listAccountSharedLinks,
 } from '@/backend/chats/service';
@@ -26,7 +27,10 @@ export async function GET(req: Request) {
     }
 
     const archived = searchParams.get('archived') === '1';
-    const chats = await listAccountChats(pool, verified.sub, archived);
+    const hydrate = searchParams.get('hydrate') === '1';
+    const chats = hydrate
+      ? await listAccountChats(pool, verified.sub, archived)
+      : await listAccountChatSummaries(pool, verified.sub, archived);
     return NextResponse.json({ ok: true, chats });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to load chats.';

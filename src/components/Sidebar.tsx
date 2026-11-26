@@ -75,7 +75,7 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
   const [deleteTarget, setDeleteTarget] = useState<ChatItem | null>(null);
   const [deleteFilesToo, setDeleteFilesToo] = useState(true);
   const queryClient = useQueryClient();
-  const { data: chats = [] } = useQuery({
+  const { data: chats = [], isPending: isChatsPending } = useQuery({
     queryKey: deepchatQueryKeys.chats,
     queryFn: async () => getChats() as Promise<ChatItem[]>
   });
@@ -699,8 +699,19 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
                   </button>
                 )}
                 
-                {unpinnedChats.length === 0 && (
-                  <div className="px-2 py-1.5 text-[13px] font-normal text-[var(--dc-text-faint)]">No recent chats</div>
+                {isChatsPending || (isAuthLoading && chats.length === 0) ? (
+                  <div className="space-y-1.5 px-2 py-1" aria-label="Loading recent chats">
+                    {['w-4/5', 'w-3/5', 'w-5/6', 'w-2/3'].map((wClass, idx) => (
+                      <div
+                        key={idx}
+                        className={`h-7 ${wClass} animate-pulse rounded-lg bg-[var(--dc-surface-hover)]/80`}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  unpinnedChats.length === 0 && (
+                    <div className="px-2 py-1.5 text-[13px] font-normal text-[var(--dc-text-faint)]">No recent chats</div>
+                  )
                 )}
               </div>
             )}

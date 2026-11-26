@@ -91,7 +91,7 @@ const MobileSidebarDrawer = forwardRef<MobileDrawerHandle, MobileSidebarDrawerPr
     const queryClient = useQueryClient();
     const { isGuest, isAuthLoading } = useGuestStatus();
 
-    const { data: chats = [] } = useQuery({
+    const { data: chats = [], isPending: isChatsPending } = useQuery({
       queryKey: deepchatQueryKeys.chats,
       queryFn: async () => getChats() as Promise<ChatItem[]>,
     });
@@ -712,10 +712,21 @@ const MobileSidebarDrawer = forwardRef<MobileDrawerHandle, MobileSidebarDrawerPr
                     />
                   ))}
 
-                  {filteredRecent.length === 0 && (
-                    <p className="px-2 py-3 text-[13px] font-medium text-[var(--dc-text-faint)]">
-                      {normalizedQuery ? 'No matching chats' : 'No recent chats'}
-                    </p>
+                  {isChatsPending || (isAuthLoading && chats.length === 0) ? (
+                    <div className="space-y-1.5 px-2 py-1" aria-label="Loading recent chats">
+                      {['w-4/5', 'w-3/5', 'w-5/6', 'w-2/3'].map((wClass, idx) => (
+                        <div
+                          key={idx}
+                          className={`h-8 ${wClass} animate-pulse rounded-xl bg-[var(--dc-surface-hover)]/80`}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    filteredRecent.length === 0 && (
+                      <p className="px-2 py-3 text-[13px] font-medium text-[var(--dc-text-faint)]">
+                        {normalizedQuery ? 'No matching chats' : 'No recent chats'}
+                      </p>
+                    )
                   )}
 
                   {hasMoreRecent && (

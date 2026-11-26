@@ -238,6 +238,33 @@ async function hydrateChats(pool: DbPool, rows: ChatRow[]): Promise<StoredChat[]
   }));
 }
 
+export async function listAccountChatSummaries(
+  pool: DbPool,
+  accountId: string,
+  archived = false
+): Promise<StoredChat[]> {
+  const rows = await pool.query<ChatRow>(
+    `SELECT id, account_id, title, folder, tags_json, pinned, archived, is_shared, share_id, created_at, updated_at
+     FROM chats
+     WHERE account_id = ? AND archived = ?
+     ORDER BY pinned DESC, updated_at DESC, created_at DESC`,
+    [accountId, archived ? 1 : 0]
+  );
+  return rows.map(row => ({
+    id: row.id,
+    title: row.title || 'New Chat',
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    folder: row.folder || undefined,
+    tags: parseJsonSafe<string[]>(row.tags_json, []),
+    pinned: Boolean(row.pinned),
+    archived: Boolean(row.archived),
+    isShared: Boolean(row.is_shared),
+    shareId: row.share_id || undefined,
+    messages: [],
+  }));
+}
+
 export async function listAccountChats(
   pool: DbPool,
   accountId: string,
