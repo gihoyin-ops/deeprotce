@@ -539,20 +539,20 @@ export default function CodePreview({ language, value, highlighter, isStreaming 
     mm.add('(prefers-reduced-motion: no-preference)', () => {
       const ctx = gsap.context(() => {
         const tl = gsap.timeline({ defaults: { force3D: true } });
-        tl.fromTo(shellEl, { opacity: 0 }, { opacity: 1, duration: 0.24, ease: 'power2.out' });
+        tl.fromTo(shellEl, { opacity: 0 }, { opacity: 1, duration: 0.34, ease: 'power2.out' });
         if (toolbarEl) {
           tl.fromTo(
             toolbarEl,
-            { opacity: 0, y: -8 },
-            { opacity: 1, y: 0, duration: 0.34, ease: 'expo.out', clearProps: 'transform' },
+            { opacity: 0, y: -10 },
+            { opacity: 1, y: 0, duration: 0.44, ease: 'power3.out', clearProps: 'transform' },
             0.04
           );
         }
         if (stageEl) {
           tl.fromTo(
             stageEl,
-            { opacity: 0, scale: 0.985 },
-            { opacity: 1, scale: 1, duration: 0.4, ease: 'expo.out', clearProps: 'transform' },
+            { opacity: 0, scale: 0.972, y: 10 },
+            { opacity: 1, scale: 1, y: 0, duration: 0.52, ease: 'expo.out', clearProps: 'transform' },
             0.06
           );
         }
@@ -564,7 +564,7 @@ export default function CodePreview({ language, value, highlighter, isStreaming 
 
   // GSAP precision split-pane choreography for "Show code" / "Hide code"
   useLayoutEffect(() => {
-    if (!fullscreen) return;
+    if (!fullscreen || fullscreenClosing) return;
     const paneEl = editorPaneRef.current;
     const innerEl = editorInnerRef.current;
     if (!paneEl || !innerEl) return;
@@ -591,26 +591,26 @@ export default function CodePreview({ language, value, highlighter, isStreaming 
         tl.to(paneEl, {
           width: targetWidth,
           opacity: 1,
-          duration: 0.48,
+          duration: 0.52,
           ease: 'expo.out',
         }).fromTo(
           innerEl,
-          { opacity: 0, x: -12 },
-          { opacity: 1, x: 0, duration: 0.36, ease: 'power3.out', clearProps: 'transform' },
+          { opacity: 0, x: -16 },
+          { opacity: 1, x: 0, duration: 0.4, ease: 'power3.out', clearProps: 'transform' },
           0.08
         );
       } else {
         tl.to(innerEl, {
           opacity: 0,
-          x: -10,
-          duration: 0.18,
-          ease: 'power2.in',
+          x: -12,
+          duration: 0.22,
+          ease: 'power2.inOut',
         }).to(
           paneEl,
           {
             width: '0%',
             opacity: 0,
-            duration: 0.38,
+            duration: 0.44,
             ease: 'power3.inOut',
           },
           0.04
@@ -621,11 +621,11 @@ export default function CodePreview({ language, value, highlighter, isStreaming 
     });
 
     return () => mm.revert();
-  }, [fullscreen, showFullscreenCode]);
+  }, [fullscreen, fullscreenClosing, showFullscreenCode]);
 
   // GSAP smooth console drawer reveal/collapse
   useLayoutEffect(() => {
-    if (!fullscreen) return;
+    if (!fullscreen || fullscreenClosing) return;
     const consoleEl = consolePaneRef.current;
     if (!consoleEl) return;
 
@@ -648,7 +648,7 @@ export default function CodePreview({ language, value, highlighter, isStreaming 
             height: 'auto',
             opacity: 1,
             y: 0,
-            duration: 0.36,
+            duration: 0.4,
             ease: 'expo.out',
             clearProps: 'transform',
             force3D: true,
@@ -659,15 +659,15 @@ export default function CodePreview({ language, value, highlighter, isStreaming 
           height: 0,
           opacity: 0,
           y: 8,
-          duration: 0.24,
-          ease: 'power2.inOut',
+          duration: 0.28,
+          ease: 'power3.inOut',
           force3D: true,
         });
       }
     });
 
     return () => mm.revert();
-  }, [fullscreen, consoleOpen]);
+  }, [fullscreen, fullscreenClosing, consoleOpen]);
 
   const openFullscreen = (withCode: boolean) => {
     if (fullscreenCloseTimerRef.current !== null) {
@@ -684,12 +684,14 @@ export default function CodePreview({ language, value, highlighter, isStreaming 
     setFullscreenClosing(true);
 
     const shellEl = fullscreenShellRef.current;
+    const toolbarEl = fullscreenToolbarRef.current;
     const stageEl = fullscreenStageRef.current;
     const reduce =
       typeof window !== 'undefined' &&
       window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     if (!reduce && shellEl) {
+      gsap.killTweensOf([shellEl, toolbarEl, stageEl].filter(Boolean));
       const tl = gsap.timeline({
         defaults: { force3D: true },
         onComplete: () => {
@@ -697,10 +699,13 @@ export default function CodePreview({ language, value, highlighter, isStreaming 
           setFullscreenClosing(false);
         },
       });
-      if (stageEl) {
-        tl.to(stageEl, { opacity: 0, scale: 0.985, duration: 0.2, ease: 'power2.in' }, 0);
+      if (toolbarEl) {
+        tl.to(toolbarEl, { opacity: 0, y: -8, duration: 0.26, ease: 'power3.inOut' }, 0);
       }
-      tl.to(shellEl, { opacity: 0, duration: 0.24, ease: 'power2.in' }, 0.02);
+      if (stageEl) {
+        tl.to(stageEl, { opacity: 0, scale: 0.976, y: 8, duration: 0.32, ease: 'power3.inOut' }, 0);
+      }
+      tl.to(shellEl, { opacity: 0, duration: 0.36, ease: 'power2.inOut' }, 0.04);
       return;
     }
 
@@ -771,7 +776,6 @@ export default function CodePreview({ language, value, highlighter, isStreaming 
           <div
             ref={editorPaneRef}
             data-open={showFullscreenCode ? 'true' : 'false'}
-            style={{ width: 0, opacity: 0 }}
             className={`deepchat-fullscreen-editor-pane min-h-0 shrink-0 overflow-hidden rounded-xl bg-white dark:bg-[#0d1117] ${showFullscreenCode ? 'border border-slate-200 dark:border-slate-800' : 'border-0'}`}
           >
             <div ref={editorInnerRef} className="h-full min-w-0 md:min-w-[320px] overflow-auto">
@@ -785,7 +789,6 @@ export default function CodePreview({ language, value, highlighter, isStreaming 
               </div>
               <div
                 ref={consolePaneRef}
-                style={{ height: 0, opacity: 0 }}
                 className={`deepchat-fullscreen-console shrink-0 overflow-hidden ${consoleOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
               >
                 <ConsolePanel entries={consoleEntries} onClear={clearConsole} onClose={() => setConsoleOpen(false)} />
@@ -802,7 +805,7 @@ export default function CodePreview({ language, value, highlighter, isStreaming 
       <div className="flex flex-wrap items-center justify-between gap-2.5 border-b border-slate-100 bg-slate-50/80 px-3.5 py-2.5 dark:border-slate-800/80 dark:bg-slate-900/70">
         <div className="flex min-w-0 items-center gap-2">
           <CodeBadgeIndicator isStreaming={isStreaming} />
-          <span className="truncate rounded-md bg-white px-2.5 py-1 font-mono text-[11px] font-semibold uppercase tracking-wider text-slate-700 ring-1 ring-slate-200/80 dark:bg-slate-800 dark:text-slate-200 dark:ring-slate-700/80">
+          <span className="inline-flex h-7 items-center truncate rounded-lg bg-white px-2.5 font-mono text-[11px] font-semibold uppercase leading-none tracking-wider text-slate-700 ring-1 ring-slate-200/80 dark:bg-slate-800 dark:text-slate-200 dark:ring-slate-700/80">
             {displayLanguage}
           </span>
         </div>
