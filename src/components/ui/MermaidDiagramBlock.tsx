@@ -143,7 +143,7 @@ export default function MermaidDiagramBlock({
           >
             <div
               onClick={e => e.stopPropagation()}
-              className="relative flex max-h-[92dvh] max-w-[94vw] items-center justify-center overflow-auto rounded-2xl bg-white p-6 shadow-2xl"
+              className="relative flex h-[88dvh] w-[92vw] items-center justify-center overflow-hidden rounded-2xl bg-white p-6 shadow-2xl"
             >
               <button
                 type="button"
@@ -157,7 +157,7 @@ export default function MermaidDiagramBlock({
               <img
                 src={diagramUrl}
                 alt="Diagram fullscreen"
-                className="max-h-[84dvh] max-w-full object-contain"
+                className="h-full w-full object-contain"
               />
             </div>
           </div>,
