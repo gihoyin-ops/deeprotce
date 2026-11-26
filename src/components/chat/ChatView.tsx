@@ -1558,7 +1558,7 @@ const MessageBubble = React.memo(function MessageBubble({ message, deferOffscree
     <div
       id={`msg-${message.id}`}
       onClick={onActivateMobileActions}
-      className={`group/message flex w-full items-start ${isUser ? 'justify-end message-user' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 ${deferOffscreen ? 'dc-mob-msg-deferred' : ''}`}
+      className={`group/message flex w-full items-start ${isUser ? 'justify-end message-user' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 ${deferOffscreen ? 'dc-msg-deferred dc-mob-msg-deferred' : ''}`}
     >
       <div className={`relative flex min-w-0 flex-col ${isUser ? (isEditingUserMessage ? 'w-full max-w-[94%] items-end sm:max-w-[min(85%,560px)]' : 'max-w-[78%] items-end sm:max-w-[52%]') : 'w-full max-w-[44rem] items-start sm:max-w-[48rem]'}`}>
         {hasReasoningBlock && (
@@ -1792,4 +1792,4 @@ const MessageBubble = React.memo(function MessageBubble({ message, deferOffscree
       />
     </div>
   );
-}, (prev, next) => prev.message === next.message && prev.deferOffscreen === next.deferOffscreen && prev.requestedAspectRatio === next.requestedAspectRatio && prev.onOpenGeneratedImagePreview === next.onOpenGeneratedImagePreview && prev.canEditUserMessage === next.canEditUserMessage && prev.onEditUserMessage === next.onEditUserMessage && prev.isMobileActionsOpen === next.isMobileActionsOpen && prev.feedbackRating === next.feedbackRating && prev.isSearchSidebarOpen === next.isSearchSidebarOpen && prev.onOpenSearchResults === next.onOpenSearchResults);
+}, (prev, next) => prev.message === next.message && prev.deferOffscreen === next.deferOffscreen && prev.requestedAspectRatio === next.requestedAspectRatio && prev.onOpenGeneratedImagePreview === next.onOpenGeneratedImagePreview && prev.canEditUserMessage === next.canEditUserMessage && prev.isMobileActionsOpen === next.isMobileActionsOpen && prev.feedbackRating === next.feedbackRating && prev.isSearchSidebarOpen === next.isSearchSidebarOpen && prev.onOpenSearchResults === next.onOpenSearchResults);

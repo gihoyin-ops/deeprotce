@@ -659,6 +659,11 @@ html.dark .deepchat-model-selector-light .text-black {
   color: var(--dc-text) !important;
 }
 
+.dc-msg-deferred {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 140px;
+}
+
 @media (max-width: 639px) {
   html.dark .deepchat-mobile-settings-light .bg-white {
     background-color: var(--dc-surface) !important;
@@ -2277,6 +2282,11 @@ html[data-appearance="dark"] .dc-mob-drawer {
 .dc-mob-scrim {
   overflow: hidden;
   overscroll-behavior: contain;
+}
+
+.dc-msg-deferred {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 140px;
 }
 
 @media (max-width: 639px) {

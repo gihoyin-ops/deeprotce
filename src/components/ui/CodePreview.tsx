@@ -370,6 +370,14 @@ export default function CodePreview({ language, value, highlighter, isStreaming 
   const [runId, setRunId] = useState(0);
   const [isDarkTheme, setIsDarkTheme] = useState(isDocumentDark);
   const fullscreenCloseTimerRef = useRef<number | null>(null);
+  const fullscreenShellRef = useRef<HTMLDivElement | null>(null);
+  const fullscreenToolbarRef = useRef<HTMLDivElement | null>(null);
+  const fullscreenStageRef = useRef<HTMLDivElement | null>(null);
+  const editorPaneRef = useRef<HTMLDivElement | null>(null);
+  const editorInnerRef = useRef<HTMLDivElement | null>(null);
+  const consolePaneRef = useRef<HTMLDivElement | null>(null);
+  const inlineBodyRef = useRef<HTMLDivElement | null>(null);
+  const prevInlineModeRef = useRef<'preview' | 'code'>('code');
   const [consoleEntries, setConsoleEntries] = useState<ConsoleEntry[]>([
     { id: 1, type: 'system', text: 'Run started' }
   ]);
@@ -501,6 +509,166 @@ export default function CodePreview({ language, value, highlighter, isStreaming 
     URL.revokeObjectURL(url);
   };
 
+  // GSAP inline mode switch (code <-> preview)
+  useLayoutEffect(() => {
+    if (prevInlineModeRef.current === mode) return;
+    prevInlineModeRef.current = mode;
+    const bodyEl = inlineBodyRef.current;
+    if (!bodyEl) return;
+
+    const mm = gsap.matchMedia();
+    mm.add('(prefers-reduced-motion: no-preference)', () => {
+      gsap.fromTo(
+        bodyEl,
+        { opacity: 0, y: 6 },
+        { opacity: 1, y: 0, duration: 0.3, ease: 'expo.out', clearProps: 'transform,opacity', force3D: true }
+      );
+    });
+    return () => mm.revert();
+  }, [mode]);
+
+  // GSAP fullscreen portal entrance
+  useLayoutEffect(() => {
+    if (!fullscreen || fullscreenClosing) return;
+    const shellEl = fullscreenShellRef.current;
+    const toolbarEl = fullscreenToolbarRef.current;
+    const stageEl = fullscreenStageRef.current;
+    if (!shellEl) return;
+
+    const mm = gsap.matchMedia();
+    mm.add('(prefers-reduced-motion: no-preference)', () => {
+      const ctx = gsap.context(() => {
+        const tl = gsap.timeline({ defaults: { force3D: true } });
+        tl.fromTo(shellEl, { opacity: 0 }, { opacity: 1, duration: 0.24, ease: 'power2.out' });
+        if (toolbarEl) {
+          tl.fromTo(
+            toolbarEl,
+            { opacity: 0, y: -8 },
+            { opacity: 1, y: 0, duration: 0.34, ease: 'expo.out', clearProps: 'transform' },
+            0.04
+          );
+        }
+        if (stageEl) {
+          tl.fromTo(
+            stageEl,
+            { opacity: 0, scale: 0.985 },
+            { opacity: 1, scale: 1, duration: 0.4, ease: 'expo.out', clearProps: 'transform' },
+            0.06
+          );
+        }
+      }, shellEl);
+      return () => ctx.revert();
+    });
+    return () => mm.revert();
+  }, [fullscreen, fullscreenClosing]);
+
+  // GSAP precision split-pane choreography for "Show code" / "Hide code"
+  useLayoutEffect(() => {
+    if (!fullscreen) return;
+    const paneEl = editorPaneRef.current;
+    const innerEl = editorInnerRef.current;
+    if (!paneEl || !innerEl) return;
+
+    const mm = gsap.matchMedia();
+
+    mm.add('(prefers-reduced-motion: reduce)', () => {
+      const isDesktop = window.matchMedia('(min-width: 768px)').matches;
+      gsap.set(paneEl, {
+        width: showFullscreenCode ? (isDesktop ? '38%' : '100%') : '0%',
+        opacity: showFullscreenCode ? 1 : 0,
+      });
+      gsap.set(innerEl, { opacity: showFullscreenCode ? 1 : 0, x: 0 });
+    });
+
+    mm.add('(prefers-reduced-motion: no-preference)', () => {
+      const isDesktop = window.matchMedia('(min-width: 768px)').matches;
+      const targetWidth = showFullscreenCode ? (isDesktop ? '38%' : '100%') : '0%';
+
+      gsap.killTweensOf([paneEl, innerEl]);
+      const tl = gsap.timeline({ defaults: { force3D: true } });
+
+      if (showFullscreenCode) {
+        tl.to(paneEl, {
+          width: targetWidth,
+          opacity: 1,
+          duration: 0.48,
+          ease: 'expo.out',
+        }).fromTo(
+          innerEl,
+          { opacity: 0, x: -12 },
+          { opacity: 1, x: 0, duration: 0.36, ease: 'power3.out', clearProps: 'transform' },
+          0.08
+        );
+      } else {
+        tl.to(innerEl, {
+          opacity: 0,
+          x: -10,
+          duration: 0.18,
+          ease: 'power2.in',
+        }).to(
+          paneEl,
+          {
+            width: '0%',
+            opacity: 0,
+            duration: 0.38,
+            ease: 'power3.inOut',
+          },
+          0.04
+        );
+      }
+
+      return () => tl.kill();
+    });
+
+    return () => mm.revert();
+  }, [fullscreen, showFullscreenCode]);
+
+  // GSAP smooth console drawer reveal/collapse
+  useLayoutEffect(() => {
+    if (!fullscreen) return;
+    const consoleEl = consolePaneRef.current;
+    if (!consoleEl) return;
+
+    const mm = gsap.matchMedia();
+
+    mm.add('(prefers-reduced-motion: reduce)', () => {
+      gsap.set(consoleEl, {
+        height: consoleOpen ? 'auto' : 0,
+        opacity: consoleOpen ? 1 : 0,
+      });
+    });
+
+    mm.add('(prefers-reduced-motion: no-preference)', () => {
+      gsap.killTweensOf(consoleEl);
+      if (consoleOpen) {
+        gsap.fromTo(
+          consoleEl,
+          { height: 0, opacity: 0, y: 10 },
+          {
+            height: 'auto',
+            opacity: 1,
+            y: 0,
+            duration: 0.36,
+            ease: 'expo.out',
+            clearProps: 'transform',
+            force3D: true,
+          }
+        );
+      } else {
+        gsap.to(consoleEl, {
+          height: 0,
+          opacity: 0,
+          y: 8,
+          duration: 0.24,
+          ease: 'power2.inOut',
+          force3D: true,
+        });
+      }
+    });
+
+    return () => mm.revert();
+  }, [fullscreen, consoleOpen]);
+
   const openFullscreen = (withCode: boolean) => {
     if (fullscreenCloseTimerRef.current !== null) {
       window.clearTimeout(fullscreenCloseTimerRef.current);
@@ -514,6 +682,28 @@ export default function CodePreview({ language, value, highlighter, isStreaming 
   const closeFullscreen = () => {
     if (fullscreenClosing) return;
     setFullscreenClosing(true);
+
+    const shellEl = fullscreenShellRef.current;
+    const stageEl = fullscreenStageRef.current;
+    const reduce =
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (!reduce && shellEl) {
+      const tl = gsap.timeline({
+        defaults: { force3D: true },
+        onComplete: () => {
+          setFullscreen(false);
+          setFullscreenClosing(false);
+        },
+      });
+      if (stageEl) {
+        tl.to(stageEl, { opacity: 0, scale: 0.985, duration: 0.2, ease: 'power2.in' }, 0);
+      }
+      tl.to(shellEl, { opacity: 0, duration: 0.24, ease: 'power2.in' }, 0.02);
+      return;
+    }
+
     fullscreenCloseTimerRef.current = window.setTimeout(() => {
       setFullscreen(false);
       setFullscreenClosing(false);
@@ -536,8 +726,12 @@ export default function CodePreview({ language, value, highlighter, isStreaming 
   const clearConsole = () => setConsoleEntries([]);
 
   const fullscreenContent = (fullscreen || fullscreenClosing) ? (
-    <div className="deepchat-fullscreen-shell fixed inset-0 z-[999999] bg-white dark:bg-[#0b0d11]" data-state={fullscreenClosing ? 'closing' : 'open'}>
-      <div className="deepchat-fullscreen-toolbar flex h-12 items-center justify-between px-4">
+    <div
+      ref={fullscreenShellRef}
+      className="deepchat-fullscreen-shell fixed inset-0 z-[999999] bg-white dark:bg-[#0b0d11]"
+      data-state={fullscreenClosing ? 'closing' : 'open'}
+    >
+      <div ref={fullscreenToolbarRef} className="deepchat-fullscreen-toolbar flex h-12 items-center justify-between px-4">
         <div className="flex items-center gap-3">
           <button
             type="button"
@@ -572,19 +766,28 @@ export default function CodePreview({ language, value, highlighter, isStreaming 
         </div>
       </div>
 
-      <div className={`deepchat-fullscreen-stage relative h-[calc(100vh-48px)] ${showFullscreenCode ? 'p-3 pt-0' : 'p-0'}`}>
-        <div className={`deepchat-fullscreen-workspace flex h-full overflow-hidden p-0 transition-[gap] duration-300 ${showFullscreenCode ? 'gap-3 rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 dark:bg-[#0d1117] dark:ring-slate-800' : 'gap-0 rounded-none bg-transparent shadow-none ring-0'}`}>
-          <div data-open={showFullscreenCode ? 'true' : 'false'} className={`deepchat-fullscreen-editor-pane min-h-0 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-white transition-[width,opacity,transform] duration-300 ease-out dark:border-slate-800 dark:bg-[#0d1117] ${showFullscreenCode ? 'w-[38%] translate-x-0 opacity-100' : 'w-0 -translate-x-6 border-transparent opacity-0'}`}>
-            <div className="h-full min-w-[320px] overflow-auto">
+      <div ref={fullscreenStageRef} className={`deepchat-fullscreen-stage relative h-[calc(100vh-48px)] ${showFullscreenCode ? 'p-3 pt-0' : 'p-0'}`}>
+        <div className={`deepchat-fullscreen-workspace flex h-full overflow-hidden p-0 transition-[gap,border-radius] duration-300 ${showFullscreenCode ? 'gap-0 md:gap-3 rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 dark:bg-[#0d1117] dark:ring-slate-800' : 'gap-0 rounded-none bg-transparent shadow-none ring-0'}`}>
+          <div
+            ref={editorPaneRef}
+            data-open={showFullscreenCode ? 'true' : 'false'}
+            style={{ width: 0, opacity: 0 }}
+            className={`deepchat-fullscreen-editor-pane min-h-0 shrink-0 overflow-hidden rounded-xl bg-white dark:bg-[#0d1117] ${showFullscreenCode ? 'border border-slate-200 dark:border-slate-800' : 'border-0'}`}
+          >
+            <div ref={editorInnerRef} className="h-full min-w-0 md:min-w-[320px] overflow-auto">
               <CodeSurface code={draftCode} html={highlightedCode} editing onChange={setDraftCode} fill />
             </div>
           </div>
-          <div className="deepchat-fullscreen-viewer-pane min-h-0 min-w-0 flex-1 overflow-hidden rounded-xl bg-white dark:bg-[#0d1117]">
+          <div className={`deepchat-fullscreen-viewer-pane min-h-0 min-w-0 flex-1 overflow-hidden rounded-xl bg-white dark:bg-[#0d1117] ${showFullscreenCode ? 'hidden md:block' : 'block'}`}>
             <div className="flex h-full min-h-0 flex-col gap-3">
               <div className="min-h-0 flex-1 overflow-hidden rounded-xl">
                 <PreviewFrame key={`fullscreen-${runId}`} srcDoc={srcDoc} compact />
               </div>
-              <div className={`deepchat-fullscreen-console shrink-0 overflow-hidden transition-[max-height,opacity,transform,margin] duration-300 ease-out ${consoleOpen ? 'max-h-56 translate-y-0 opacity-100' : 'max-h-0 translate-y-3 opacity-0 pointer-events-none'}`}>
+              <div
+                ref={consolePaneRef}
+                style={{ height: 0, opacity: 0 }}
+                className={`deepchat-fullscreen-console shrink-0 overflow-hidden ${consoleOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
+              >
                 <ConsolePanel entries={consoleEntries} onClear={clearConsole} onClose={() => setConsoleOpen(false)} />
               </div>
             </div>
@@ -619,7 +822,7 @@ export default function CodePreview({ language, value, highlighter, isStreaming 
         </div>
       </div>
 
-      <div className={mode === 'preview' && isPreviewable ? 'p-3' : ''}>
+      <div ref={inlineBodyRef} className={mode === 'preview' && isPreviewable ? 'p-3' : ''}>
         {mode === 'preview' && isPreviewable ? (
           <div className="relative">
             <PreviewFrame key={runId} srcDoc={srcDoc} />
