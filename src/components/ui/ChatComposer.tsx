@@ -15,7 +15,6 @@ import {
   FileSpreadsheet,
   FileText,
   Image as ImageIcon,
-  Mic,
   Plus,
   Square,
   Video,
@@ -28,6 +27,7 @@ import ModelSelector from './ModelSelector';
 import Tooltip from './Tooltip';
 import { ComposerToolsMenu, ImageToolBadge, SearchToolBadge } from './ComposerToolsMenu';
 import AttachmentPreviewModal from './AttachmentPreviewModal';
+import DictateAbstractOrb from './DictateAbstractOrb';
 import GlobalImagePreviewModal from './GlobalImagePreviewModal';
 import {
   getDictationLanguage,
@@ -688,7 +688,10 @@ export default function ChatComposer({
       return;
     }
     const Recognition = getSpeechRecognitionConstructor();
-    if (!Recognition) return;
+    if (!Recognition) {
+      toast.error('Voice dictation is not supported in this browser.');
+      return;
+    }
     const recognition = new Recognition();
     const settings = loadGeneralSettings();
     dictationBaseRef.current = value;
@@ -698,7 +701,7 @@ export default function ChatComposer({
     recognition.onresult = (event) => {
       let finalTranscript = '';
       let interimTranscript = '';
-      for (let index = event.resultIndex; index < event.results.length; index += 1) {
+      for (let index = 0; index < event.results.length; index += 1) {
         const result = event.results[index];
         const transcript = result?.[0]?.transcript || '';
         if (result?.isFinal) {
@@ -865,11 +868,11 @@ export default function ChatComposer({
             shortcut={shortcuts.dictation.join('+')}
             onClick={toggleDictation}
           >
-            <Mic className={`h-5 w-5 ${isDictating ? 'text-red-500' : ''}`} strokeWidth={2.35} />
+            <DictateAbstractOrb isDictating={isDictating} className="h-5 w-5" />
           </IconButton>
         </div>
       )}
-      {isDictationEnabled && !hasText && !hasAttachedFiles && !isBusy && (
+      {isDictationEnabled && (isDictating || (!hasText && !hasAttachedFiles && !isBusy)) && (
         <button
           type="button"
           onClick={toggleDictation}
@@ -877,11 +880,11 @@ export default function ChatComposer({
           aria-pressed={isDictating}
           className={`flex h-9 w-9 items-center justify-center rounded-full transition-all active:scale-90 sm:hidden ${
             isDictating
-              ? 'bg-red-500/15 text-red-500 ring-2 ring-red-500/35'
+              ? 'bg-blue-500/12 text-blue-600 ring-1 ring-blue-500/30 dark:text-blue-400'
               : 'text-[var(--dc-text-body)] hover:bg-black/[0.06] dark:hover:bg-white/[0.08]'
           }`}
         >
-          <Mic className={`h-[19px] w-[19px] ${isDictating ? 'animate-pulse' : ''}`} strokeWidth={2.2} />
+          <DictateAbstractOrb isDictating={isDictating} className="h-[19px] w-[19px]" />
         </button>
       )}
       <Tooltip
