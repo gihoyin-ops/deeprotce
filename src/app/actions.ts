@@ -29,6 +29,7 @@ import {
 } from '@/lib/storage/client-storage';
 import { clearChatHistory, deleteChatReferences } from './memory';
 import { DEFAULT_GUEST_AVATAR } from '@/lib/avatar';
+import { convertImageToWebp } from '@/lib/images/client-webp';
 
 export type UploadFileResult = {
   success: boolean;
@@ -321,11 +322,44 @@ export async function deleteAllChats() {
   return true;
 }
 
+const RASTER_IMAGE_TO_WEBP_EXTS = new Set([
+  'png',
+  'jpg',
+  'jpeg',
+  'bmp',
+  'avif',
+  'tiff',
+  'tif',
+  'ico'
+]);
+
+const shouldConvertAttachmentToWebp = (file: File): boolean => {
+  const type = (file.type || '').toLowerCase();
+  if (type === 'image/svg+xml' || type === 'image/gif' || type === 'image/webp') {
+    return false;
+  }
+  if (type.startsWith('image/')) {
+    return true;
+  }
+  const ext = file.name.split('.').pop()?.toLowerCase() || '';
+  return RASTER_IMAGE_TO_WEBP_EXTS.has(ext);
+};
+
 export async function uploadFile(formData: FormData): Promise<UploadFileResult> {
   if (typeof window !== 'undefined') {
-    const file = formData.get('file');
-    if (!(file instanceof File)) {
+    const rawFile = formData.get('file');
+    if (!(rawFile instanceof File)) {
       return { success: false, error: 'No file provided' };
+    }
+
+    let file = rawFile;
+    if (shouldConvertAttachmentToWebp(rawFile)) {
+      try {
+        const converted = await convertImageToWebp(rawFile, { quality: 0.88 });
+        file = converted.file;
+      } catch {
+        // Fallback to original file if client-side WebP conversion fails
+      }
     }
 
     const clientResult = await uploadFileClient(file);
