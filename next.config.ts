@@ -13,21 +13,20 @@ const nextConfig: NextConfig = {
     globalNotFound: true
   },
   async headers() {
+    const pythonSandboxHeaders = [
+      {
+        key: 'Content-Security-Policy',
+        value:
+          "default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: https://cdn.jsdelivr.net https://fastly.jsdelivr.net https://gcore.jsdelivr.net https://cdn.plot.ly; script-src-elem 'unsafe-inline' blob: https://cdn.jsdelivr.net https://fastly.jsdelivr.net https://gcore.jsdelivr.net https://cdn.plot.ly; connect-src data: blob: https://cdn.jsdelivr.net https://fastly.jsdelivr.net https://gcore.jsdelivr.net https://cdn.plot.ly https://pypi.org https://files.pythonhosted.org; style-src 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data: https://cdn.jsdelivr.net https://fastly.jsdelivr.net https://gcore.jsdelivr.net; worker-src 'self' blob: https://cdn.jsdelivr.net https://fastly.jsdelivr.net https://gcore.jsdelivr.net; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'"
+      },
+      { key: 'X-Content-Type-Options', value: 'nosniff' },
+      { key: 'Referrer-Policy', value: 'no-referrer' },
+      { key: 'Cache-Control', value: 'no-store, max-age=0' }
+    ];
+
     return [
       {
-        source: '/api/python-sandbox',
-        headers: [
-          {
-            key: 'Content-Security-Policy',
-            value:
-              "default-src 'none'; script-src 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.jsdelivr.net https://cdn.plot.ly; script-src-elem 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.plot.ly; connect-src https://cdn.jsdelivr.net https://pypi.org https://files.pythonhosted.org; style-src 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data: https://cdn.jsdelivr.net; worker-src 'self' blob: https://cdn.jsdelivr.net; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'"
-          },
-          { key: 'X-Content-Type-Options', value: 'nosniff' },
-          { key: 'Referrer-Policy', value: 'no-referrer' }
-        ]
-      },
-      {
-        source: '/((?!api/python-sandbox).*)',
+        source: '/:path*',
         headers: [
           {
             key: 'Content-Security-Policy',
@@ -43,6 +42,14 @@ const nextConfig: NextConfig = {
           },
           { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' }
         ]
+      },
+      {
+        source: '/python-sandbox',
+        headers: pythonSandboxHeaders
+      },
+      {
+        source: '/api/python-sandbox',
+        headers: pythonSandboxHeaders
       }
     ];
   }

@@ -13,12 +13,15 @@ import 'katex/dist/katex.min.css';
 import { ClientOnly } from '@/lib/utils';
 import CodePreview from '@/components/ui/CodePreview';
 import PythonPreview from '@/components/ui/PythonPreview';
+import PythonChartCard from '@/components/ui/PythonChartCard';
 import PythonFileCard from '@/components/ui/PythonFileCard';
 import MermaidDiagramBlock from '@/components/ui/MermaidDiagramBlock';
 import { extractWebPreviewSource } from '@/lib/code/code-web-preview';
 import { isPythonLanguage, sanitizeWorkspaceFilename } from '@/lib/code/python-runtime';
 import {
+  extractReferencedPythonCharts,
   extractReferencedPythonFiles,
+  normalizeChartKey,
   PythonFilesProvider,
   usePythonWorkspaceFiles
 } from '@/lib/code/python-files-context';
@@ -76,6 +79,14 @@ const injectPythonFileCards = (markdown: string): string => {
         .replace(/deepchat-file:\/\/([^\s)]+)/gi, (_m, rawName: string) => {
           const clean = sanitizeWorkspaceFilename(decodeURIComponent(rawName), '');
           return clean ? `#dc-file-${encodeURIComponent(clean)}` : _m;
+        })
+        .replace(/\[\[chart(?::([^\[\]\n\r]+?))?\]\]/gi, (_m, rawKey?: string) => {
+          const cleanKey = normalizeChartKey(rawKey ?? 'default').replace(/[^a-zA-Z0-9._-]/g, '_') || 'default';
+          return `\n\n[chart](#dc-chart-${encodeURIComponent(cleanKey)})\n\n`;
+        })
+        .replace(/deepchat-chart:\/\/([^\s)]+)/gi, (_m, rawKey: string) => {
+          const cleanKey = normalizeChartKey(decodeURIComponent(rawKey)).replace(/[^a-zA-Z0-9._-]/g, '_') || 'default';
+          return `#dc-chart-${encodeURIComponent(cleanKey)}`;
         });
     })
     .join('');
@@ -188,6 +199,10 @@ function MarkdownLink({ href, children }: React.ComponentProps<'a'>) {
     if (fileMatch) {
       return <PythonFileCard filename={decodeURIComponent(fileMatch[1])} />;
     }
+    const chartMatch = /^#dc-chart-([a-zA-Z0-9._%-]+)$/.exec(href);
+    if (chartMatch) {
+      return <PythonChartCard chartKey={decodeURIComponent(chartMatch[1])} />;
+    }
     const citeMatch = /^#dc-cite-(\d+(?:-\d+)*)$/.exec(href);
     if (citeMatch) {
       const group = citeMatch[1]
@@ -214,6 +229,9 @@ const markdownComponents: Components = {
       const href = childArray[0].props?.href;
       if (typeof href === 'string' && href.startsWith('#dc-file-')) {
         return <PythonFileCard filename={decodeURIComponent(href.slice('#dc-file-'.length))} />;
+      }
+      if (typeof href === 'string' && href.startsWith('#dc-chart-')) {
+        return <PythonChartCard chartKey={decodeURIComponent(href.slice('#dc-chart-'.length))} />;
       }
     }
     return <p className="mb-3 last:mb-0 leading-relaxed text-[15px] dark:text-slate-300">{children}</p>;
@@ -277,6 +295,7 @@ const MarkdownRenderer = React.memo(function MarkdownRenderer({ content, isStrea
   }, []);
 
   const referencedFiles = useMemo(() => extractReferencedPythonFiles(content), [content]);
+  const referencedCharts = useMemo(() => new Set(extractReferencedPythonCharts(content)), [content]);
 
   const processedContent = injectPythonFileCards(
     injectGroupedCitations(
@@ -295,7 +314,12 @@ const MarkdownRenderer = React.memo(function MarkdownRenderer({ content, isStrea
 
   return (
     <ClientOnly>
-      <PythonFilesProvider files={parentInputFiles} referencedFiles={referencedFiles}>
+      <PythonFilesProvider
+        files={parentInputFiles}
+        referencedFiles={referencedFiles}
+        referencedCharts={referencedCharts}
+        isMessageStreaming={isStreaming}
+      >
         <MarkdownRenderContext.Provider value={contextValue}>
           <div className={`prose prose-slate max-w-none break-words dark:prose-invert prose-pre:bg-transparent prose-pre:p-0 prose-p:leading-relaxed prose-a:text-indigo-600 hover:prose-a:text-indigo-700 prose-strong:text-slate-800 dark:prose-strong:text-slate-200 [&>*:last-child]:mb-0 ${isStreaming ? 'dc-sse-streaming' : ''}`}>
             <ReactMarkdown
@@ -535,6 +559,7 @@ function transformMarkdownUrl(url: string) {
   // Deny by default so garbage like javascript:, vbscript:, or protocol-relative URLs never make it into a rendered attribute
   if (/^#dc-cite-\d+(?:-\d+)*$/.test(value)) return value;
   if (/^#dc-file-[a-zA-Z0-9._%-]+$/.test(value)) return value;
+  if (/^#dc-chart-[a-zA-Z0-9._%-]+$/.test(value)) return value;
   if (/^data:image\/(?:png|jpe?g|webp|gif);base64,[a-z0-9+/=\s]+$/i.test(value)) return value.replace(/\s/g, '');
   if (/^(https?:|mailto:)/i.test(value)) return value;
   if (/^(?:\.\.\/|\.\/|\/)?[\w~-]+[\w.\/-]*$/.test(value)) return value;

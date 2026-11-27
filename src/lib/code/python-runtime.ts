@@ -140,6 +140,90 @@ export const prepareWorkspaceFiles = (files: PythonWorkspaceInputFile[]): Prepar
   return prepared;
 };
 
+function stripPythonFences(raw: string): string {
+  return raw
+    .trim()
+    .replace(/^```(?:python|py)?\s*\n?/i, '')
+    .replace(/\n?```\s*$/i, '')
+    .trim();
+}
+
+export async function requestAiPythonEdit(
+  currentCode: string,
+  instruction: string,
+  signal: AbortSignal
+): Promise<string> {
+  let connectionId: string | undefined;
+  let modelId: string | undefined;
+  try {
+    const raw = localStorage.getItem('selectedModelObj');
+    if (raw) {
+      const parsed = JSON.parse(raw) as { id?: string; connectionId?: string };
+      connectionId = parsed.connectionId;
+      modelId = parsed.id;
+    }
+  } catch {}
+
+  const res = await fetch('/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+    signal,
+    body: JSON.stringify({
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You are a Python data visualization and analysis editor. Return ONLY the updated valid Python code. Do not include markdown fences (```), explanations, or extra text. Use plotly (`fig.show()`) for interactive charts or matplotlib (`plt.show()`), and save any generated files to `/workspace/<filename>`.'
+        },
+        {
+          role: 'user',
+          content: `Current Python code:\n${currentCode}\n\nEdit instruction: ${instruction}`
+        }
+      ],
+      connectionId,
+      modelId,
+      tools: [],
+      manualSearch: false
+    })
+  });
+
+  if (!res.ok || !res.body) {
+    throw new Error('Could not update Python output');
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let content = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() ?? '';
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith('data:')) continue;
+      const data = trimmed.slice(5).trim();
+      if (!data || data === '[DONE]') continue;
+      try {
+        const json = JSON.parse(data) as {
+          choices?: Array<{ delta?: { content?: string } }>;
+        };
+        const delta = json.choices?.[0]?.delta?.content;
+        if (typeof delta === 'string') {
+          content += delta;
+        }
+      } catch {}
+    }
+  }
+
+  return stripPythonFences(content);
+}
+
 export function buildPythonSandboxHtml(): string {
   return `<!doctype html>
 <html lang="en">
@@ -286,11 +370,26 @@ export function buildPythonSandboxHtml(): string {
 
 <script>
 (() => {
-  const PYODIDE_URL = 'https://cdn.jsdelivr.net/pyodide/v0.27.5/full/pyodide.js';
-  const PLOTLY_URL = 'https://cdn.plot.ly/plotly-2.35.2.min.js';
+  const PYODIDE_BASES = [
+    'https://cdn.jsdelivr.net/pyodide/v0.27.5/full/',
+    'https://fastly.jsdelivr.net/pyodide/v0.27.5/full/',
+    'https://gcore.jsdelivr.net/pyodide/v0.27.5/full/'
+  ];
+  const PLOTLY_URLS = [
+    'https://cdn.plot.ly/plotly-2.35.2.min.js',
+    'https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js',
+    'https://fastly.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js'
+  ];
   const MAX_STDOUT_CHARS = 180000;
   const MAX_FILES = 10;
   const MAX_FILE_BYTES = 24 * 1024 * 1024;
+
+  let lastCspViolation = '';
+  window.addEventListener('securitypolicyviolation', (event) => {
+    const directive = event.violatedDirective || event.effectiveDirective || 'unknown';
+    const blocked = event.blockedURI || 'inline';
+    lastCspViolation = directive + ' (' + blocked + ')';
+  });
 
   const PALETTES = [
     { id: 'default', color: '#2563eb', colors: ['#2563eb', '#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'] },
@@ -338,18 +437,38 @@ export function buildPythonSandboxHtml(): string {
     s.src = src;
     s.async = true;
     s.onload = () => resolve();
-    s.onerror = () => reject(new Error('Failed to load runtime script: ' + src));
+    s.onerror = () => {
+      const detail = lastCspViolation ? ' [CSP blocked: ' + lastCspViolation + ']' : '';
+      reject(new Error('Failed to load runtime script: ' + src + detail));
+    };
     document.head.appendChild(s);
   });
+
+  const loadScriptWithFallback = async (urls) => {
+    let lastError = null;
+    for (const url of urls) {
+      try {
+        await loadScript(url);
+        return url;
+      } catch (err) {
+        lastError = err;
+      }
+    }
+    throw lastError || new Error('Failed to load runtime script');
+  };
 
   const getPyodide = async () => {
     if (!pyodidePromise) {
       pyodidePromise = (async () => {
+        let winningBase = PYODIDE_BASES[0];
         if (typeof window.loadPyodide !== 'function') {
-          await loadScript(PYODIDE_URL);
+          const loadedUrl = await loadScriptWithFallback(
+            PYODIDE_BASES.map((base) => base + 'pyodide.js')
+          );
+          winningBase = loadedUrl.slice(0, -'pyodide.js'.length);
         }
         return await window.loadPyodide({
-          indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.27.5/full/'
+          indexURL: winningBase
         });
       })();
     }
@@ -360,7 +479,7 @@ export function buildPythonSandboxHtml(): string {
     if (!plotlyPromise) {
       plotlyPromise = (async () => {
         if (!window.Plotly) {
-          await loadScript(PLOTLY_URL);
+          await loadScriptWithFallback(PLOTLY_URLS);
         }
         return window.Plotly;
       })();
@@ -772,6 +891,15 @@ json.dumps({
       });
     } else if (data.type === 'render_cached') {
       await renderResults(data.result || {}, Boolean(data.isDark));
+    } else if (data.type === 'render_single_chart') {
+      const chart = data.chart;
+      if (chart && chart.kind === 'plotly') {
+        await renderResults({ charts: [chart.data] }, Boolean(data.isDark));
+      } else if (chart && chart.kind === 'image') {
+        await renderResults({ images: [chart.data] }, Boolean(data.isDark));
+      } else {
+        await renderResults({ error: 'Chart unavailable.' }, Boolean(data.isDark));
+      }
     } else if (data.type === 'theme') {
       // Theme updates only CSS variables; Plotly redraws on next render if needed
     }

@@ -10,23 +10,25 @@ import {
   Check,
   Code2,
   Copy,
-  Cpu,
   Download,
   Maximize2,
   Play,
   X
 } from '@/components/ui/icons';
 import KineticDot from '@/components/ui/KineticDot';
+import { PythonStatusShimmer } from '@/components/ui/PythonChartCard';
 import PythonFileCard from '@/components/ui/PythonFileCard';
 import {
   normalizeFileKey,
   usePythonFilesRegistry,
-  usePythonWorkspaceFiles
+  usePythonWorkspaceFiles,
+  type PythonOutputChart
 } from '@/lib/code/python-files-context';
 import {
   isSafeDownloadFilename,
   prepareWorkspaceFiles,
   PYTHON_EXECUTION_TIMEOUT_MS,
+  requestAiPythonEdit,
   shouldAutoRunPython,
   type PythonOutputFile
 } from '@/lib/code/python-runtime';
@@ -53,132 +55,6 @@ const isDocumentDark = () => {
   const root = document.documentElement;
   return root.classList.contains('dark') || root.dataset.appearance === 'dark';
 };
-
-function stripPythonFences(raw: string): string {
-  return raw
-    .trim()
-    .replace(/^```(?:python|py)?\s*\n?/i, '')
-    .replace(/\n?```\s*$/i, '')
-    .trim();
-}
-
-async function requestAiPythonEdit(
-  currentCode: string,
-  instruction: string,
-  signal: AbortSignal
-): Promise<string> {
-  let connectionId: string | undefined;
-  let modelId: string | undefined;
-  try {
-    const raw = localStorage.getItem('selectedModelObj');
-    if (raw) {
-      const parsed = JSON.parse(raw) as { id?: string; connectionId?: string };
-      connectionId = parsed.connectionId;
-      modelId = parsed.id;
-    }
-  } catch {}
-
-  const res = await fetch('/api/chat', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'same-origin',
-    signal,
-    body: JSON.stringify({
-      messages: [
-        {
-          role: 'system',
-          content:
-            'You are a Python data visualization and analysis editor. Return ONLY the updated valid Python code. Do not include markdown fences (```), explanations, or extra text. Use plotly (`fig.show()`) for interactive charts or matplotlib (`plt.show()`), and save any generated files to `/workspace/<filename>`.'
-        },
-        {
-          role: 'user',
-          content: `Current Python code:\n${currentCode}\n\nEdit instruction: ${instruction}`
-        }
-      ],
-      connectionId,
-      modelId,
-      tools: [],
-      manualSearch: false
-    })
-  });
-
-  if (!res.ok || !res.body) {
-    throw new Error('Could not update Python output');
-  }
-
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = '';
-  let content = '';
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split('\n');
-    buffer = lines.pop() ?? '';
-
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed.startsWith('data:')) continue;
-      const data = trimmed.slice(5).trim();
-      if (!data || data === '[DONE]') continue;
-      try {
-        const json = JSON.parse(data) as {
-          choices?: Array<{ delta?: { content?: string } }>;
-        };
-        const delta = json.choices?.[0]?.delta?.content;
-        if (typeof delta === 'string') {
-          content += delta;
-        }
-      } catch {}
-    }
-  }
-
-  return stripPythonFences(content);
-}
-
-function PythonStatusShimmer({ label }: { label: string }) {
-  const rootRef = useRef<HTMLDivElement>(null);
-  const iconRef = useRef<HTMLSpanElement>(null);
-  const shimmerRef = useRef<HTMLSpanElement>(null);
-
-  useLayoutEffect(() => {
-    const reduce = prefersReducedMotion();
-    if (reduce) return;
-    const ctx = gsap.context(() => {
-      if (shimmerRef.current) {
-        gsap.fromTo(
-          shimmerRef.current,
-          { backgroundPosition: '130% 50%' },
-          { backgroundPosition: '-130% 50%', duration: 1.75, ease: 'none', repeat: -1 }
-        );
-      }
-      if (iconRef.current) {
-        gsap.fromTo(
-          iconRef.current,
-          { opacity: 0.45, scale: 0.94 },
-          { opacity: 0.95, scale: 1.06, duration: 1.05, ease: 'sine.inOut', repeat: -1, yoyo: true }
-        );
-      }
-    }, rootRef);
-    return () => ctx.revert();
-  }, [label]);
-
-  return (
-    <div ref={rootRef} className="not-prose my-2 flex w-fit items-center gap-2 py-0.5">
-      <span ref={iconRef} className="inline-flex h-4 w-4 shrink-0 items-center justify-center text-slate-500 dark:text-slate-400">
-        <Cpu className="h-3.5 w-3.5" strokeWidth={2} />
-      </span>
-      <span
-        ref={shimmerRef}
-        className="bg-gradient-to-r from-slate-500 via-slate-900 to-slate-500 bg-[length:220%_100%] bg-clip-text text-[13.5px] font-medium tracking-[-0.01em] text-transparent dark:from-slate-400 dark:via-slate-100 dark:to-slate-400"
-      >
-        {label}
-      </span>
-    </div>
-  );
-}
 
 function IconButton({
   title,
@@ -281,7 +157,17 @@ export default function PythonPreview({
   }, []);
 
   const workspaceFiles = usePythonWorkspaceFiles();
-  const { referencedFiles, registerOutputFiles, setRunnerActive } = usePythonFilesRegistry();
+  const {
+    referencedFiles,
+    referencedCharts,
+    registerOutputFiles,
+    registerOutputCharts,
+    setRunnerActive,
+    setRunnerStatus,
+    setRunnerError,
+    registerRunnerUpdater
+  } = usePythonFilesRegistry();
+
   const preparedFiles = useMemo(
     () => prepareWorkspaceFiles(workspaceFiles),
     [workspaceFiles]
@@ -289,12 +175,17 @@ export default function PythonPreview({
 
   const [codeState, setCodeState] = useState(() => ({ source: value, draft: value }));
   const draftCode = codeState.source === value ? codeState.draft : value;
-  const setDraftCode = (draft: string) => setCodeState({ source: value, draft });
+  const setDraftCode = useCallback(
+    (draft: string) => setCodeState({ source: value, draft }),
+    [value]
+  );
 
   const isToolMode = useMemo(
     () => shouldAutoRunPython(draftCode, preparedFiles.length > 0),
     [draftCode, preparedFiles.length]
   );
+
+  const hasPlacedCharts = referencedCharts.size > 0;
 
   const [mode, setMode] = useState<'preview' | 'code'>(() =>
     !isStreaming && shouldAutoRunPython(value, preparedFiles.length > 0) ? 'preview' : 'code'
@@ -310,7 +201,6 @@ export default function PythonPreview({
   const [statusLabel, setStatusLabel] = useState('Running Python…');
   const [timedOut, setTimedOut] = useState(false);
 
-  // Fullscreen AI edit prompt state (matching MermaidDiagramBlock)
   const [editPrompt, setEditPrompt] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
@@ -361,7 +251,6 @@ export default function PythonPreview({
 
   useEffect(() => () => editAbortRef.current?.abort(), []);
 
-  // GSAP entrance for visual card when result arrives
   useLayoutEffect(() => {
     const el = visualCardRef.current;
     if (!el || !result || prefersReducedMotion()) return;
@@ -375,7 +264,6 @@ export default function PythonPreview({
     return () => ctx.revert();
   }, [result]);
 
-  // GSAP entrance for fullscreen overlay
   useLayoutEffect(() => {
     const el = fullscreenShellRef.current;
     if (!fullscreen || !el || prefersReducedMotion()) return;
@@ -389,7 +277,6 @@ export default function PythonPreview({
     return () => ctx.revert();
   }, [fullscreen]);
 
-  // Syntax highlighting only needed when in non-tool code mode
   useEffect(() => {
     if (!highlighter || isStreaming || isToolMode) return;
     let active = true;
@@ -445,26 +332,43 @@ export default function PythonPreview({
   useEffect(() => () => {
     clearExecutionTimer();
     setRunnerActive(previewId, false);
-  }, [clearExecutionTimer, previewId, setRunnerActive]);
+    setRunnerStatus(previewId, '');
+  }, [clearExecutionTimer, previewId, setRunnerActive, setRunnerStatus]);
 
   const startExecutionTimer = useCallback(() => {
     clearExecutionTimer();
     setTimedOut(false);
     setStatusLabel('Running Python…');
+    setRunnerStatus(previewId, 'Running Python…');
+    setRunnerError(previewId, '');
     setRunnerActive(previewId, true);
     timeoutRef.current = window.setTimeout(() => {
+      const msg = `Execution timed out after ${PYTHON_EXECUTION_TIMEOUT_MS / 1000}s.`;
       setTimedOut(true);
       setRunnerActive(previewId, false);
+      setRunnerStatus(previewId, '');
+      setRunnerError(previewId, msg);
       setResult((prev) => prev ?? {
         charts: [],
         images: [],
         files: [],
         stdout: '',
         stderr: '',
-        error: `Execution timed out after ${PYTHON_EXECUTION_TIMEOUT_MS / 1000}s.`
+        error: msg
       });
     }, PYTHON_EXECUTION_TIMEOUT_MS);
-  }, [clearExecutionTimer, previewId, setRunnerActive]);
+  }, [clearExecutionTimer, previewId, setRunnerActive, setRunnerError, setRunnerStatus]);
+
+  // Register code updater so PythonChartCard fullscreen AI edit can re-run this runner live
+  useEffect(() => {
+    return registerRunnerUpdater(previewId, (nextCode: string) => {
+      setDraftCode(nextCode);
+      setResult(null);
+      setMode('preview');
+      setRunId((n) => n + 1);
+      startExecutionTimer();
+    });
+  }, [previewId, registerRunnerUpdater, setDraftCode, startExecutionTimer]);
 
   // Auto-run like a tool call when AI finishes streaming analytical/chart/file Python code
   useEffect(() => {
@@ -486,8 +390,14 @@ export default function PythonPreview({
       const data = event.data;
       if (!data || data.source !== 'deepchat-python-sandbox') return;
 
-      const isInlineSource = Boolean(inlineIframeRef.current?.contentWindow && event.source === inlineIframeRef.current.contentWindow);
-      const isFullscreenSource = Boolean(fullscreenIframeRef.current?.contentWindow && event.source === fullscreenIframeRef.current.contentWindow);
+      const isInlineSource = Boolean(
+        inlineIframeRef.current?.contentWindow &&
+        event.source === inlineIframeRef.current.contentWindow
+      );
+      const isFullscreenSource = Boolean(
+        fullscreenIframeRef.current?.contentWindow &&
+        event.source === fullscreenIframeRef.current.contentWindow
+      );
       if (!isInlineSource && !isFullscreenSource) return;
 
       if (data.type === 'ready') {
@@ -522,6 +432,7 @@ export default function PythonPreview({
 
       if (data.type === 'status' && typeof data.text === 'string') {
         setStatusLabel(data.text);
+        setRunnerStatus(previewId, data.text);
         return;
       }
 
@@ -533,38 +444,79 @@ export default function PythonPreview({
       if (data.type === 'done') {
         clearExecutionTimer();
         setRunnerActive(previewId, false);
+        setRunnerStatus(previewId, '');
         const files: PythonOutputFile[] = Array.isArray(data.files) ? data.files : [];
+        const charts: string[] = Array.isArray(data.charts) ? data.charts : [];
+        const images: string[] = Array.isArray(data.images) ? data.images : [];
+        const errorStr = typeof data.error === 'string' ? data.error : '';
+
         if (files.length > 0) {
           registerOutputFiles(files);
         }
+
+        const chartsPayload: PythonOutputChart[] = [
+          ...charts.map((c, idx) => ({
+            id: `plotly-${idx + 1}`,
+            runnerId: previewId,
+            kind: 'plotly' as const,
+            data: c,
+            sourceCode: draftCode
+          })),
+          ...images.map((img, idx) => ({
+            id: `image-${idx + 1}`,
+            runnerId: previewId,
+            kind: 'image' as const,
+            data: img,
+            sourceCode: draftCode
+          }))
+        ];
+        registerOutputCharts(previewId, chartsPayload);
+        setRunnerError(previewId, errorStr);
+
         setResult({
-          charts: Array.isArray(data.charts) ? data.charts : [],
-          images: Array.isArray(data.images) ? data.images : [],
+          charts,
+          images,
           files,
           stdout: typeof data.stdout === 'string' ? data.stdout : '',
           stderr: typeof data.stderr === 'string' ? data.stderr : '',
-          error: typeof data.error === 'string' ? data.error : ''
+          error: errorStr
         });
         return;
       }
 
       if (data.type === 'error') {
         clearExecutionTimer();
+        const errMsg = typeof data.error === 'string' ? data.error : 'Python execution failed.';
         setRunnerActive(previewId, false);
+        setRunnerStatus(previewId, '');
+        setRunnerError(previewId, errMsg);
+        registerOutputCharts(previewId, []);
         setResult({
           charts: [],
           images: [],
           files: [],
           stdout: '',
           stderr: '',
-          error: typeof data.error === 'string' ? data.error : 'Python execution failed.'
+          error: errMsg
         });
       }
     };
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [clearExecutionTimer, draftCode, isDarkTheme, preparedFiles, previewId, registerOutputFiles, result, setRunnerActive]);
+  }, [
+    clearExecutionTimer,
+    draftCode,
+    isDarkTheme,
+    preparedFiles,
+    previewId,
+    registerOutputCharts,
+    registerOutputFiles,
+    result,
+    setRunnerActive,
+    setRunnerError,
+    setRunnerStatus
+  ]);
 
   const runPreview = () => {
     setResult(null);
@@ -625,7 +577,6 @@ export default function PythonPreview({
     }
   };
 
-  // Unreferenced generated files (fallback if AI didn't place [[file:...]] in text)
   const unreferencedFiles = useMemo(() => {
     if (!result?.files?.length) return [];
     return result.files.filter(
@@ -644,7 +595,6 @@ export default function PythonPreview({
     );
   }, [result]);
 
-  // Fullscreen modal: pure interactive visual + bottom AI edit textarea (NO code pane!)
   const fullscreenContent = fullscreen ? (
     <div
       ref={fullscreenShellRef}
@@ -671,12 +621,11 @@ export default function PythonPreview({
           key={`py-full-${runId}`}
           title="Interactive visual fullscreen"
           sandbox="allow-scripts"
-          src="/api/python-sandbox"
+          src="/python-sandbox"
           className="h-full w-full rounded-2xl border-0 bg-white dark:bg-[#0d1117]"
         />
       </div>
 
-      {/* Bottom AI prompt bar (matching MermaidDiagramBlock) */}
       <div className="shrink-0 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 sm:px-6 sm:pb-5">
         <div className="mx-auto w-full max-w-2xl">
           {editError && (
@@ -722,14 +671,41 @@ export default function PythonPreview({
     </div>
   ) : null;
 
-  // 1. While AI is still streaming the python block: show ONLY sleek Search-like shimmer (ZERO code!)
+  // 1. While streaming: if charts are explicitly placed via [[chart]], stay hidden here so shimmer only renders at [[chart]]
   if (isStreaming) {
+    if (hasPlacedCharts) return null;
     return <PythonStatusShimmer label="Running Python…" />;
   }
 
-  // 2. Visual / Tool Mode: pure visual output, ZERO code chrome
+  // 2. Visual / Tool Mode
   if (isToolMode && mode === 'preview') {
-    // If Python finished and only created files already placed via [[file:...]], hide runner completely
+    // Silent runner mode when AI placed [[chart]] / [[chart:...]] explicitly in prose
+    if (hasPlacedCharts) {
+      return (
+        <>
+          {!timedOut && (
+            <iframe
+              ref={inlineIframeRef}
+              key={`py-silent-${runId}`}
+              title="Python background runner"
+              sandbox="allow-scripts"
+              src="/python-sandbox"
+              aria-hidden="true"
+              tabIndex={-1}
+              className="pointer-events-none fixed -left-[9999px] top-0 h-px w-px border-0 opacity-0"
+            />
+          )}
+          {unreferencedFiles.length > 0 && (
+            <div className="not-prose my-3 space-y-2.5">
+              {unreferencedFiles.map((file, idx) => (
+                <PythonFileCard key={`${file.name}-${idx}`} filename={file.name} directFile={file} />
+              ))}
+            </div>
+          )}
+        </>
+      );
+    }
+
     if (result && !hasVisualOrTextOutput && unreferencedFiles.length === 0) {
       return null;
     }
@@ -758,7 +734,7 @@ export default function PythonPreview({
                   key={`py-inline-${runId}`}
                   title="Visual output"
                   sandbox="allow-scripts"
-                  src="/api/python-sandbox"
+                  src="/python-sandbox"
                   style={{ height: isStillRunning ? '1px' : `${frameHeight}px` }}
                   className="block w-full border-0 bg-white dark:bg-[#0d1117]"
                 />
@@ -787,7 +763,7 @@ export default function PythonPreview({
     );
   }
 
-  // 3. Standard Code Mode (only for pure Python code examples / tutorials)
+  // 3. Standard Code Mode (for pure Python code examples / tutorials)
   return (
     <div className="not-prose mb-4 overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm dark:border-slate-800 dark:bg-[#0d1117]">
       <div className="flex flex-wrap items-center justify-between gap-2.5 border-b border-slate-100 bg-slate-50/80 px-3.5 py-2.5 dark:border-slate-800/80 dark:bg-slate-900/70">
@@ -820,7 +796,7 @@ export default function PythonPreview({
                 key={`py-inline-${runId}`}
                 title="Python preview"
                 sandbox="allow-scripts"
-                src="/api/python-sandbox"
+                src="/python-sandbox"
                 style={{ height: `${frameHeight}px` }}
                 className="w-full rounded-xl border border-slate-200/80 bg-white dark:border-slate-800 dark:bg-[#0d1117]"
               />
