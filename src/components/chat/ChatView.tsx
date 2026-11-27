@@ -545,8 +545,28 @@ export default function ChatView({ chatId }: { chatId: string }) {
         setChatTitle(chat.title);
       }
 
-      if (chat?.pendingAttachedFiles && chat.pendingAttachedFiles.length > 0 && !initialMsgProcessed.current) {
-        setAttachedFiles(chat.pendingAttachedFiles);
+      let sessionPendingFiles: AttachedFile[] = [];
+      try {
+        const pendingKey = `deepchat-pending-files-${chatId}`;
+        const rawPending = sessionStorage.getItem(pendingKey);
+        if (rawPending) {
+          sessionStorage.removeItem(pendingKey);
+          const parsedPending = JSON.parse(rawPending);
+          if (Array.isArray(parsedPending)) {
+            sessionPendingFiles = parsedPending;
+          }
+        }
+      } catch {
+        // Ignore sessionStorage read/parse errors
+      }
+
+      const pendingFiles =
+        chat?.pendingAttachedFiles && chat.pendingAttachedFiles.length > 0
+          ? chat.pendingAttachedFiles
+          : sessionPendingFiles;
+
+      if (pendingFiles.length > 0 && !initialMsgProcessed.current) {
+        setAttachedFiles(pendingFiles);
       }
 
       if (draftMsg && !initialMsgProcessed.current) {
@@ -566,7 +586,7 @@ export default function ChatView({ chatId }: { chatId: string }) {
 
         if (!chat || !chat.messages || chat.messages.length === 0) {
           setTimeout(() => {
-            if (mounted) void sendMessageRef.current?.(initialMsg, chat?.pendingAttachedFiles, initialWebSearch, initialImageGeneration, initialImageAspectRatio);
+            if (mounted) void sendMessageRef.current?.(initialMsg, pendingFiles.length > 0 ? pendingFiles : undefined, initialWebSearch, initialImageGeneration, initialImageAspectRatio);
           }, 0);
         } else {
           setMessages(mergeActiveGeneration(chatId, chat.messages.map(normalizeMessageForDisplay)));

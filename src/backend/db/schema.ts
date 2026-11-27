@@ -107,6 +107,7 @@ export const TURSO_SCHEMA_STATEMENTS: string[] = [
     archived INTEGER NOT NULL DEFAULT 0,
     is_shared INTEGER NOT NULL DEFAULT 0,
     share_id TEXT UNIQUE,
+    pending_attached_files_json TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
   )`,

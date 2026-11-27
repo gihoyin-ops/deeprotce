@@ -282,6 +282,13 @@ export default function WelcomePage() {
     localStorage.removeItem('deepchat-draft-new');
     const cleanFiles = files.map(stripAttachedPreview);
     const id = await createChat('New Chat', cleanFiles);
+    if (cleanFiles.length > 0) {
+      try {
+        sessionStorage.setItem(`deepchat-pending-files-${id}`, JSON.stringify(cleanFiles));
+      } catch {
+        // Ignore sessionStorage quota/availability errors
+      }
+    }
     const query = new URLSearchParams();
     if (inputMsg || files.length > 0) query.set('msg', inputMsg || '');
     if (useWebSearch) query.set('web', '1');

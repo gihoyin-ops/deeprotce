@@ -17,9 +17,13 @@ interface ChatRow {
   archived: number;
   is_shared: number;
   share_id: string | null;
+  pending_attached_files_json: string | null;
   created_at: string;
   updated_at: string;
 }
+
+const CHAT_SELECT_COLUMNS =
+  'id, account_id, title, folder, tags_json, pinned, archived, is_shared, share_id, pending_attached_files_json, created_at, updated_at';
 
 interface MessageRow {
   id: string;
@@ -223,19 +227,23 @@ async function hydrateChats(pool: DbPool, rows: ChatRow[]): Promise<StoredChat[]
     messagesByChat.set(m.chat_id, list);
   }
 
-  return rows.map(row => ({
-    id: row.id,
-    title: row.title || 'New Chat',
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-    folder: row.folder || undefined,
-    tags: parseJsonSafe<string[]>(row.tags_json, []),
-    pinned: Boolean(row.pinned),
-    archived: Boolean(row.archived),
-    isShared: Boolean(row.is_shared),
-    shareId: row.share_id || undefined,
-    messages: messagesByChat.get(row.id) || [],
-  }));
+  return rows.map(row => {
+    const pendingAttachedFiles = parseJsonSafe<StoredAttachment[]>(row.pending_attached_files_json, []);
+    return {
+      id: row.id,
+      title: row.title || 'New Chat',
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      folder: row.folder || undefined,
+      tags: parseJsonSafe<string[]>(row.tags_json, []),
+      pinned: Boolean(row.pinned),
+      archived: Boolean(row.archived),
+      isShared: Boolean(row.is_shared),
+      shareId: row.share_id || undefined,
+      ...(pendingAttachedFiles.length > 0 ? { pendingAttachedFiles } : {}),
+      messages: messagesByChat.get(row.id) || [],
+    };
+  });
 }
 
 export async function listAccountChatSummaries(
@@ -244,7 +252,7 @@ export async function listAccountChatSummaries(
   archived = false
 ): Promise<StoredChat[]> {
   const rows = await pool.query<ChatRow>(
-    `SELECT id, account_id, title, folder, tags_json, pinned, archived, is_shared, share_id, created_at, updated_at
+    `SELECT ${CHAT_SELECT_COLUMNS}
      FROM chats
      WHERE account_id = ? AND archived = ?
      ORDER BY pinned DESC, updated_at DESC, created_at DESC`,
@@ -271,7 +279,7 @@ export async function listAccountChats(
   archived = false
 ): Promise<StoredChat[]> {
   const rows = await pool.query<ChatRow>(
-    `SELECT id, account_id, title, folder, tags_json, pinned, archived, is_shared, share_id, created_at, updated_at
+    `SELECT ${CHAT_SELECT_COLUMNS}
      FROM chats
      WHERE account_id = ? AND archived = ?
      ORDER BY pinned DESC, updated_at DESC, created_at DESC`,
@@ -282,7 +290,7 @@ export async function listAccountChats(
 
 export async function listAccountSharedLinks(pool: DbPool, accountId: string) {
   const chats = await pool.query<ChatRow>(
-    `SELECT id, account_id, title, folder, tags_json, pinned, archived, is_shared, share_id, created_at, updated_at
+    `SELECT ${CHAT_SELECT_COLUMNS}
      FROM chats
      WHERE account_id = ? AND share_id IS NOT NULL AND share_id != ''
      ORDER BY updated_at DESC`,
@@ -304,7 +312,7 @@ export async function getAccountChat(
   chatId: string
 ): Promise<StoredChat | null> {
   const rows = await pool.query<ChatRow>(
-    `SELECT id, account_id, title, folder, tags_json, pinned, archived, is_shared, share_id, created_at, updated_at
+    `SELECT ${CHAT_SELECT_COLUMNS}
      FROM chats
      WHERE id = ? AND account_id = ?
      LIMIT 1`,
@@ -320,7 +328,7 @@ export async function getSharedAccountChat(
   shareId: string
 ): Promise<StoredChat | null> {
   const rows = await pool.query<ChatRow>(
-    `SELECT id, account_id, title, folder, tags_json, pinned, archived, is_shared, share_id, created_at, updated_at
+    `SELECT ${CHAT_SELECT_COLUMNS}
      FROM chats
      WHERE share_id = ? AND is_shared = 1
      LIMIT 1`,
@@ -364,12 +372,15 @@ export async function createAccountChat(
   const id = input.id?.trim() || `c_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
   const title = (input.title || 'New Chat').trim().slice(0, 200) || 'New Chat';
   const nowIso = new Date().toISOString();
+  const pendingAttachedFiles = Array.isArray(input.attachedFiles) ? input.attachedFiles : [];
+  const pendingAttachedFilesJson =
+    pendingAttachedFiles.length > 0 ? JSON.stringify(pendingAttachedFiles) : null;
 
   await pool.exec(
-    `INSERT INTO chats (id, account_id, title, folder, tags_json, pinned, archived, is_shared, share_id, created_at, updated_at)
-     VALUES (?, ?, ?, NULL, '[]', 0, 0, 0, NULL, ?, ?)
+    `INSERT INTO chats (id, account_id, title, folder, tags_json, pinned, archived, is_shared, share_id, pending_attached_files_json, created_at, updated_at)
+     VALUES (?, ?, ?, NULL, '[]', 0, 0, 0, NULL, ?, ?, ?)
      ON CONFLICT(id) DO NOTHING`,
-    [id, accountId, title, nowIso, nowIso]
+    [id, accountId, title, pendingAttachedFilesJson, nowIso, nowIso]
   );
 
   return {
@@ -381,7 +392,7 @@ export async function createAccountChat(
     isShared: false,
     pinned: false,
     messages: [],
-    pendingAttachedFiles: input.attachedFiles || [],
+    pendingAttachedFiles,
     tags: [],
   };
 }
@@ -584,11 +595,13 @@ export async function saveAccountMessage(
     }
   }
 
-  await pool.exec('UPDATE chats SET updated_at = ? WHERE id = ? AND account_id = ?', [
-    nowIso,
-    chatId,
-    accountId,
-  ]);
+  await pool.exec(
+    `UPDATE chats
+     SET updated_at = ?,
+         pending_attached_files_json = CASE WHEN ? = 'user' THEN NULL ELSE pending_attached_files_json END
+     WHERE id = ? AND account_id = ?`,
+    [nowIso, role, chatId, accountId]
+  );
 }
 
 export async function deleteAccountChat(

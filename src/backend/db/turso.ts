@@ -235,7 +235,8 @@ const ensureAccountSecurityColumns = async (pool: DbPool): Promise<void> => {
     `ALTER TABLE accounts ADD COLUMN is_banned INTEGER NOT NULL DEFAULT 0`,
     `ALTER TABLE accounts ADD COLUMN ban_reason TEXT`,
     `ALTER TABLE accounts ADD COLUMN banned_at TEXT`,
-    `ALTER TABLE accounts ADD COLUMN banned_by TEXT`
+    `ALTER TABLE accounts ADD COLUMN banned_by TEXT`,
+    `ALTER TABLE chats ADD COLUMN pending_attached_files_json TEXT`
   ];
   for (const sql of migrations) {
     try {
