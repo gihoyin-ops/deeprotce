@@ -7,6 +7,7 @@ import MarkdownRenderer from '@/components/ui/MarkdownRenderer';
 import { PythonFilesProvider } from '@/lib/code/python-files-context';
 import ChatComposer, { getComposerDisplayName, getComposerFileIcon } from '@/components/ui/ChatComposer';
 import AttachmentPreviewModal from '@/components/ui/AttachmentPreviewModal';
+import PdfCoverThumbnail from '@/components/ui/PdfCoverThumbnail';
 import DotRevealHeadline from '@/components/home/DotRevealHeadline';
 import Tooltip from '@/components/ui/Tooltip';
 import { AnimatedChatTitle } from '@/components/ui/AnimatedChatTitle';
@@ -42,6 +43,7 @@ type AttachedFile = {
   name: string;
   ext: string;
   previewUrl?: string;
+  storageKey?: string;
   dataUrl?: string;
   content?: string;
   size?: number;
@@ -55,15 +57,22 @@ const canPreviewUploadFile = (file: File) =>
   /\.(png|jpe?g|gif|webp|svg|bmp|heic|heif|avif|pdf|mp4|webm|mov|mp3|wav|ogg|m4a)$/i.test(file.name);
 const createAttachedPreviewUrl = (file: File) => canPreviewUploadFile(file) ? URL.createObjectURL(file) : undefined;
 const revokeAttachedPreview = (file: AttachedFile) => {
-  if (file.previewUrl) URL.revokeObjectURL(file.previewUrl);
+  if (file.previewUrl && file.previewUrl.startsWith('blob:')) {
+    URL.revokeObjectURL(file.previewUrl);
+  }
 };
-const stripAttachedPreview = (file: AttachedFile) => ({
-  name: file.name,
-  ext: file.ext,
-  dataUrl: file.dataUrl,
-  content: file.content,
-  size: file.size
-});
+const stripAttachedPreview = (file: AttachedFile) => {
+  const remoteUrl = file.previewUrl && /^https?:\/\//i.test(file.previewUrl) ? file.previewUrl : undefined;
+  return {
+    name: file.name,
+    ext: file.ext,
+    previewUrl: remoteUrl,
+    storageKey: file.storageKey,
+    dataUrl: remoteUrl ? undefined : file.dataUrl,
+    content: file.content,
+    size: file.size
+  };
+};
 
 type MessageVersion = {
   content?: string;
@@ -422,10 +431,14 @@ export default function ChatView({ chatId }: { chatId: string }) {
       try {
         const res = await uploadFile(formData);
         if (res.success && res.fileName) {
+          if (res.previewUrl && previewUrl && previewUrl.startsWith('blob:')) {
+            URL.revokeObjectURL(previewUrl);
+          }
           setAttachedFiles(prev => [...prev, {
             name: res.fileName!,
             ext: res.ext || 'other',
-            previewUrl,
+            previewUrl: res.previewUrl || previewUrl,
+            storageKey: res.storageKey,
             dataUrl: res.dataUrl,
             content: res.content,
             size: res.size
@@ -1598,6 +1611,33 @@ const MessageBubble = React.memo(function MessageBubble({ message, deferOffscree
           <div className="mb-2 flex flex-wrap justify-end gap-2">
             {message.attachedFiles.map((file, idx: number) => {
               const displayName = getComposerDisplayName(file.name);
+              const mediaSrc = file.previewUrl || file.dataUrl;
+              const isImageFile = /^(png|jpe?g|gif|webp|svg|bmp|heic|heif|avif)$/i.test(file.ext || '');
+              const isPdfFile = (file.ext || '').toLowerCase() === 'pdf';
+
+              if (isImageFile && mediaSrc) {
+                return (
+                  <button
+                    key={`${file.name}-${idx}`}
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setPreviewAttachment(file);
+                      setIsAttachmentPreviewOpen(true);
+                    }}
+                    aria-label={`Preview ${displayName}`}
+                    className="group/imgthumb relative h-24 w-24 cursor-zoom-in overflow-hidden rounded-2xl border border-[var(--dc-border-subtle)] bg-[var(--dc-surface)] shadow-xs transition-transform active:scale-[0.97] sm:h-28 sm:w-28"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={mediaSrc}
+                      alt={displayName}
+                      className="h-full w-full object-cover transition-transform duration-200 group-hover/imgthumb:scale-105"
+                    />
+                  </button>
+                );
+              }
+
               return (
                 <button
                   key={`${file.name}-${idx}`}
@@ -1610,9 +1650,15 @@ const MessageBubble = React.memo(function MessageBubble({ message, deferOffscree
                   aria-label={`Preview ${displayName}`}
                   className="dc-attach-card flex max-w-[216px] cursor-pointer items-center gap-2 rounded-xl p-1.5 pr-3 text-left active:scale-[0.97]"
                 >
-                  <div className="dc-tools-icon-well h-8 w-8 rounded-lg">
-                    {getComposerFileIcon(file.ext, 'h-4 w-4')}
-                  </div>
+                  {isPdfFile && mediaSrc ? (
+                    <div className="flex h-10 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200/80 bg-white dark:border-slate-700/80 dark:bg-slate-900">
+                      <PdfCoverThumbnail src={mediaSrc} alt={displayName} />
+                    </div>
+                  ) : (
+                    <div className="dc-tools-icon-well h-8 w-8 rounded-lg">
+                      {getComposerFileIcon(file.ext, 'h-4 w-4')}
+                    </div>
+                  )}
                   <div className="flex min-w-0 flex-col pr-1">
                     <span className="block w-full truncate text-[11.5px] font-semibold text-[var(--dc-text-strong)]">
                       {displayName}

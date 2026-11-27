@@ -19,6 +19,7 @@ interface AttachedFile {
   name: string;
   ext: string;
   previewUrl?: string;
+  storageKey?: string;
   dataUrl?: string;
   content?: string;
   size?: number;
@@ -36,15 +37,22 @@ const canPreviewUploadFile = (file: File) =>
   /\.(png|jpe?g|gif|webp|svg|bmp|heic|heif|avif|pdf|mp4|webm|mov|mp3|wav|ogg|m4a)$/i.test(file.name);
 const createAttachedPreviewUrl = (file: File) => canPreviewUploadFile(file) ? URL.createObjectURL(file) : undefined;
 const revokeAttachedPreview = (file: AttachedFile) => {
-  if (file.previewUrl) URL.revokeObjectURL(file.previewUrl);
+  if (file.previewUrl && file.previewUrl.startsWith('blob:')) {
+    URL.revokeObjectURL(file.previewUrl);
+  }
 };
-const stripAttachedPreview = (file: AttachedFile) => ({
-  name: file.name,
-  ext: file.ext,
-  dataUrl: file.dataUrl,
-  content: file.content,
-  size: file.size
-});
+const stripAttachedPreview = (file: AttachedFile) => {
+  const remoteUrl = file.previewUrl && /^https?:\/\//i.test(file.previewUrl) ? file.previewUrl : undefined;
+  return {
+    name: file.name,
+    ext: file.ext,
+    previewUrl: remoteUrl,
+    storageKey: file.storageKey,
+    dataUrl: remoteUrl ? undefined : file.dataUrl,
+    content: file.content,
+    size: file.size
+  };
+};
 
 const homeHeadlines = [
   (name: string) => `Hello ${name}, What can I help you today?`,
@@ -244,10 +252,14 @@ export default function WelcomePage() {
       try {
         const res = await uploadFile(formData);
         if (res.success && res.fileName) {
+          if (res.previewUrl && previewUrl && previewUrl.startsWith('blob:')) {
+            URL.revokeObjectURL(previewUrl);
+          }
           setAttachedFiles(prev => [...prev, {
             name: res.fileName!,
             ext: res.ext || 'other',
-            previewUrl,
+            previewUrl: res.previewUrl || previewUrl,
+            storageKey: res.storageKey,
             dataUrl: res.dataUrl,
             content: res.content,
             size: res.size

@@ -16,6 +16,7 @@ import {
 import MarkdownRenderer from '@/components/ui/MarkdownRenderer';
 import { getComposerDisplayName, getComposerFileIcon } from '@/components/ui/ChatComposer';
 import AttachmentPreviewModal from '@/components/ui/AttachmentPreviewModal';
+import PdfCoverThumbnail from '@/components/ui/PdfCoverThumbnail';
 import { AnimatedChatTitle } from '@/components/ui/AnimatedChatTitle';
 import Tooltip from '@/components/ui/Tooltip';
 import { prefersReducedMotion, triggerSubtleHaptic } from '@/components/mobile/gesture-utils';
@@ -734,6 +735,33 @@ function SharedMessageBubble({
           <div className="mb-2 flex flex-wrap justify-end gap-2">
             {message.attachedFiles.map((file, idx) => {
               const displayName = getComposerDisplayName(file.name);
+              const mediaSrc = file.previewUrl || file.dataUrl;
+              const isImageFile = /^(png|jpe?g|gif|webp|svg|bmp|heic|heif|avif)$/i.test(file.ext || '');
+              const isPdfFile = (file.ext || '').toLowerCase() === 'pdf';
+
+              if (isImageFile && mediaSrc) {
+                return (
+                  <button
+                    key={`${file.name}-${idx}`}
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setPreviewAttachment(file);
+                      setIsAttachmentPreviewOpen(true);
+                    }}
+                    aria-label={`Preview ${displayName}`}
+                    className="group/imgthumb relative h-24 w-24 cursor-zoom-in overflow-hidden rounded-2xl border border-[var(--dc-border-subtle)] bg-[var(--dc-surface)] shadow-xs transition-transform active:scale-[0.97] sm:h-28 sm:w-28"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={mediaSrc}
+                      alt={displayName}
+                      className="h-full w-full object-cover transition-transform duration-200 group-hover/imgthumb:scale-105"
+                    />
+                  </button>
+                );
+              }
+
               return (
                 <button
                   key={`${file.name}-${idx}`}
@@ -746,9 +774,15 @@ function SharedMessageBubble({
                   aria-label={`Preview ${displayName}`}
                   className="dc-attach-card flex max-w-[216px] cursor-pointer items-center gap-2 rounded-xl p-1.5 pr-3 text-left active:scale-[0.97]"
                 >
-                  <div className="dc-tools-icon-well h-8 w-8 rounded-lg">
-                    {getComposerFileIcon(file.ext, 'h-4 w-4')}
-                  </div>
+                  {isPdfFile && mediaSrc ? (
+                    <div className="flex h-10 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200/80 bg-white dark:border-slate-700/80 dark:bg-slate-900">
+                      <PdfCoverThumbnail src={mediaSrc} alt={displayName} />
+                    </div>
+                  ) : (
+                    <div className="dc-tools-icon-well h-8 w-8 rounded-lg">
+                      {getComposerFileIcon(file.ext, 'h-4 w-4')}
+                    </div>
+                  )}
                   <div className="flex min-w-0 flex-col pr-1">
                     <span className="block w-full truncate text-[11.5px] font-semibold text-[var(--dc-text-strong)]">
                       {displayName}

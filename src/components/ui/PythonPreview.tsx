@@ -27,6 +27,7 @@ import {
 import {
   isSafeDownloadFilename,
   prepareWorkspaceFiles,
+  prepareWorkspaceFilesAsync,
   PYTHON_EXECUTION_TIMEOUT_MS,
   requestAiPythonEdit,
   shouldAutoRunPython,
@@ -186,6 +187,8 @@ export default function PythonPreview({
   );
 
   const hasPlacedCharts = referencedCharts.size > 0;
+  const hasChartCall = /\b(plotly|matplotlib|pyplot|seaborn|plt\.show|fig\.show)\b/.test(draftCode);
+  const isSilentFileMode = referencedFiles.size > 0 && !hasPlacedCharts && !hasChartCall;
 
   const [mode, setMode] = useState<'preview' | 'code'>(() =>
     !isStreaming && shouldAutoRunPython(value, preparedFiles.length > 0) ? 'preview' : 'code'
@@ -416,14 +419,16 @@ export default function PythonPreview({
           }, '*');
         } else {
           setRunnerActive(previewId, true);
-          targetWindow.postMessage({
-            source: 'deepchat-python-host',
-            type: 'execute',
-            previewId,
-            code: draftCode,
-            files: preparedFiles,
-            isDark: isDarkTheme
-          }, '*');
+          void prepareWorkspaceFilesAsync(workspaceFiles).then((hydratedFiles) => {
+            targetWindow.postMessage({
+              source: 'deepchat-python-host',
+              type: 'execute',
+              previewId,
+              code: draftCode,
+              files: hydratedFiles,
+              isDark: isDarkTheme
+            }, '*');
+          });
         }
         return;
       }
@@ -515,7 +520,8 @@ export default function PythonPreview({
     result,
     setRunnerActive,
     setRunnerError,
-    setRunnerStatus
+    setRunnerStatus,
+    workspaceFiles
   ]);
 
   const runPreview = () => {
@@ -671,16 +677,16 @@ export default function PythonPreview({
     </div>
   ) : null;
 
-  // 1. While streaming: if charts are explicitly placed via [[chart]], stay hidden here so shimmer only renders at [[chart]]
+  // 1. While streaming: if charts or files are explicitly placed via [[chart]] / [[file:...]], stay hidden here
   if (isStreaming) {
-    if (hasPlacedCharts) return null;
+    if (hasPlacedCharts || isSilentFileMode) return null;
     return <PythonStatusShimmer label="Running Python…" />;
   }
 
   // 2. Visual / Tool Mode
   if (isToolMode && mode === 'preview') {
-    // Silent runner mode when AI placed [[chart]] / [[chart:...]] explicitly in prose
-    if (hasPlacedCharts) {
+    // Silent runner mode when AI placed [[chart]] or [[file:...]] explicitly in prose
+    if (hasPlacedCharts || isSilentFileMode) {
       return (
         <>
           {!timedOut && (
@@ -694,6 +700,11 @@ export default function PythonPreview({
               tabIndex={-1}
               className="pointer-events-none fixed -left-[9999px] top-0 h-px w-px border-0 opacity-0"
             />
+          )}
+          {isSilentFileMode && result?.error && (
+            <div className="not-prose my-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 font-mono text-xs text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
+              {result.error}
+            </div>
           )}
           {unreferencedFiles.length > 0 && (
             <div className="not-prose my-3 space-y-2.5">

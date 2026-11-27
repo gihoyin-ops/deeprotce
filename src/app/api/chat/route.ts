@@ -64,6 +64,7 @@ type AttachedFileInput = {
   ext?: unknown;
   content?: string;
   dataUrl?: string;
+  previewUrl?: string;
   base64?: string;
   size?: number;
 };
@@ -548,6 +549,52 @@ const readAttachment = async (file: AttachedFileInput): Promise<AttachmentPayloa
       kind: 'binary',
       dataUrl
     };
+  }
+
+  if (typeof file?.previewUrl === 'string' && /^https?:\/\//i.test(file.previewUrl)) {
+    try {
+      const safeUrl = await assertEgressUrl(file.previewUrl);
+      const response = await fetch(safeUrl.toString(), { signal: AbortSignal.timeout(15000) });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      const buffer = Buffer.from(await response.arrayBuffer());
+      if (buffer.byteLength > MAX_ATTACHMENT_BYTES) {
+        throw new Error(`Attachment exceeds ${Math.round(MAX_ATTACHMENT_BYTES / (1024 * 1024))} MB limit`);
+      }
+      if (isText) {
+        return {
+          name,
+          ext,
+          filePath: '',
+          mimeType,
+          size: buffer.byteLength,
+          kind: 'text',
+          text: buffer.toString('utf-8')
+        };
+      }
+      const effectiveMime = mimeType !== 'application/octet-stream'
+        ? mimeType
+        : (response.headers.get('content-type')?.split(';')[0]?.trim() || mimeType);
+      return {
+        name,
+        ext,
+        filePath: '',
+        mimeType: effectiveMime,
+        size: buffer.byteLength,
+        kind: 'binary',
+        dataUrl: `data:${effectiveMime};base64,${buffer.toString('base64')}`
+      };
+    } catch (err) {
+      return {
+        name,
+        ext,
+        mimeType,
+        size: 0,
+        kind: 'missing',
+        error: getErrorMessage(err)
+      };
+    }
   }
 
   try {

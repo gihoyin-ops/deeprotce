@@ -140,6 +140,50 @@ export const prepareWorkspaceFiles = (files: PythonWorkspaceInputFile[]): Prepar
   return prepared;
 };
 
+const arrayBufferToBase64 = (buffer: ArrayBuffer): string => {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+};
+
+export const prepareWorkspaceFilesAsync = async (
+  files: PythonWorkspaceInputFile[]
+): Promise<PreparedWorkspaceFile[]> => {
+  const syncPrepared = prepareWorkspaceFiles(files);
+  const byName = new Map(syncPrepared.map((item) => [item.name, item]));
+  const result: PreparedWorkspaceFile[] = [...syncPrepared];
+
+  for (let i = 0; i < files.length && result.length < MAX_WORKSPACE_INPUT_FILES; i += 1) {
+    const file = files[i];
+    if (!file || typeof file.name !== 'string') continue;
+    const name = sanitizeWorkspaceFilename(file.name, `input_${i + 1}.dat`);
+    if (byName.has(name)) continue;
+    if (typeof file.previewUrl !== 'string' || !/^https?:\/\//i.test(file.previewUrl)) continue;
+
+    try {
+      const res = await fetch(file.previewUrl, { signal: AbortSignal.timeout(15000) });
+      if (!res.ok) continue;
+      const buf = await res.arrayBuffer();
+      if (buf.byteLength === 0 || buf.byteLength > MAX_WORKSPACE_INPUT_BYTES) continue;
+      const item: PreparedWorkspaceFile = {
+        name,
+        kind: 'base64',
+        data: arrayBufferToBase64(buf)
+      };
+      byName.set(name, item);
+      result.push(item);
+    } catch {
+      // Ignore unreachable remote files
+    }
+  }
+
+  return result;
+};
+
 function stripPythonFences(raw: string): string {
   return raw
     .trim()
@@ -380,6 +424,10 @@ export function buildPythonSandboxHtml(): string {
     'https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js',
     'https://fastly.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js'
   ];
+  const PDFJS_URLS = [
+    'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.8.69/build/pdf.min.mjs',
+    'https://fastly.jsdelivr.net/npm/pdfjs-dist@4.8.69/build/pdf.min.mjs'
+  ];
   const MAX_STDOUT_CHARS = 180000;
   const MAX_FILES = 10;
   const MAX_FILE_BYTES = 24 * 1024 * 1024;
@@ -402,6 +450,7 @@ export function buildPythonSandboxHtml(): string {
   let activePreviewId = '';
   let pyodidePromise = null;
   let plotlyPromise = null;
+  let pdfjsPromise = null;
   let isRunning = false;
 
   const root = document.getElementById('root');
@@ -485,6 +534,52 @@ export function buildPythonSandboxHtml(): string {
       })();
     }
     return plotlyPromise;
+  };
+
+  const getPdfJs = async () => {
+    if (!pdfjsPromise) {
+      pdfjsPromise = (async () => {
+        let lastErr = null;
+        for (const url of PDFJS_URLS) {
+          try {
+            const mod = await import(url);
+            if (mod && mod.GlobalWorkerOptions) {
+              mod.GlobalWorkerOptions.workerSrc = url.replace('pdf.min.mjs', 'pdf.worker.min.mjs');
+            }
+            return mod;
+          } catch (err) {
+            lastErr = err;
+          }
+        }
+        throw lastErr || new Error('Failed to load PDF runtime');
+      })();
+    }
+    return pdfjsPromise;
+  };
+
+  const renderPdfCover = async (base64) => {
+    try {
+      const pdfjs = await getPdfJs();
+      const bytes = base64ToUint8(base64);
+      const doc = await pdfjs.getDocument({ data: bytes, disableWorker: true }).promise;
+      const page = await doc.getPage(1);
+      const viewport = page.getViewport({ scale: 1 });
+      const targetWidth = 280;
+      const scale = Math.max(0.35, Math.min(1.5, targetWidth / Math.max(1, viewport.width)));
+      const scaledViewport = page.getViewport({ scale });
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(scaledViewport.width));
+      canvas.height = Math.max(1, Math.round(scaledViewport.height));
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('Canvas 2D unavailable');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      await page.render({ canvasContext: ctx, viewport: scaledViewport }).promise;
+      const dataUrl = canvas.toDataURL('image/webp', 0.86);
+      post('pdf_cover', { dataUrl });
+    } catch (err) {
+      post('pdf_cover_error', { error: err && err.message ? err.message : String(err) });
+    }
   };
 
   const base64ToUint8 = (b64) => {
@@ -899,6 +994,10 @@ json.dumps({
         await renderResults({ images: [chart.data] }, Boolean(data.isDark));
       } else {
         await renderResults({ error: 'Chart unavailable.' }, Boolean(data.isDark));
+      }
+    } else if (data.type === 'render_pdf_cover') {
+      if (typeof data.base64 === 'string' && data.base64) {
+        await renderPdfCover(data.base64);
       }
     } else if (data.type === 'theme') {
       // Theme updates only CSS variables; Plotly redraws on next render if needed

@@ -569,6 +569,7 @@ export async function saveAccountMessage(
       const fileName = typeof att.name === 'string' ? att.name : `file-${i + 1}`;
       const ext = typeof att.ext === 'string' ? att.ext : null;
       const sizeBytes = typeof att.size === 'number' ? att.size : null;
+      const storageKey = typeof att.storageKey === 'string' ? att.storageKey : '';
       const url =
         typeof att.previewUrl === 'string' && att.previewUrl
           ? att.previewUrl
@@ -578,7 +579,7 @@ export async function saveAccountMessage(
       await pool.exec(
         `INSERT INTO attachments (id, message_id, file_name, ext, size_bytes, storage_key, public_url, created_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [`${msgId}_att_${i}`, msgId, fileName, ext, sizeBytes, '', url, nowIso]
+        [`${msgId}_att_${i}`, msgId, fileName, ext, sizeBytes, storageKey, url, nowIso]
       );
     }
   }

@@ -28,6 +28,7 @@ import ModelSelector from './ModelSelector';
 import Tooltip from './Tooltip';
 import { ComposerToolsMenu, ImageToolBadge, SearchToolBadge } from './ComposerToolsMenu';
 import AttachmentPreviewModal from './AttachmentPreviewModal';
+import PdfCoverThumbnail from './PdfCoverThumbnail';
 import DictateAbstractOrb from './DictateAbstractOrb';
 import GlobalImagePreviewModal from './GlobalImagePreviewModal';
 import {
@@ -1270,13 +1271,19 @@ export default function ChatComposer({
                         className="dc-attach-card flex h-12 max-w-[180px] cursor-pointer items-center gap-2.5 rounded-[14px] px-2 pr-3 text-left active:scale-[0.97] sm:max-w-[216px]"
                         aria-label={`Preview ${displayName}`}
                       >
-                        <span
-                          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] ${getComposerFileTone(
-                            file.ext
-                          )}`}
-                        >
-                          {getComposerFileIcon(file.ext, 'h-4 w-4')}
-                        </span>
+                        {file.ext?.toLowerCase() === 'pdf' && thumbSrc ? (
+                          <span className="flex h-9 w-7 shrink-0 items-center justify-center overflow-hidden rounded-[8px] border border-slate-200/80 bg-white dark:border-slate-700/80 dark:bg-slate-900">
+                            <PdfCoverThumbnail src={thumbSrc} alt={displayName} />
+                          </span>
+                        ) : (
+                          <span
+                            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] ${getComposerFileTone(
+                              file.ext
+                            )}`}
+                          >
+                            {getComposerFileIcon(file.ext, 'h-4 w-4')}
+                          </span>
+                        )}
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-[12.5px] font-semibold leading-tight text-[var(--dc-text-strong)]">
                             {displayName}

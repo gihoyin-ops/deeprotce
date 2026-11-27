@@ -35,6 +35,7 @@ export type UploadFileResult = {
   fileName?: string;
   ext?: string;
   previewUrl?: string;
+  storageKey?: string;
   dataUrl?: string;
   content?: string;
   size?: number;
@@ -323,10 +324,55 @@ export async function deleteAllChats() {
 export async function uploadFile(formData: FormData): Promise<UploadFileResult> {
   if (typeof window !== 'undefined') {
     const file = formData.get('file');
-    if (file instanceof File) {
-      return uploadFileClient(file);
+    if (!(file instanceof File)) {
+      return { success: false, error: 'No file provided' };
     }
-    return { success: false, error: 'No file provided' };
+
+    const clientResult = await uploadFileClient(file);
+    if (!clientResult.success) {
+      return clientResult;
+    }
+
+    // Upload to R2 storage (and register in Library for signed-in users)
+    try {
+      const r2Form = new FormData();
+      r2Form.append('file', file);
+      r2Form.append('folder', 'attachments');
+
+      const res = await fetch('/api/storage/upload', {
+        method: 'POST',
+        credentials: 'same-origin',
+        body: r2Form
+      });
+
+      if (res.ok) {
+        const data = (await res.json()) as {
+          ok?: boolean;
+          url?: string;
+          key?: string;
+          fileName?: string;
+          sizeBytes?: number;
+        };
+        if (data.ok && data.url) {
+          return {
+            success: true,
+            fileName: file.name || clientResult.fileName,
+            ext: clientResult.ext,
+            previewUrl: data.url,
+            storageKey: data.key,
+            content: clientResult.content,
+            size: data.sizeBytes ?? clientResult.size
+          };
+        }
+      }
+    } catch {
+      // Fallback to client-side IndexedDB dataUrl when offline or R2 is unavailable
+    }
+
+    return {
+      ...clientResult,
+      fileName: file.name || clientResult.fileName
+    };
   }
   return { success: false, error: 'File upload handled client side' };
 }

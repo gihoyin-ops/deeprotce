@@ -165,7 +165,7 @@ export async function POST(req: Request) {
     });
 
     let libraryItem = null;
-    if (account && pool && (folder === 'library' || folder === 'images_generated')) {
+    if (account && pool && (folder === 'library' || folder === 'images_generated' || folder === 'attachments')) {
       libraryItem = await registerLibraryItem(pool, {
         accountId: account.sub,
         folderId,
@@ -176,7 +176,8 @@ export async function POST(req: Request) {
         sizeBytes: file.size,
         source: folder === 'images_generated' ? 'generated' : 'upload',
         metadata: {
-          uploadedAt: new Date().toISOString()
+          uploadedAt: new Date().toISOString(),
+          ...(folder === 'attachments' ? { origin: 'attachment' } : {})
         }
       });
     }
