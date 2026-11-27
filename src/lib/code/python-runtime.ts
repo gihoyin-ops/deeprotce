@@ -7,6 +7,7 @@ export interface PythonWorkspaceInputFile {
   dataUrl?: string;
   base64?: string;
   previewUrl?: string;
+  storageKey?: string;
 }
 
 export interface PreparedWorkspaceFile {
@@ -162,22 +163,34 @@ export const prepareWorkspaceFilesAsync = async (
     if (!file || typeof file.name !== 'string') continue;
     const name = sanitizeWorkspaceFilename(file.name, `input_${i + 1}.dat`);
     if (byName.has(name)) continue;
-    if (typeof file.previewUrl !== 'string' || !/^https?:\/\//i.test(file.previewUrl)) continue;
 
-    try {
-      const res = await fetch(file.previewUrl, { signal: AbortSignal.timeout(15000) });
-      if (!res.ok) continue;
-      const buf = await res.arrayBuffer();
-      if (buf.byteLength === 0 || buf.byteLength > MAX_WORKSPACE_INPUT_BYTES) continue;
-      const item: PreparedWorkspaceFile = {
-        name,
-        kind: 'base64',
-        data: arrayBufferToBase64(buf)
-      };
-      byName.set(name, item);
-      result.push(item);
-    } catch {
-      // Ignore unreachable remote files
+    const candidates: string[] = [];
+    if (typeof file.storageKey === 'string' && file.storageKey.trim()) {
+      candidates.push(`/api/storage/file?key=${encodeURIComponent(file.storageKey.trim())}`);
+    }
+    if (typeof file.previewUrl === 'string' && /^https?:\/\//i.test(file.previewUrl)) {
+      candidates.push(file.previewUrl);
+      candidates.push(`/api/storage/file?imageUrl=${encodeURIComponent(file.previewUrl)}`);
+    }
+    if (candidates.length === 0) continue;
+
+    for (const fetchUrl of candidates) {
+      try {
+        const res = await fetch(fetchUrl, { signal: AbortSignal.timeout(15000) });
+        if (!res.ok) continue;
+        const buf = await res.arrayBuffer();
+        if (buf.byteLength === 0 || buf.byteLength > MAX_WORKSPACE_INPUT_BYTES) continue;
+        const item: PreparedWorkspaceFile = {
+          name,
+          kind: 'base64',
+          data: arrayBufferToBase64(buf)
+        };
+        byName.set(name, item);
+        result.push(item);
+        break;
+      } catch {
+        // Try next candidate (e.g. same-origin proxy when cross-origin R2 lacks CORS)
+      }
     }
   }
 

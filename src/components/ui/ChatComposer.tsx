@@ -981,7 +981,60 @@ export default function ChatComposer({
       }
     }
 
+    if (files.length === 0 && clipboardData.files && clipboardData.files.length > 0) {
+      for (let index = 0; index < clipboardData.files.length; index += 1) {
+        const file = clipboardData.files[index];
+        if (file) files.push(file);
+      }
+    }
+
     return files;
+  };
+
+  const extractPastedImageSource = (clipboardData: DataTransfer): string | null => {
+    const html = clipboardData.getData('text/html') || '';
+    const plain = (clipboardData.getData('text/plain') || '').trim();
+
+    if (html) {
+      const imgMatch = html.match(/<img[^>]+src\s*=\s*["']([^"']+)["']/i);
+      if (imgMatch?.[1] && (!plain || /^https?:\/\/\S+$/i.test(plain))) {
+        return imgMatch[1].replace(/&amp;/g, '&');
+      }
+    }
+
+    if (/^data:image\/[a-z0-9.+-]+;base64,/i.test(plain)) {
+      return plain;
+    }
+
+    if (/^https?:\/\/\S+\.(png|jpe?g|webp|gif|bmp|avif|tiff?|ico)(\?\S*)?$/i.test(plain)) {
+      return plain;
+    }
+
+    return null;
+  };
+
+  const fetchPastedImageAsFile = async (src: string): Promise<File | null> => {
+    const urls = src.startsWith('data:image/')
+      ? [src]
+      : [src, `/api/storage/file?imageUrl=${encodeURIComponent(src)}`];
+
+    for (const url of urls) {
+      try {
+        const res = await fetch(url);
+        if (!res.ok) continue;
+        const blob = await res.blob();
+        if (!blob.size || (blob.type && !blob.type.startsWith('image/'))) continue;
+        const mime = blob.type || 'image/png';
+        const ext = mime.split('/')[1]?.split(';')[0]?.replace('jpeg', 'jpg') || 'png';
+        return new File([blob], `pasted-image-${Date.now()}.${ext}`, {
+          type: mime,
+          lastModified: Date.now(),
+        });
+      } catch {
+        // Fallback to same-origin proxy on CORS failure
+      }
+    }
+    return null;
   };
 
   const toolsButton = (
@@ -1209,9 +1262,18 @@ export default function ChatComposer({
         }}
         onPaste={(event) => {
           const files = getClipboardFiles(event.clipboardData);
-          if (files.length === 0) return;
-          event.preventDefault();
-          uploadFiles(files);
+          if (files.length > 0) {
+            event.preventDefault();
+            uploadFiles(files);
+            return;
+          }
+          const pastedImgSrc = extractPastedImageSource(event.clipboardData);
+          if (pastedImgSrc) {
+            event.preventDefault();
+            void fetchPastedImageAsFile(pastedImgSrc).then((file) => {
+              if (file) uploadFiles([file]);
+            });
+          }
         }}
         className={`dc-composer-shell relative rounded-[26px] border border-[var(--dc-border)] bg-[var(--dc-surface)] shadow-none dark:border-white/[0.1] dark:bg-[var(--dc-surface-input)] ${
           isToolComposerActive ? 'px-4 py-3 sm:px-5 sm:py-3.5' : 'px-2 py-1'

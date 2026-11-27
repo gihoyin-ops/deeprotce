@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getPersona } from '@/app/persona';
+import { sanitizeWorkspaceFilename } from '@/lib/code/python-runtime';
 import {
   getChatCompletionsUrl,
   getCleanBaseUrl,
@@ -677,9 +678,14 @@ const buildOpenAICompatibleMessages = async (messages: ChatMessage[], providerNa
     if (message.content) textParts.push(message.content);
 
     const unsupportedFiles: string[] = [];
+    const mountedWorkspaceFiles: string[] = [];
 
-    for (const attachment of attachments) {
+    for (let attIdx = 0; attIdx < attachments.length; attIdx += 1) {
+      const attachment = attachments[attIdx];
+      const workspaceName = sanitizeWorkspaceFilename(attachment.name, `input_${attIdx + 1}.dat`);
+
       if (attachment.kind === 'text') {
+        mountedWorkspaceFiles.push(workspaceName);
         textParts.push(`--- Attached Text File (${attachment.name}) ---\n${attachment.text}\n--- End of attached file ---`);
         continue;
       }
@@ -688,6 +694,8 @@ const buildOpenAICompatibleMessages = async (messages: ChatMessage[], providerNa
         textParts.push(`[Attachment notice: ${attachment.name} could not be read: ${attachment.error}.]`);
         continue;
       }
+
+      mountedWorkspaceFiles.push(workspaceName);
 
       if (!canOpenAICompatibleInspectNatively(attachment.mimeType)) {
         unsupportedFiles.push(`${attachment.name} (${attachment.mimeType}, ${formatBytes(attachment.size)})`);
@@ -712,6 +720,12 @@ const buildOpenAICompatibleMessages = async (messages: ChatMessage[], providerNa
           image_url: mistralTarget ? dataUrl : { url: dataUrl }
         });
       }
+    }
+
+    if (mountedWorkspaceFiles.length > 0) {
+      textParts.push(
+        `[Python workspace files mounted at /workspace (current working directory): ${mountedWorkspaceFiles.join(', ')}. Use these exact filenames directly in Python (e.g. open("${mountedWorkspaceFiles[0]}") or Image.open("${mountedWorkspaceFiles[0]}")) without probing os.listdir() or asking the user to re-upload.]`
+      );
     }
 
     if (unsupportedFiles.length > 0) {

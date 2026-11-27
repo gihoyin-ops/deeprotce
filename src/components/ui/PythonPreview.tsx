@@ -188,8 +188,8 @@ export default function PythonPreview({
   );
 
   const isToolMode = useMemo(
-    () => shouldAutoRunPython(draftCode, preparedFiles.length > 0),
-    [draftCode, preparedFiles.length]
+    () => shouldAutoRunPython(draftCode, workspaceFiles.length > 0 || preparedFiles.length > 0),
+    [draftCode, preparedFiles.length, workspaceFiles.length]
   );
 
   const hasPlacedCharts = referencedCharts.size > 0;
@@ -206,7 +206,7 @@ export default function PythonPreview({
   );
 
   const [mode, setMode] = useState<'preview' | 'code'>(() =>
-    !isStreaming && shouldAutoRunPython(value, preparedFiles.length > 0) ? 'preview' : 'code'
+    !isStreaming && shouldAutoRunPython(value, workspaceFiles.length > 0 || preparedFiles.length > 0) ? 'preview' : 'code'
   );
   const [copied, setCopied] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);

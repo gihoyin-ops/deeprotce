@@ -44,7 +44,7 @@ const signR2Request = ({
   contentType
 }: {
   config: R2Config;
-  method: 'PUT' | 'DELETE';
+  method: 'GET' | 'PUT' | 'DELETE';
   objectKey: string;
   payloadHash: string;
   contentType?: string;
@@ -170,4 +170,39 @@ export const deleteFromR2 = async (key: string): Promise<void> => {
     const errText = await res.text().catch(() => '');
     throw new Error(`R2 delete failed (${res.status}): ${errText.slice(0, 200)}`);
   }
+};
+
+export const getFromR2 = async (
+  key: string
+): Promise<{ body: Uint8Array; contentType: string } | null> => {
+  const config = getR2Config();
+  if (!config) {
+    return null;
+  }
+
+  const cleanKey = key.replace(/^\/+/, '');
+  const signed = signR2Request({
+    config,
+    method: 'GET',
+    objectKey: cleanKey,
+    payloadHash: sha256Hex('')
+  });
+
+  const res = await fetch(signed.endpoint, {
+    method: 'GET',
+    headers: signed.headers,
+    cache: 'no-store'
+  });
+
+  if (res.status === 404) {
+    return null;
+  }
+  if (!res.ok) {
+    const errText = await res.text().catch(() => '');
+    throw new Error(`R2 read failed (${res.status}): ${errText.slice(0, 200)}`);
+  }
+
+  const buf = new Uint8Array(await res.arrayBuffer());
+  const contentType = res.headers.get('content-type') || 'application/octet-stream';
+  return { body: buf, contentType };
 };
