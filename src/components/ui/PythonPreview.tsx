@@ -6,17 +6,17 @@ import { gsap } from 'gsap';
 import { bundledLanguages, type BundledLanguage, type Highlighter } from 'shiki';
 import { prefersReducedMotion } from '@/components/mobile/gesture-utils';
 import {
-  ArrowLeftToLine,
-  ArrowRightToLine,
+  ArrowUp,
   Check,
   Code2,
   Copy,
+  Cpu,
   Download,
-  Edit3,
   Maximize2,
   Play,
   X
 } from '@/components/ui/icons';
+import KineticDot from '@/components/ui/KineticDot';
 import PythonFileCard from '@/components/ui/PythonFileCard';
 import {
   normalizeFileKey,
@@ -53,6 +53,132 @@ const isDocumentDark = () => {
   const root = document.documentElement;
   return root.classList.contains('dark') || root.dataset.appearance === 'dark';
 };
+
+function stripPythonFences(raw: string): string {
+  return raw
+    .trim()
+    .replace(/^```(?:python|py)?\s*\n?/i, '')
+    .replace(/\n?```\s*$/i, '')
+    .trim();
+}
+
+async function requestAiPythonEdit(
+  currentCode: string,
+  instruction: string,
+  signal: AbortSignal
+): Promise<string> {
+  let connectionId: string | undefined;
+  let modelId: string | undefined;
+  try {
+    const raw = localStorage.getItem('selectedModelObj');
+    if (raw) {
+      const parsed = JSON.parse(raw) as { id?: string; connectionId?: string };
+      connectionId = parsed.connectionId;
+      modelId = parsed.id;
+    }
+  } catch {}
+
+  const res = await fetch('/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+    signal,
+    body: JSON.stringify({
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You are a Python data visualization and analysis editor. Return ONLY the updated valid Python code. Do not include markdown fences (```), explanations, or extra text. Use plotly (`fig.show()`) for interactive charts or matplotlib (`plt.show()`), and save any generated files to `/workspace/<filename>`.'
+        },
+        {
+          role: 'user',
+          content: `Current Python code:\n${currentCode}\n\nEdit instruction: ${instruction}`
+        }
+      ],
+      connectionId,
+      modelId,
+      tools: [],
+      manualSearch: false
+    })
+  });
+
+  if (!res.ok || !res.body) {
+    throw new Error('Could not update Python output');
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let content = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() ?? '';
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith('data:')) continue;
+      const data = trimmed.slice(5).trim();
+      if (!data || data === '[DONE]') continue;
+      try {
+        const json = JSON.parse(data) as {
+          choices?: Array<{ delta?: { content?: string } }>;
+        };
+        const delta = json.choices?.[0]?.delta?.content;
+        if (typeof delta === 'string') {
+          content += delta;
+        }
+      } catch {}
+    }
+  }
+
+  return stripPythonFences(content);
+}
+
+function PythonStatusShimmer({ label }: { label: string }) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const iconRef = useRef<HTMLSpanElement>(null);
+  const shimmerRef = useRef<HTMLSpanElement>(null);
+
+  useLayoutEffect(() => {
+    const reduce = prefersReducedMotion();
+    if (reduce) return;
+    const ctx = gsap.context(() => {
+      if (shimmerRef.current) {
+        gsap.fromTo(
+          shimmerRef.current,
+          { backgroundPosition: '130% 50%' },
+          { backgroundPosition: '-130% 50%', duration: 1.75, ease: 'none', repeat: -1 }
+        );
+      }
+      if (iconRef.current) {
+        gsap.fromTo(
+          iconRef.current,
+          { opacity: 0.45, scale: 0.94 },
+          { opacity: 0.95, scale: 1.06, duration: 1.05, ease: 'sine.inOut', repeat: -1, yoyo: true }
+        );
+      }
+    }, rootRef);
+    return () => ctx.revert();
+  }, [label]);
+
+  return (
+    <div ref={rootRef} className="not-prose my-2 flex w-fit items-center gap-2 py-0.5">
+      <span ref={iconRef} className="inline-flex h-4 w-4 shrink-0 items-center justify-center text-slate-500 dark:text-slate-400">
+        <Cpu className="h-3.5 w-3.5" strokeWidth={2} />
+      </span>
+      <span
+        ref={shimmerRef}
+        className="bg-gradient-to-r from-slate-500 via-slate-900 to-slate-500 bg-[length:220%_100%] bg-clip-text text-[13.5px] font-medium tracking-[-0.01em] text-transparent dark:from-slate-400 dark:via-slate-100 dark:to-slate-400"
+      >
+        {label}
+      </span>
+    </div>
+  );
+}
 
 function IconButton({
   title,
@@ -123,36 +249,13 @@ function ModeSwitch({
 
 function CodeSurface({
   code,
-  html,
-  editing,
-  onChange,
-  fill = false
+  html
 }: {
   code: string;
   html: string;
-  editing: boolean;
-  onChange: (nextCode: string) => void;
-  fill?: boolean;
 }) {
-  if (editing) {
-    return (
-      <textarea
-        value={code}
-        onChange={(event) => onChange(event.target.value)}
-        spellCheck={false}
-        className={`code-preview-code modern-scrollbar w-full resize-none border-0 bg-white p-4 font-mono text-[13.5px] leading-6 text-slate-900 outline-none dark:bg-[#0d1117] dark:text-slate-100 ${
-          fill ? 'h-full' : 'min-h-[300px]'
-        }`}
-      />
-    );
-  }
-
   return (
-    <div
-      className={`code-preview-code modern-scrollbar overflow-auto bg-white text-[13.5px] leading-6 dark:bg-[#0d1117] ${
-        fill ? 'h-full' : 'max-h-[440px]'
-      }`}
-    >
+    <div className="code-preview-code modern-scrollbar max-h-[440px] overflow-auto bg-white text-[13.5px] leading-6 dark:bg-[#0d1117]">
       {html ? (
         <div
           className="px-4 py-3.5 font-mono text-[13.5px] leading-6 [&>pre]:!m-0 [&>pre]:!bg-transparent [&>pre]:!p-0 [&_code]:!bg-transparent"
@@ -198,19 +301,26 @@ export default function PythonPreview({
   );
   const [copied, setCopied] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
-  const [showFullscreenCode, setShowFullscreenCode] = useState(false);
   const [isDarkTheme, setIsDarkTheme] = useState(isDocumentDark);
   const [runId, setRunId] = useState(() =>
     !isStreaming && shouldAutoRunPython(value, preparedFiles.length > 0) ? 1 : 0
   );
   const [frameHeight, setFrameHeight] = useState(320);
   const [result, setResult] = useState<PythonRunResult | null>(null);
+  const [statusLabel, setStatusLabel] = useState('Running Python…');
   const [timedOut, setTimedOut] = useState(false);
+
+  // Fullscreen AI edit prompt state (matching MermaidDiagramBlock)
+  const [editPrompt, setEditPrompt] = useState('');
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
 
   const visualCardRef = useRef<HTMLDivElement | null>(null);
   const fullscreenShellRef = useRef<HTMLDivElement | null>(null);
   const inlineIframeRef = useRef<HTMLIFrameElement | null>(null);
   const fullscreenIframeRef = useRef<HTMLIFrameElement | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const editAbortRef = useRef<AbortController | null>(null);
   const autoRanRef = useRef(!isStreaming && shouldAutoRunPython(value, preparedFiles.length > 0));
   const timeoutRef = useRef<number | null>(null);
 
@@ -239,24 +349,31 @@ export default function PythonPreview({
     if (!fullscreen) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setFullscreen(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
     return () => {
       document.body.style.overflow = prev;
+      window.removeEventListener('keydown', onKeyDown);
     };
   }, [fullscreen]);
 
-  // GSAP entrance for visual surface
+  useEffect(() => () => editAbortRef.current?.abort(), []);
+
+  // GSAP entrance for visual card when result arrives
   useLayoutEffect(() => {
     const el = visualCardRef.current;
-    if (!el || mode !== 'preview' || prefersReducedMotion()) return;
+    if (!el || !result || prefersReducedMotion()) return;
     const ctx = gsap.context(() => {
       gsap.fromTo(
         el,
-        { opacity: 0, y: 10, scale: 0.99 },
-        { opacity: 1, y: 0, scale: 1, duration: 0.36, ease: 'power3.out', clearProps: 'transform' }
+        { opacity: 0, y: 8, scale: 0.99 },
+        { opacity: 1, y: 0, scale: 1, duration: 0.34, ease: 'power3.out', clearProps: 'transform' }
       );
     }, el);
     return () => ctx.revert();
-  }, [mode, runId]);
+  }, [result]);
 
   // GSAP entrance for fullscreen overlay
   useLayoutEffect(() => {
@@ -272,9 +389,9 @@ export default function PythonPreview({
     return () => ctx.revert();
   }, [fullscreen]);
 
-  // Syntax highlighting (only when code view is needed)
+  // Syntax highlighting only needed when in non-tool code mode
   useEffect(() => {
-    if (!highlighter || (isToolMode && !fullscreen)) return;
+    if (!highlighter || isStreaming || isToolMode) return;
     let active = true;
     let timerId: number | null = null;
 
@@ -303,19 +420,15 @@ export default function PythonPreview({
       void run();
     };
 
-    if (!isStreaming) {
-      highlightNow();
-    } else {
-      const elapsed = Date.now() - lastHighlightAtRef.current;
-      const delay = elapsed >= STREAM_HIGHLIGHT_THROTTLE_MS ? 0 : STREAM_HIGHLIGHT_THROTTLE_MS - elapsed;
-      timerId = window.setTimeout(highlightNow, delay);
-    }
+    const elapsed = Date.now() - lastHighlightAtRef.current;
+    const delay = elapsed >= STREAM_HIGHLIGHT_THROTTLE_MS ? 0 : STREAM_HIGHLIGHT_THROTTLE_MS - elapsed;
+    timerId = window.setTimeout(highlightNow, delay);
 
     return () => {
       active = false;
       if (timerId !== null) window.clearTimeout(timerId);
     };
-  }, [draftCode, fullscreen, highlighter, isDarkTheme, isStreaming, isToolMode]);
+  }, [draftCode, highlighter, isDarkTheme, isStreaming, isToolMode]);
 
   const highlightedCode =
     highlightedState.code === draftCode && highlightedState.isDark === isDarkTheme
@@ -337,6 +450,7 @@ export default function PythonPreview({
   const startExecutionTimer = useCallback(() => {
     clearExecutionTimer();
     setTimedOut(false);
+    setStatusLabel('Running Python…');
     setRunnerActive(previewId, true);
     timeoutRef.current = window.setTimeout(() => {
       setTimedOut(true);
@@ -406,6 +520,11 @@ export default function PythonPreview({
 
       if (data.previewId !== previewId) return;
 
+      if (data.type === 'status' && typeof data.text === 'string') {
+        setStatusLabel(data.text);
+        return;
+      }
+
       if (data.type === 'resize' && typeof data.height === 'number' && isInlineSource) {
         setFrameHeight(Math.max(220, Math.min(640, Math.round(data.height))));
         return;
@@ -472,9 +591,38 @@ export default function PythonPreview({
     URL.revokeObjectURL(url);
   };
 
-  const handleEdit = () => {
-    setShowFullscreenCode(true);
-    setFullscreen(true);
+  const handleSubmitAiEdit = async () => {
+    const instruction = editPrompt.trim();
+    if (!instruction || isUpdating) return;
+
+    editAbortRef.current?.abort();
+    const controller = new AbortController();
+    editAbortRef.current = controller;
+
+    setIsUpdating(true);
+    setEditError(null);
+    setEditPrompt('');
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+    }
+
+    try {
+      const updatedCode = await requestAiPythonEdit(draftCode, instruction, controller.signal);
+      if (updatedCode) {
+        setDraftCode(updatedCode);
+        setResult(null);
+        setRunId((n) => n + 1);
+        startExecutionTimer();
+      } else {
+        setEditError('Could not update chart.');
+      }
+    } catch (err) {
+      if (!(err instanceof Error && err.name === 'AbortError')) {
+        setEditError('Failed to update. Try again.');
+      }
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   // Unreferenced generated files (fallback if AI didn't place [[file:...]] in text)
@@ -486,7 +634,7 @@ export default function PythonPreview({
   }, [referencedFiles, result]);
 
   const hasVisualOrTextOutput = useMemo(() => {
-    if (!result) return true; // Keep visible while running
+    if (!result) return true;
     return Boolean(
       result.charts.length > 0 ||
       result.images.length > 0 ||
@@ -496,94 +644,110 @@ export default function PythonPreview({
     );
   }, [result]);
 
+  // Fullscreen modal: pure interactive visual + bottom AI edit textarea (NO code pane!)
   const fullscreenContent = fullscreen ? (
-    <div ref={fullscreenShellRef} className="fixed inset-0 z-50 bg-slate-50/95 backdrop-blur-md dark:bg-slate-950/95">
-      <div className="flex h-12 items-center justify-between border-b border-slate-200/80 px-4 dark:border-slate-800">
+    <div
+      ref={fullscreenShellRef}
+      className="fixed inset-0 z-50 flex flex-col bg-white dark:bg-[#0d1117]"
+    >
+      <div className="flex h-13 shrink-0 items-center justify-between px-4 sm:px-6">
+        <button
+          type="button"
+          onClick={() => setFullscreen(false)}
+          className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+          title="Close fullscreen"
+          aria-label="Close fullscreen"
+        >
+          <X className="h-5 w-5" />
+        </button>
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setFullscreen(false)}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-600 transition-colors hover:bg-slate-200/70 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100"
-            title="Exit fullscreen"
-            aria-label="Exit fullscreen"
-          >
-            <X className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowFullscreenCode((prev) => !prev)}
-            className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-200/70 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100"
-          >
-            {showFullscreenCode ? <ArrowLeftToLine className="h-3.5 w-3.5" /> : <ArrowRightToLine className="h-3.5 w-3.5" />}
-            <span>{showFullscreenCode ? 'Hide code' : 'Show code'}</span>
-          </button>
-          {showFullscreenCode && (
-            <button
-              type="button"
-              onClick={runPreview}
-              className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-slate-900 px-3 text-xs font-medium text-white transition-colors hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200"
-            >
-              <Play className="h-3 w-3 fill-current" />
-              <span>Run</span>
-            </button>
-          )}
+          {!result && !timedOut && <PythonStatusShimmer label={statusLabel} />}
         </div>
-        {showFullscreenCode && (
-          <div className="flex items-center gap-1">
-            <IconButton title={copied ? 'Copied' : 'Copy'} onClick={handleCopy}>
-              {copied ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
-            </IconButton>
-            <IconButton title="Download script" onClick={handleDownloadSource}>
-              <Download className="h-4 w-4" />
-            </IconButton>
-          </div>
-        )}
       </div>
 
-      <div className={`relative h-[calc(100vh-48px)] ${showFullscreenCode ? 'p-3 pt-2' : 'p-0'}`}>
-        <div className={`flex h-full overflow-hidden ${showFullscreenCode ? 'gap-3 rounded-2xl bg-white p-2 shadow-sm ring-1 ring-slate-200 dark:bg-[#0d1117] dark:ring-slate-800' : ''}`}>
-          {showFullscreenCode && (
-            <div className="h-full w-1/2 min-w-[280px] overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800">
-              <CodeSurface code={draftCode} html={highlightedCode} editing onChange={setDraftCode} fill />
-            </div>
+      <div className="min-h-0 flex-1 overflow-hidden px-3 py-1 sm:px-6">
+        <iframe
+          ref={fullscreenIframeRef}
+          key={`py-full-${runId}`}
+          title="Interactive visual fullscreen"
+          sandbox="allow-scripts"
+          src="/api/python-sandbox"
+          className="h-full w-full rounded-2xl border-0 bg-white dark:bg-[#0d1117]"
+        />
+      </div>
+
+      {/* Bottom AI prompt bar (matching MermaidDiagramBlock) */}
+      <div className="shrink-0 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 sm:px-6 sm:pb-5">
+        <div className="mx-auto w-full max-w-2xl">
+          {editError && (
+            <p className="mb-1.5 text-center text-xs text-red-500">{editError}</p>
           )}
-          <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden rounded-xl bg-white dark:bg-[#0d1117]">
-            <iframe
-              ref={fullscreenIframeRef}
-              key={`py-full-${runId}`}
-              title="Python fullscreen preview"
-              sandbox="allow-scripts"
-              src="/api/python-sandbox"
-              className="h-full w-full flex-1 border-0 bg-white dark:bg-[#0d1117]"
+          <div className="flex items-end gap-2 rounded-2xl bg-slate-100/90 px-3.5 py-2 shadow-xs ring-1 ring-slate-200/70 dark:bg-slate-900/90 dark:ring-slate-800">
+            <textarea
+              ref={textareaRef}
+              rows={1}
+              value={editPrompt}
+              disabled={isUpdating}
+              onChange={(e) => {
+                setEditPrompt(e.target.value);
+                e.target.style.height = 'auto';
+                e.target.style.height = `${Math.min(e.target.scrollHeight, 108)}px`;
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  void handleSubmitAiEdit();
+                }
+              }}
+              placeholder={isUpdating ? 'Updating…' : 'Edit your chart or analysis…'}
+              style={{ outline: 'none' }}
+              className="max-h-[108px] min-h-[24px] flex-1 resize-none bg-transparent py-1 text-[14px] leading-5 text-slate-900 placeholder:text-slate-400 outline-none disabled:opacity-60 dark:text-slate-100 dark:placeholder:text-slate-500"
             />
+            <button
+              type="button"
+              disabled={isUpdating || !editPrompt.trim()}
+              onClick={() => void handleSubmitAiEdit()}
+              aria-label="Send edit"
+              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-white transition-opacity hover:opacity-90 disabled:opacity-35 dark:bg-slate-100 dark:text-slate-900"
+            >
+              {isUpdating ? (
+                <KineticDot mode="thinking" size="sm" />
+              ) : (
+                <ArrowUp className="h-4 w-4" />
+              )}
+            </button>
           </div>
         </div>
       </div>
     </div>
   ) : null;
 
-  // Clean Visual / Tool Mode: NO code header, NO tags, NO Code/Preview switch
-  if (isToolMode && mode === 'preview') {
-    // While streaming, keep quiet until script is complete
-    if (isStreaming) {
-      return (
-        <div className="not-prose my-3 flex items-center gap-2.5 rounded-2xl border border-slate-200/80 bg-white px-4 py-3 text-xs text-slate-500 shadow-sm dark:border-slate-800 dark:bg-[#0d1117] dark:text-slate-400">
-          <span className="h-2 w-2 animate-pulse rounded-full bg-slate-400 dark:bg-slate-500" />
-          <span>Preparing analysis…</span>
-        </div>
-      );
-    }
+  // 1. While AI is still streaming the python block: show ONLY sleek Search-like shimmer (ZERO code!)
+  if (isStreaming) {
+    return <PythonStatusShimmer label="Running Python…" />;
+  }
 
-    // If Python only created files that are already placed via [[file:...]] in text, hide empty runner box
+  // 2. Visual / Tool Mode: pure visual output, ZERO code chrome
+  if (isToolMode && mode === 'preview') {
+    // If Python finished and only created files already placed via [[file:...]], hide runner completely
     if (result && !hasVisualOrTextOutput && unreferencedFiles.length === 0) {
       return null;
     }
 
+    const isStillRunning = !result && !timedOut;
+
     return (
       <>
-        <div ref={visualCardRef} className="not-prose my-3 space-y-2.5">
+        <div className="not-prose my-3 space-y-2.5">
+          {isStillRunning && <PythonStatusShimmer label={statusLabel} />}
+
           {(hasVisualOrTextOutput || !result) && (
-            <div className="group/pyvis relative overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm dark:border-slate-800 dark:bg-[#0d1117]">
+            <div
+              ref={visualCardRef}
+              className={`group/pyvis relative overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm dark:border-slate-800 dark:bg-[#0d1117] ${
+                isStillRunning ? 'h-0 border-0 opacity-0 shadow-none' : ''
+              }`}
+            >
               {timedOut ? (
                 <div className="px-4 py-3 font-mono text-xs text-red-700 dark:text-red-300">
                   Execution timed out after {PYTHON_EXECUTION_TIMEOUT_MS / 1000}s.
@@ -595,22 +759,21 @@ export default function PythonPreview({
                   title="Visual output"
                   sandbox="allow-scripts"
                   src="/api/python-sandbox"
-                  style={{ height: `${frameHeight}px` }}
+                  style={{ height: isStillRunning ? '1px' : `${frameHeight}px` }}
                   className="block w-full border-0 bg-white dark:bg-[#0d1117]"
                 />
               )}
-              <button
-                type="button"
-                onClick={() => {
-                  setShowFullscreenCode(false);
-                  setFullscreen(true);
-                }}
-                title="Expand"
-                aria-label="Expand"
-                className="absolute right-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-xl bg-white/90 text-slate-700 opacity-90 shadow-sm ring-1 ring-slate-200/80 backdrop-blur-sm transition hover:bg-slate-100 hover:opacity-100 sm:opacity-0 sm:group-hover/pyvis:opacity-100 dark:bg-slate-900/90 dark:text-slate-200 dark:ring-slate-700 dark:hover:bg-slate-800"
-              >
-                <Maximize2 className="h-4 w-4" />
-              </button>
+              {!isStillRunning && (
+                <button
+                  type="button"
+                  onClick={() => setFullscreen(true)}
+                  title="Expand"
+                  aria-label="Expand"
+                  className="absolute right-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-xl bg-white/90 text-slate-700 opacity-90 shadow-sm ring-1 ring-slate-200/80 backdrop-blur-sm transition hover:bg-slate-100 hover:opacity-100 sm:opacity-0 sm:group-hover/pyvis:opacity-100 dark:bg-slate-900/90 dark:text-slate-200 dark:ring-slate-700 dark:hover:bg-slate-800"
+                >
+                  <Maximize2 className="h-4 w-4" />
+                </button>
+              )}
             </div>
           )}
 
@@ -624,7 +787,7 @@ export default function PythonPreview({
     );
   }
 
-  // Standard Code Mode (for normal Python code examples / tutorials)
+  // 3. Standard Code Mode (only for pure Python code examples / tutorials)
   return (
     <div className="not-prose mb-4 overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm dark:border-slate-800 dark:bg-[#0d1117]">
       <div className="flex flex-wrap items-center justify-between gap-2.5 border-b border-slate-100 bg-slate-50/80 px-3.5 py-2.5 dark:border-slate-800/80 dark:bg-slate-900/70">
@@ -640,9 +803,6 @@ export default function PythonPreview({
           <ModeSwitch mode={mode} onShowCode={() => setMode('code')} onRunPreview={runPreview} />
           <IconButton title="Download script" onClick={handleDownloadSource}>
             <Download className="h-4 w-4" />
-          </IconButton>
-          <IconButton title="Edit" onClick={handleEdit}>
-            <Edit3 className="h-4 w-4" />
           </IconButton>
         </div>
       </div>
@@ -667,12 +827,9 @@ export default function PythonPreview({
             )}
             <button
               type="button"
-              onClick={() => {
-                setShowFullscreenCode(false);
-                setFullscreen(true);
-              }}
-              title="Fullscreen"
-              aria-label="Fullscreen"
+              onClick={() => setFullscreen(true)}
+              title="Expand"
+              aria-label="Expand"
               className="absolute right-3 top-3 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-white/95 text-slate-800 shadow-sm ring-1 ring-slate-200/80 transition hover:bg-slate-100 dark:bg-slate-900/95 dark:text-slate-100 dark:ring-slate-700 dark:hover:bg-slate-800"
             >
               <Maximize2 className="h-4 w-4" />
@@ -682,7 +839,7 @@ export default function PythonPreview({
             ))}
           </div>
         ) : (
-          <CodeSurface code={draftCode} html={highlightedCode} editing={false} onChange={setDraftCode} />
+          <CodeSurface code={draftCode} html={highlightedCode} />
         )}
       </div>
 

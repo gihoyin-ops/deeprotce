@@ -27,7 +27,7 @@ const nextConfig: NextConfig = {
         ]
       },
       {
-        source: '/:path*',
+        source: '/((?!api/python-sandbox).*)',
         headers: [
           {
             key: 'Content-Security-Policy',
