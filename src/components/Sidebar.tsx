@@ -22,7 +22,7 @@ import { IconMask } from './settings/mobile';
 import { deepchatQueryKeys } from '@/lib/query-keys';
 import { safeAvatarSource } from '@/lib/utils';
 import { logoutAccountClient, useGuestStatus } from '@/lib/auth/guest';
-import { buildAuthLoginUrl } from '@/lib/auth/auth-url';
+import { openAuthModal } from '@/lib/auth/auth-url';
 import ContactSupportModal from './ui/ContactSupportModal';
 import {
   AnimatedImagesSvg,
@@ -136,7 +136,7 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
     setMobileOpen(false);
     await logoutAccountClient(queryClient);
     toast.success('Signed out');
-    window.location.assign(buildAuthLoginUrl());
+    router.refresh();
   };
 
   const handleAction = async (action: string, id: string, value?: string) => {
@@ -484,7 +484,7 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
                 setProfileMenuOpen(false);
                 setHelpMenuOpen(false);
                 setMobileOpen(false);
-                window.location.assign(buildAuthLoginUrl());
+                openAuthModal();
               }}
               className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm font-medium text-[var(--dc-text)] transition-colors hover:bg-[var(--dc-surface-hover)]"
             >
@@ -570,7 +570,7 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
                 e.stopPropagation();
                 if (isAuthLoading) return;
                 if (isGuest) {
-                  window.location.assign(buildAuthLoginUrl());
+                  openAuthModal();
                 } else {
                   router.push(profile.username ? `/u/${encodeURIComponent(profile.username)}` : '/profile');
                 }

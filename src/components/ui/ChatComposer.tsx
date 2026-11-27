@@ -39,7 +39,7 @@ import {
 import { type ImageAspectRatio } from '@/lib/images/image-aspect-ratio';
 import { deepchatQueryKeys } from '@/lib/query-keys';
 import { useGuestStatus } from '@/lib/auth/guest';
-import { buildAuthLoginUrl } from '@/lib/auth/auth-url';
+import { openAuthModal } from '@/lib/auth/auth-url';
 import { formatRemainingTime, useActiveLimit } from '@/lib/security/client-limit';
 
 export interface ComposerFile {
@@ -1227,7 +1227,7 @@ export default function ChatComposer({
           {activeLimit.reason === 'guest' && (
             <button
               type="button"
-              onClick={() => window.location.assign(buildAuthLoginUrl())}
+              onClick={openAuthModal}
               className="inline-flex shrink-0 items-center justify-center self-start rounded-full bg-[var(--dc-invert)] px-3.5 py-1.5 text-xs font-medium text-[var(--dc-text-on-invert)] transition-colors hover:bg-[var(--dc-invert-hover)] sm:self-center"
             >
               Sign in

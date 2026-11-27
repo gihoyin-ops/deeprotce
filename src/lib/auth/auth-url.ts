@@ -16,3 +16,10 @@ export const buildAuthLoginUrl = (redirectTo?: string): string => {
 };
 
 export const buildAuthLogoutUrl = (): string => `${getAuthBaseUrl()}/api/auth/logout`;
+
+export const OPEN_AUTH_MODAL_EVENT = 'deepsia:open-auth-modal';
+
+export const openAuthModal = (): void => {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new Event(OPEN_AUTH_MODAL_EVENT));
+};

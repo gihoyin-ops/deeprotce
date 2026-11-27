@@ -25,7 +25,7 @@ import toast, { Toaster } from 'react-hot-toast';
 import { getChat, getSharedChat, deleteChat, shareChat, getUserProfile, updateChatTitle, togglePinChat } from '@/app/actions';
 import { deepchatQueryKeys } from '@/lib/query-keys';
 import { DEFAULT_GUEST_AVATAR } from '@/lib/avatar';
-import { buildAuthLoginUrl } from '@/lib/auth/auth-url';
+import { openAuthModal } from '@/lib/auth/auth-url';
 import DesktopGlobalSearchModal from './ui/DesktopGlobalSearchModal';
 import {
   addNotificationToInbox,
@@ -795,7 +795,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           Docs
         </button>
         {isGuest && (
-          <button onClick={() => { setProfileMenuOpen(false); window.location.assign(buildAuthLoginUrl()); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50">
+          <button onClick={() => { setProfileMenuOpen(false); openAuthModal(); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50">
             <User className="h-4 w-4 text-slate-400" />
             Log in
           </button>
