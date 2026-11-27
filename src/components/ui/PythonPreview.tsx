@@ -33,6 +33,12 @@ import {
   shouldAutoRunPython,
   type PythonOutputFile
 } from '@/lib/code/python-runtime';
+import {
+  computePythonCacheKey,
+  getCachedPythonResult,
+  getMemoryCachedPythonResult,
+  saveCachedPythonResult
+} from '@/lib/code/python-cache';
 
 interface PythonPreviewProps {
   value: string;
@@ -190,6 +196,15 @@ export default function PythonPreview({
   const hasChartCall = /\b(plotly|matplotlib|pyplot|seaborn|plt\.show|fig\.show)\b/.test(draftCode);
   const isSilentFileMode = referencedFiles.size > 0 && !hasPlacedCharts && !hasChartCall;
 
+  const cacheKey = useMemo(
+    () => computePythonCacheKey(draftCode, workspaceFiles),
+    [draftCode, workspaceFiles]
+  );
+
+  const [initialMemHit] = useState<PythonRunResult | null>(() =>
+    !isStreaming ? getMemoryCachedPythonResult(computePythonCacheKey(value, workspaceFiles)) : null
+  );
+
   const [mode, setMode] = useState<'preview' | 'code'>(() =>
     !isStreaming && shouldAutoRunPython(value, preparedFiles.length > 0) ? 'preview' : 'code'
   );
@@ -200,7 +215,10 @@ export default function PythonPreview({
     !isStreaming && shouldAutoRunPython(value, preparedFiles.length > 0) ? 1 : 0
   );
   const [frameHeight, setFrameHeight] = useState(320);
-  const [result, setResult] = useState<PythonRunResult | null>(null);
+  const [result, setResult] = useState<PythonRunResult | null>(() => initialMemHit);
+  const [cacheChecked, setCacheChecked] = useState<boolean>(() =>
+    Boolean(initialMemHit) || isStreaming || !shouldAutoRunPython(value, preparedFiles.length > 0)
+  );
   const [statusLabel, setStatusLabel] = useState('Running Python…');
   const [timedOut, setTimedOut] = useState(false);
 
@@ -373,19 +391,87 @@ export default function PythonPreview({
     });
   }, [previewId, registerRunnerUpdater, setDraftCode, startExecutionTimer]);
 
-  // Auto-run like a tool call when AI finishes streaming analytical/chart/file Python code
+  const publishResultToContext = useCallback((next: PythonRunResult) => {
+    if (next.files.length > 0) {
+      registerOutputFiles(next.files);
+    }
+    const chartsPayload: PythonOutputChart[] = [
+      ...next.charts.map((c, idx) => ({
+        id: `plotly-${idx + 1}`,
+        runnerId: previewId,
+        kind: 'plotly' as const,
+        data: c,
+        sourceCode: draftCode
+      })),
+      ...next.images.map((img, idx) => ({
+        id: `image-${idx + 1}`,
+        runnerId: previewId,
+        kind: 'image' as const,
+        data: img,
+        sourceCode: draftCode
+      }))
+    ];
+    registerOutputCharts(previewId, chartsPayload);
+    setRunnerError(previewId, next.error);
+  }, [draftCode, previewId, registerOutputCharts, registerOutputFiles, setRunnerError]);
+
+  // Hydrate context if memory cache already hit on initial mount
+  useEffect(() => {
+    if (!initialMemHit) return;
+    publishResultToContext(initialMemHit);
+  }, [initialMemHit, publishResultToContext]);
+
+  // Auto-run like a tool call (with IndexedDB cache check first so refresh never re-runs Pyodide!)
   useEffect(() => {
     if (isStreaming || autoRanRef.current) return;
     if (!shouldAutoRunPython(draftCode, preparedFiles.length > 0)) return;
     autoRanRef.current = true;
-    const timer = window.setTimeout(() => {
-      setMode('preview');
-      setResult(null);
-      setRunId((n) => n + 1);
-      startExecutionTimer();
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, [draftCode, isStreaming, preparedFiles.length, startExecutionTimer]);
+    let active = true;
+
+    void getCachedPythonResult(cacheKey).then((cached) => {
+      if (!active) return;
+      if (cached) {
+        publishResultToContext(cached);
+        setResult(cached);
+        setMode('preview');
+        setCacheChecked(true);
+        setRunId((n) => n + 1);
+      } else {
+        setResult(null);
+        setMode('preview');
+        setCacheChecked(true);
+        setRunId((n) => n + 1);
+        startExecutionTimer();
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [cacheKey, draftCode, isStreaming, preparedFiles.length, publishResultToContext, startExecutionTimer]);
+
+  // If mounted already finished without memory hit, check IndexedDB cache before starting Pyodide
+  useEffect(() => {
+    if (isStreaming || cacheChecked || !isToolMode) return;
+    let active = true;
+
+    void getCachedPythonResult(cacheKey).then((cached) => {
+      if (!active) return;
+      if (cached) {
+        publishResultToContext(cached);
+        setResult(cached);
+        setCacheChecked(true);
+      } else {
+        setCacheChecked(true);
+        setRunId((n) => n + 1);
+        startExecutionTimer();
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [cacheChecked, cacheKey, isStreaming, isToolMode, publishResultToContext, startExecutionTimer]);
 
   // Listen to sandboxed iframe postMessage with strict source + nonce verification
   useEffect(() => {
@@ -409,7 +495,7 @@ export default function PythonPreview({
           : inlineIframeRef.current?.contentWindow;
         if (!targetWindow) return;
 
-        if (isFullscreenSource && result) {
+        if (result) {
           targetWindow.postMessage({
             source: 'deepchat-python-host',
             type: 'render_cached',
@@ -478,14 +564,18 @@ export default function PythonPreview({
         registerOutputCharts(previewId, chartsPayload);
         setRunnerError(previewId, errorStr);
 
-        setResult({
+        const nextResult: PythonRunResult = {
           charts,
           images,
           files,
           stdout: typeof data.stdout === 'string' ? data.stdout : '',
           stderr: typeof data.stderr === 'string' ? data.stderr : '',
           error: errorStr
-        });
+        };
+        setResult(nextResult);
+        if (!errorStr) {
+          void saveCachedPythonResult(cacheKey, nextResult);
+        }
         return;
       }
 
@@ -510,6 +600,7 @@ export default function PythonPreview({
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
   }, [
+    cacheKey,
     clearExecutionTimer,
     draftCode,
     isDarkTheme,
@@ -689,7 +780,7 @@ export default function PythonPreview({
     if (hasPlacedCharts || isSilentFileMode) {
       return (
         <>
-          {!timedOut && (
+          {cacheChecked && !result && !timedOut && (
             <iframe
               ref={inlineIframeRef}
               key={`py-silent-${runId}`}
@@ -739,7 +830,7 @@ export default function PythonPreview({
                 <div className="px-4 py-3 font-mono text-xs text-red-700 dark:text-red-300">
                   Execution timed out after {PYTHON_EXECUTION_TIMEOUT_MS / 1000}s.
                 </div>
-              ) : (
+              ) : cacheChecked ? (
                 <iframe
                   ref={inlineIframeRef}
                   key={`py-inline-${runId}`}
@@ -749,7 +840,7 @@ export default function PythonPreview({
                   style={{ height: isStillRunning ? '1px' : `${frameHeight}px` }}
                   className="block w-full border-0 bg-white dark:bg-[#0d1117]"
                 />
-              )}
+              ) : null}
               {!isStillRunning && (
                 <button
                   type="button"
