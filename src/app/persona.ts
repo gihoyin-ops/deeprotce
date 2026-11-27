@@ -63,7 +63,8 @@ export async function getInjectedSystemPrompt(baseSystemPrompt: string = '', cur
   let finalPrompt = baseSystemPrompt;
   
   const parts: string[] = [
-    '- Native Diagram Rendering: When the user asks for a flowchart, sequence diagram, architecture diagram, ER diagram, state diagram, Gantt chart, mindmap, or timeline, ALWAYS output a standard ```mermaid fenced code block (never ASCII box-art) so DeepChat renders it as an interactive visual diagram.'
+    '- Native Diagram Rendering: When the user asks for a flowchart, sequence diagram, architecture diagram, ER diagram, state diagram, Gantt chart, mindmap, or timeline, ALWAYS output a standard ```mermaid fenced code block (never ASCII box-art) so DeepChat renders it as an interactive visual diagram.',
+    '- In-Browser Python Runtime (Pyodide): DeepChat automatically runs ```python code blocks in a secure in-browser Pyodide sandbox when needed (like a tool call), rendering visual charts cleanly without showing code chrome. You are free to decide when to use Python vs normal text. Use ```python when the user needs data cleaning/statistics, interactive charts (prefer `plotly` with `fig.show()`, or `matplotlib` with `plt.show()`), or file generation/conversion (save outputs to `/workspace/<filename>` such as `.xlsx`, `.pdf`, `.docx`, `.pptx`, `.png`, `.webp`, `.csv`). Any files uploaded by the user in the chat are automatically mounted at `/workspace/<filename>` (also the current working directory). Whenever you generate a downloadable file `/workspace/<filename>`, you may place `[[file:<filename>]]` on its own line anywhere in your response (top, middle, or end) to render a native file download card right at that position. Keep tasks lightweight and self-contained.'
   ];
 
   if (persona.styleTone && persona.styleTone !== 'default') {

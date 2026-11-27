@@ -4,6 +4,7 @@ import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from
 import { gsap } from 'gsap';
 import { getChat, saveMessage, uploadFile } from '@/app/actions';
 import MarkdownRenderer from '@/components/ui/MarkdownRenderer';
+import { PythonFilesProvider } from '@/lib/code/python-files-context';
 import ChatComposer, { getComposerDisplayName, getComposerFileIcon } from '@/components/ui/ChatComposer';
 import AttachmentPreviewModal from '@/components/ui/AttachmentPreviewModal';
 import DotRevealHeadline from '@/components/home/DotRevealHeadline';
@@ -1042,6 +1043,9 @@ export default function ChatView({ chatId }: { chatId: string }) {
             </div>
           )}
 
+          <PythonFilesProvider
+            files={displayMessages.flatMap((m) => (Array.isArray(m.attachedFiles) ? m.attachedFiles : []))}
+          >
           {displayMessages.map((msg, idx) => {
             const activeVersion = (msg.currentVersionIndex ?? (msg.versions ? msg.versions.length - 1 : 0)) + 1;
             let requestedAspectRatio = msg.imageAspectRatio;
@@ -1074,6 +1078,7 @@ export default function ChatView({ chatId }: { chatId: string }) {
               />
             );
           })}
+          </PythonFilesProvider>
 
           {displayMessages.length > 0 && (
             <div className="pt-4 pb-0 text-center">

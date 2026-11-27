@@ -12,8 +12,16 @@ import { createHighlighter, createJavaScriptRegexEngine, type Highlighter } from
 import 'katex/dist/katex.min.css';
 import { ClientOnly } from '@/lib/utils';
 import CodePreview from '@/components/ui/CodePreview';
+import PythonPreview from '@/components/ui/PythonPreview';
+import PythonFileCard from '@/components/ui/PythonFileCard';
 import MermaidDiagramBlock from '@/components/ui/MermaidDiagramBlock';
 import { extractWebPreviewSource } from '@/lib/code/code-web-preview';
+import { isPythonLanguage, sanitizeWorkspaceFilename } from '@/lib/code/python-runtime';
+import {
+  extractReferencedPythonFiles,
+  PythonFilesProvider,
+  usePythonWorkspaceFiles
+} from '@/lib/code/python-files-context';
 import { CitationPill } from '@/components/chat/search/CitationPill';
 import {
   getSourceByUrl,
@@ -52,6 +60,26 @@ interface MarkdownRendererProps {
   isStreaming?: boolean;
   searchSources?: SearchSource[];
 }
+
+const injectPythonFileCards = (markdown: string): string => {
+  if (!markdown) return markdown;
+  const segments = markdown.split(/(```[\s\S]*?```|`[^`\n]+`)/g);
+  return segments
+    .map((segment, index) => {
+      if (index % 2 === 1) return segment;
+      return segment
+        .replace(/\[\[file:([^\[\]\n\r]+?)\]\]/gi, (_m, rawName: string) => {
+          const clean = sanitizeWorkspaceFilename(rawName, '');
+          if (!clean) return _m;
+          return `\n\n[${clean}](#dc-file-${encodeURIComponent(clean)})\n\n`;
+        })
+        .replace(/deepchat-file:\/\/([^\s)]+)/gi, (_m, rawName: string) => {
+          const clean = sanitizeWorkspaceFilename(decodeURIComponent(rawName), '');
+          return clean ? `#dc-file-${encodeURIComponent(clean)}` : _m;
+        });
+    })
+    .join('');
+};
 
 const injectGroupedCitations = (markdown: string, sources: SearchSource[]): string => {
   if (!markdown || sources.length === 0) return markdown;
@@ -156,6 +184,10 @@ function MarkdownCode({ className, children, node, ...props }: MarkdownCodeProps
 function MarkdownLink({ href, children }: React.ComponentProps<'a'>) {
   const { searchSources } = useContext(MarkdownRenderContext);
   if (typeof href === 'string') {
+    const fileMatch = /^#dc-file-([a-zA-Z0-9._%-]+)$/.exec(href);
+    if (fileMatch) {
+      return <PythonFileCard filename={decodeURIComponent(fileMatch[1])} />;
+    }
     const citeMatch = /^#dc-cite-(\d+(?:-\d+)*)$/.exec(href);
     if (citeMatch) {
       const group = citeMatch[1]
@@ -177,6 +209,13 @@ function MarkdownLink({ href, children }: React.ComponentProps<'a'>) {
 const markdownComponents: Components = {
   code: MarkdownCode as Components['code'],
   p({ children }) {
+    const childArray = React.Children.toArray(children);
+    if (childArray.length === 1 && React.isValidElement<{ href?: string }>(childArray[0])) {
+      const href = childArray[0].props?.href;
+      if (typeof href === 'string' && href.startsWith('#dc-file-')) {
+        return <PythonFileCard filename={decodeURIComponent(href.slice('#dc-file-'.length))} />;
+      }
+    }
     return <p className="mb-3 last:mb-0 leading-relaxed text-[15px] dark:text-slate-300">{children}</p>;
   },
   ul({ children }) {
@@ -223,6 +262,7 @@ const markdownComponents: Components = {
 
 const MarkdownRenderer = React.memo(function MarkdownRenderer({ content, isStreaming = false, searchSources = [] }: MarkdownRendererProps) {
   const [highlighter, setHighlighter] = useState<Highlighter | null>(null);
+  const parentInputFiles = usePythonWorkspaceFiles();
 
   useEffect(() => {
     let active = true;
@@ -236,11 +276,15 @@ const MarkdownRenderer = React.memo(function MarkdownRenderer({ content, isStrea
     };
   }, []);
 
-  const processedContent = injectGroupedCitations(
-    content
-      .replace(/\\\[([\s\S]*?)\\\]/g, '$$$$$1$$$$')
-      .replace(/\\\(([\s\S]*?)\\\)/g, '$$$1$$'),
-    searchSources
+  const referencedFiles = useMemo(() => extractReferencedPythonFiles(content), [content]);
+
+  const processedContent = injectPythonFileCards(
+    injectGroupedCitations(
+      content
+        .replace(/\\\[([\s\S]*?)\\\]/g, '$$$$$1$$$$')
+        .replace(/\\\(([\s\S]*?)\\\)/g, '$$$1$$'),
+      searchSources
+    )
   );
   const streamingCodeFence = isStreaming ? getStreamingCodeFence(processedContent) : null;
 
@@ -251,18 +295,20 @@ const MarkdownRenderer = React.memo(function MarkdownRenderer({ content, isStrea
 
   return (
     <ClientOnly>
-      <MarkdownRenderContext.Provider value={contextValue}>
-        <div className={`prose prose-slate max-w-none break-words dark:prose-invert prose-pre:bg-transparent prose-pre:p-0 prose-p:leading-relaxed prose-a:text-indigo-600 hover:prose-a:text-indigo-700 prose-strong:text-slate-800 dark:prose-strong:text-slate-200 [&>*:last-child]:mb-0 ${isStreaming ? 'dc-sse-streaming' : ''}`}>
-          <ReactMarkdown
-            remarkPlugins={[remarkGfm, remarkMath]}
-            rehypePlugins={[rehypeKatex]}
-            urlTransform={transformMarkdownUrl}
-            components={markdownComponents}
-          >
-            {processedContent}
-          </ReactMarkdown>
-        </div>
-      </MarkdownRenderContext.Provider>
+      <PythonFilesProvider files={parentInputFiles} referencedFiles={referencedFiles}>
+        <MarkdownRenderContext.Provider value={contextValue}>
+          <div className={`prose prose-slate max-w-none break-words dark:prose-invert prose-pre:bg-transparent prose-pre:p-0 prose-p:leading-relaxed prose-a:text-indigo-600 hover:prose-a:text-indigo-700 prose-strong:text-slate-800 dark:prose-strong:text-slate-200 [&>*:last-child]:mb-0 ${isStreaming ? 'dc-sse-streaming' : ''}`}>
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm, remarkMath]}
+              rehypePlugins={[rehypeKatex]}
+              urlTransform={transformMarkdownUrl}
+              components={markdownComponents}
+            >
+              {processedContent}
+            </ReactMarkdown>
+          </div>
+        </MarkdownRenderContext.Provider>
+      </PythonFilesProvider>
     </ClientOnly>
   );
 });
@@ -488,6 +534,7 @@ function transformMarkdownUrl(url: string) {
   const value = url.trim();
   // Deny by default so garbage like javascript:, vbscript:, or protocol-relative URLs never make it into a rendered attribute
   if (/^#dc-cite-\d+(?:-\d+)*$/.test(value)) return value;
+  if (/^#dc-file-[a-zA-Z0-9._%-]+$/.test(value)) return value;
   if (/^data:image\/(?:png|jpe?g|webp|gif);base64,[a-z0-9+/=\s]+$/i.test(value)) return value.replace(/\s/g, '');
   if (/^(https?:|mailto:)/i.test(value)) return value;
   if (/^(?:\.\.\/|\.\/|\/)?[\w~-]+[\w.\/-]*$/.test(value)) return value;
@@ -507,6 +554,9 @@ function CodeBlock({ language, value, highlighter, isStreaming }: { language: st
   }
   if (extractWebPreviewSource(value, displayLanguage).kind === 'mermaid') {
     return <MermaidDiagramBlock code={value} isStreaming={isStreaming} />;
+  }
+  if (isPythonLanguage(displayLanguage)) {
+    return <PythonPreview value={value} highlighter={highlighter} isStreaming={isStreaming} />;
   }
   return <CodePreview language={displayLanguage} value={value} highlighter={highlighter} isStreaming={isStreaming} />;
 }

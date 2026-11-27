@@ -15,6 +15,18 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
+        source: '/api/python-sandbox',
+        headers: [
+          {
+            key: 'Content-Security-Policy',
+            value:
+              "default-src 'none'; script-src 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.jsdelivr.net https://cdn.plot.ly; script-src-elem 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.plot.ly; connect-src https://cdn.jsdelivr.net https://pypi.org https://files.pythonhosted.org; style-src 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data: https://cdn.jsdelivr.net; worker-src 'self' blob: https://cdn.jsdelivr.net; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'"
+          },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'Referrer-Policy', value: 'no-referrer' }
+        ]
+      },
+      {
         source: '/:path*',
         headers: [
           {
