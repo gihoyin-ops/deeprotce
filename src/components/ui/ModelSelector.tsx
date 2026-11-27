@@ -423,6 +423,11 @@ export default function ModelSelector({
     const panelEl = viewPanelRef.current;
     if (!panelEl) return;
 
+    if (view === 'models') {
+      const selectedEl = panelEl.querySelector<HTMLElement>('[data-selected="true"]');
+      selectedEl?.scrollIntoView({ block: 'nearest' });
+    }
+
     const dir = viewDirectionRef.current;
     const mm = gsap.matchMedia();
 
@@ -775,7 +780,7 @@ export default function ModelSelector({
   };
 
   const panelBody = (
-    <div ref={viewPanelRef}>
+    <div ref={viewPanelRef} className="flex min-h-0 flex-1 flex-col">
       {isGuest ? (
         <div key="guest-auto" className="p-2">
           <div className="dc-ms-model-item dc-ms-model-item-active dc-ms-stagger cursor-default">
@@ -791,7 +796,7 @@ export default function ModelSelector({
           </div>
         </div>
       ) : view === 'menu' ? (
-        <div key="menu" className="space-y-0.5 p-1.5 sm:p-2">
+        <div key="menu" className="custom-scrollbar space-y-0.5 overflow-y-auto p-1.5 sm:p-2">
           <button
             type="button"
             onClick={() => switchView('models')}
@@ -871,8 +876,8 @@ export default function ModelSelector({
           </button>
         </div>
       ) : view === 'models' ? (
-        <div key="models" className="space-y-1 p-2">
-          <div className="flex items-center px-0.5 pb-1 pt-0.5">
+        <div key="models" className="flex min-h-0 flex-1 flex-col gap-1 p-2">
+          <div className="flex shrink-0 items-center px-0.5 pb-1 pt-0.5">
             <button
               type="button"
               onClick={() => switchView('menu')}
@@ -889,13 +894,14 @@ export default function ModelSelector({
               <div className="h-14 animate-pulse rounded-xl bg-black/[0.04] dark:bg-white/[0.05]" />
             </div>
           ) : models.length > 0 ? (
-            <div className="custom-scrollbar max-h-[min(320px,52dvh)] space-y-1 overflow-y-auto overflow-x-hidden pr-0.5">
+            <div className="custom-scrollbar min-h-0 flex-1 space-y-1 overflow-y-auto overflow-x-hidden pr-0.5 max-sm:max-h-[min(360px,58dvh)]">
               {models.map((m) => {
                 const isSelected = m.id === selectedModel.id;
                 return (
                   <button
                     key={m.id}
                     type="button"
+                    data-selected={isSelected ? 'true' : undefined}
                     onClick={() => handleSelectModel(m)}
                     className={`dc-ms-model-item dc-ms-stagger ${
                       isSelected
@@ -933,7 +939,7 @@ export default function ModelSelector({
           )}
         </div>
       ) : (
-        <div key="advanced" className="p-3.5 sm:p-4">
+        <div key="advanced" className="custom-scrollbar overflow-y-auto p-3.5 sm:p-4">
           <div className="relative mb-3 flex min-h-[24px] items-center justify-between gap-2">
             {isUltra ? (
               <>
@@ -1059,7 +1065,7 @@ export default function ModelSelector({
         role="dialog"
         aria-label="Model settings"
         style={{ maxHeight: desktopPos.maxHeight }}
-        className={`dc-ms-panel ${isUltra ? 'dc-ms-panel-ultra' : ''} custom-scrollbar select-none overflow-y-auto transition-[width] duration-200 ${
+        className={`dc-ms-panel ${isUltra ? 'dc-ms-panel-ultra' : ''} flex flex-col select-none transition-[width] duration-200 ${
           view === 'models'
             ? 'w-[min(324px,calc(100vw-24px))]'
             : 'w-[min(286px,calc(100vw-24px))]'
