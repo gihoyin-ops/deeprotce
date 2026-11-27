@@ -1,7 +1,8 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { isSessionActiveInDb, requireDbPool, type AccountRow } from '@/backend/auth/turso-auth';
+import { isSessionActiveInDb, requireDbPool, type AccountRow } from '@/backend/db/account-session';
 import AdminPanelClient from '@/components/admin/AdminPanelClient';
+import { buildAuthLoginUrl } from '@/lib/auth/auth-url';
 import { ACCOUNT_COOKIE_NAME } from '@/lib/security/auth';
 import { verifyAccountClaims } from '@/lib/security/crypto';
 import { isManagerStaffRole, parseRole } from '@/lib/security/roles';
@@ -14,14 +15,14 @@ export default async function AdminPage() {
   const verified = verifyAccountClaims(rawToken);
 
   if (!verified) {
-    redirect('/login');
+    redirect(buildAuthLoginUrl());
   }
 
   try {
     const pool = await requireDbPool();
     const active = await isSessionActiveInDb(pool, verified.sid);
     if (!active) {
-      redirect('/login');
+      redirect(buildAuthLoginUrl());
     }
 
     const rows = await pool.query<Pick<AccountRow, 'id' | 'role' | 'is_banned'>>(

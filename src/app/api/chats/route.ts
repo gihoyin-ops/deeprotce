@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireDbPool } from '@/backend/auth/turso-auth';
+import { requireDbPool } from '@/backend/db/account-session';
 import {
   createAccountChat,
   deleteAllAccountChats,

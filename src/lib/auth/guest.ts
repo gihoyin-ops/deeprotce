@@ -3,6 +3,7 @@
 import { useSyncExternalStore } from 'react';
 import { useQuery, type QueryClient } from '@tanstack/react-query';
 import { DEFAULT_GUEST_AVATAR } from '@/lib/avatar';
+import { buildAuthLogoutUrl } from '@/lib/auth/auth-url';
 import { deepchatQueryKeys } from '@/lib/query-keys';
 import {
   getCachedUserProfileSync,
@@ -85,10 +86,16 @@ export function useGuestStatus() {
 }
 
 export async function logoutAccountClient(queryClient: QueryClient): Promise<void> {
-  await fetch('/api/auth/logout', {
-    method: 'POST',
-    credentials: 'same-origin',
-  }).catch(() => undefined);
+  await Promise.all([
+    fetch(buildAuthLogoutUrl(), {
+      method: 'POST',
+      credentials: 'include',
+    }).catch(() => undefined),
+    fetch('/api/auth/logout', {
+      method: 'POST',
+      credentials: 'same-origin',
+    }).catch(() => undefined),
+  ]);
 
   try {
     localStorage.removeItem('deepchat-user-profile');

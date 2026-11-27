@@ -14,6 +14,7 @@ import Image from 'next/image';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { gsap } from 'gsap';
 import toast from 'react-hot-toast';
+import { buildAuthLoginUrl } from '@/lib/auth/auth-url';
 import {
   Archive,
   ChevronDown,
@@ -754,7 +755,7 @@ const MobileSidebarDrawer = forwardRef<MobileDrawerHandle, MobileSidebarDrawerPr
                   if (isAuthLoading) return;
                   snapClose();
                   if (isGuest) {
-                    router.push('/login');
+                    window.location.assign(buildAuthLoginUrl());
                   } else {
                     router.push(profile.username ? `/u/${encodeURIComponent(profile.username)}` : '/profile');
                   }
@@ -816,8 +817,7 @@ const MobileSidebarDrawer = forwardRef<MobileDrawerHandle, MobileSidebarDrawerPr
                     void (async () => {
                       await logoutAccountClient(queryClient);
                       toast.success('Signed out');
-                      router.push('/login');
-                      router.refresh();
+                      window.location.assign(buildAuthLoginUrl());
                     })();
                   }}
                   aria-label="Log out"

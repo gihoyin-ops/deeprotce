@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { ensureTursoSchema } from '@/backend/db/connection';
-import { isSessionActiveInDb, requireDbPool, type AccountRow } from '@/backend/auth/turso-auth';
+import { isSessionActiveInDb, requireDbPool, type AccountRow } from '@/backend/db/account-session';
 import { deleteFromR2, isR2Configured } from '@/backend/storage/r2';
 import { buildDefaultAvatarUrl, isLegacyDefaultAvatar, normalizeUsername } from '@/lib/avatar';
 import {

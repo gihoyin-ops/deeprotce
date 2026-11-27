@@ -9,6 +9,13 @@ export const ACCOUNT_COOKIE_NAME = 'dc_account';
 export const ACCOUNT_SESSION_TTL_SECONDS = 60 * 60 * 24 * 14; // 14 days
 export const ACCOUNT_REMEMBER_TTL_SECONDS = 60 * 60 * 24 * 30; // 30 days
 
+export const getAccountCookieDomain = (): string | null => {
+  const configured = process.env.COOKIE_DOMAIN?.trim();
+  if (configured) return configured;
+  if (process.env.NODE_ENV === 'production') return '.deepsia.my.id';
+  return null;
+};
+
 export const getCookieValue = (headers: Headers, cookieName: string): string | null => {
   const cookie = headers.get('cookie');
   if (cookie === null) return null;
@@ -41,14 +48,18 @@ export const issueAccountSessionCookie = (
     ...claims,
     exp: Date.now() + ttlSeconds * 1000
   });
+  const domain = getAccountCookieDomain();
+  const domainAttr = domain ? ` Domain=${domain};` : '';
   const secureFlag = process.env.NODE_ENV === 'production' ? ' Secure;' : '';
   const maxAgeAttr = rememberMe ? ` Max-Age=${ttlSeconds}` : '';
-  return `${ACCOUNT_COOKIE_NAME}=${token}; Path=/; HttpOnly; SameSite=Lax;${secureFlag}${maxAgeAttr}`;
+  return `${ACCOUNT_COOKIE_NAME}=${token}; Path=/;${domainAttr} HttpOnly; SameSite=Lax;${secureFlag}${maxAgeAttr}`;
 };
 
 export const clearAccountSessionCookie = (): string => {
+  const domain = getAccountCookieDomain();
+  const domainAttr = domain ? ` Domain=${domain};` : '';
   const secureFlag = process.env.NODE_ENV === 'production' ? ' Secure;' : '';
-  return `${ACCOUNT_COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax;${secureFlag} Max-Age=0`;
+  return `${ACCOUNT_COOKIE_NAME}=; Path=/;${domainAttr} HttpOnly; SameSite=Lax;${secureFlag} Max-Age=0`;
 };
 
 export const issueSessionToken = (): string => {

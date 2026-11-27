@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { recordAdminAudit, requireAdminActor } from '@/backend/admin/guard';
-import { revokeAllSessionsForAccount } from '@/backend/auth/turso-auth';
+import { revokeAllSessionsForAccount } from '@/backend/db/account-session';
 import { deleteFromR2, isR2Configured } from '@/backend/storage/r2';
 import { parsePlan, type PlanId } from '@/lib/security/plans';
 import { isManagerStaffRole, parseRole } from '@/lib/security/roles';

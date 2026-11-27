@@ -4,7 +4,7 @@ import {
   isSessionActiveInDb,
   requireDbPool,
   type AccountRow
-} from '@/backend/auth/turso-auth';
+} from '@/backend/db/account-session';
 import type { DbPool } from '@/backend/db/connection';
 import { getVerifiedAccount, isSameOriginRequest } from '@/lib/security/auth';
 import {

@@ -28,6 +28,7 @@ import {
   type NotificationSettings
 } from '@/lib/settings/notification-settings';
 import { getMobileTabTitle, modalAnimationMs } from './settings/constants';
+import { buildAuthLoginUrl } from '@/lib/auth/auth-url';
 import { prefersReducedMotion, triggerSubtleHaptic } from '@/components/mobile/gesture-utils';
 import { type GeneralSettings, loadGeneralSettings, saveGeneralSettings } from '@/lib/settings/general-settings';
 import { type AppearanceSettings, loadAppearanceSettings, saveAppearanceSettings } from '@/lib/settings/appearance-settings';
@@ -650,8 +651,7 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
       window.dispatchEvent(new Event('profileUpdated'));
       toast.success('Account permanently deleted');
       onClose();
-      router.push('/login');
-      router.refresh();
+      window.location.assign(buildAuthLoginUrl());
     } catch {
       toast.error('Failed to delete account');
     }

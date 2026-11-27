@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { ensureTursoSchema } from '@/backend/db/connection';
-import { revokeSessionById } from '@/backend/auth/turso-auth';
+import { revokeSessionById } from '@/backend/db/account-session';
 import { clearAccountSessionCookie, getVerifiedAccount } from '@/lib/security/auth';
 
 export const runtime = 'nodejs';

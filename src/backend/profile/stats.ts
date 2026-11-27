@@ -1,5 +1,5 @@
 import { ensureTursoSchema, type DbPool } from '@/backend/db/connection';
-import type { AccountRow } from '@/backend/auth/turso-auth';
+import type { AccountRow } from '@/backend/db/account-session';
 import { buildDefaultAvatarUrl, isLegacyDefaultAvatar } from '@/lib/avatar';
 import { isStaffRole } from '@/lib/security/roles';
 

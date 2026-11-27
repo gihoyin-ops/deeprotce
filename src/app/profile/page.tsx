@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { buildAuthLoginUrl } from '@/lib/auth/auth-url';
 import { getUserProfileClient } from '@/lib/storage/client-storage';
 
 export default function ProfileRedirectPage() {
@@ -37,7 +38,7 @@ export default function ProfileRedirectPage() {
       if (local.username) {
         router.replace(`/u/${encodeURIComponent(local.username)}`);
       } else {
-        router.replace('/login');
+        window.location.replace(buildAuthLoginUrl());
       }
     })();
 
