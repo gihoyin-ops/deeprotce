@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
-  ACCOUNT_COOKIE_NAME,
   buildSessionCookie,
-  clearAccountSessionCookie,
-  getCookieValue,
-  getVerifiedAccount,
   hasSessionCookie,
   isSameOriginRequest,
   issueSessionToken
@@ -54,11 +50,6 @@ function handle(req: NextRequest): NextResponse {
     issueCookie = buildSessionCookie(issueSessionToken());
   }
 
-  // Verify signed dc_account cookie if it's there; nuke tampered or expired garbage
-  const rawAccountCookie = getCookieValue(req.headers, ACCOUNT_COOKIE_NAME);
-  const verifiedAccount = rawAccountCookie ? getVerifiedAccount(req.headers) : null;
-  const shouldClearTamperedAccount = rawAccountCookie !== null && verifiedAccount === null;
-
   const declaredLength = req.headers.get('content-length');
   if (declaredLength !== null) {
     const size = Number.parseInt(declaredLength, 10);
@@ -93,9 +84,6 @@ function handle(req: NextRequest): NextResponse {
   const response = NextResponse.next();
   if (issueCookie !== null) {
     response.headers.append('set-cookie', issueCookie);
-  }
-  if (shouldClearTamperedAccount) {
-    response.headers.append('set-cookie', clearAccountSessionCookie());
   }
   return response;
 }

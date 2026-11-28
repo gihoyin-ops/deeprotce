@@ -27,9 +27,7 @@ export async function GET(req: Request) {
     if (pool) {
       const active = await isSessionActiveInDb(pool, verified.sid);
       if (!active) {
-        const res = NextResponse.json({ authenticated: false, guest: true });
-        res.headers.append('set-cookie', clearAccountSessionCookie());
-        return res;
+        return NextResponse.json({ authenticated: false, guest: true });
       }
 
       const rows = await pool.query<
