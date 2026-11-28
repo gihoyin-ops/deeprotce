@@ -117,14 +117,15 @@ export const meterSseBody = (
     recordTokens(identityKey, totalTokens);
     onSettled?.(totalTokens);
   };
+  let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
   // settle on every exit path, otherwise cancelling mid-stream would bill zero
   return new ReadableStream<Uint8Array>({
     start(controller) {
-      const reader = body.getReader();
+      reader = body.getReader();
       void (async () => {
         try {
           while (true) {
-            const { done, value } = await reader.read();
+            const { done, value } = await reader!.read();
             if (done) break;
             meter.ingest(value);
             controller.enqueue(value);
@@ -133,11 +134,19 @@ export const meterSseBody = (
           // upstream blew up or client bailed, kill the pump
         } finally {
           settle();
+          try {
+            controller.close();
+          } catch {
+            // stream already closed or errored
+          }
         }
       })();
     },
     cancel() {
       settle();
+      if (reader) {
+        void reader.cancel().catch(() => undefined);
+      }
     }
   });
 };
