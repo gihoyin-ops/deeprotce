@@ -16,7 +16,7 @@ const GlobalNotFound = () => {
         <meta charSet="utf-8" />
         <meta name="robots" content="noindex" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>Benthos. Not found</title>
+        <title>Not Found / Benthos</title>
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
         <style>{GLOBAL_CSS}</style>
       </head>

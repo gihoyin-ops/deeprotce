@@ -20,7 +20,7 @@ export default function GlobalError({
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>Benthos - Something went wrong</title>
+        <title>Something went wrong / Benthos</title>
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
         <style>{GLOBAL_CSS}</style>
       </head>

@@ -220,7 +220,7 @@ export default function UserProfilePage() {
     try {
       if (typeof navigator !== 'undefined' && navigator.share) {
         await navigator.share({
-          title: `${data.profile.name} (@${data.profile.username}) · Benthos`,
+          title: `${data.profile.name} (@${data.profile.username}) / Benthos`,
           url: shareUrl
         });
         return;
