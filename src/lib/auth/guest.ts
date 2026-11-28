@@ -3,7 +3,7 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { DEFAULT_GUEST_AVATAR } from '@/lib/avatar';
-import { buildAuthLogoutUrl } from '@/lib/auth/auth-url';
+import { buildAuthLogoutUrl, getAuthBaseUrl } from '@/lib/auth/auth-url';
 import { deepchatQueryKeys } from '@/lib/query-keys';
 import {
   getCachedUserProfileSync,
@@ -83,9 +83,27 @@ export function useGuestStatus() {
         credentials: 'same-origin',
         cache: 'no-store',
       });
-      const payload: AuthSessionState = res.ok
+      let payload: AuthSessionState = res.ok
         ? ((await res.json()) as AuthSessionState)
         : { ok: false, authenticated: false, guest: true };
+
+      // Fall back to central auth if local session endpoint reports guest
+      if (!payload.authenticated) {
+        try {
+          const centralRes = await fetch(`${getAuthBaseUrl()}/api/auth/me`, {
+            credentials: 'include',
+            cache: 'no-store',
+          });
+          if (centralRes.ok) {
+            const centralData = (await centralRes.json()) as AuthSessionState;
+            if (centralData.authenticated) {
+              payload = centralData;
+            }
+          }
+        } catch {
+          // Ignore network/CORS errors and keep local verdict
+        }
+      }
       try {
         const prevHint = localStorage.getItem(AUTH_HINT_KEY);
         const cachedProfile = getCachedUserProfileSync();

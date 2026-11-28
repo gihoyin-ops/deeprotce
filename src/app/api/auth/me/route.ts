@@ -2,19 +2,57 @@ import { NextResponse } from 'next/server';
 import { ensureTursoSchema } from '@/backend/db/connection';
 import { isSessionActiveInDb, requireDbPool, type AccountRow } from '@/backend/db/account-session';
 import { deleteFromR2, isR2Configured } from '@/backend/storage/r2';
+import { getAuthBaseUrl } from '@/lib/auth/auth-url';
 import { buildDefaultAvatarUrl, isLegacyDefaultAvatar, normalizeUsername } from '@/lib/avatar';
 import {
+  ACCOUNT_COOKIE_NAME,
   clearAccountSessionCookie,
+  getCookieValue,
   getVerifiedAccount,
   issueAccountSessionCookie
 } from '@/lib/security/auth';
 
 export const runtime = 'nodejs';
 
+async function fetchCentralAuthFallback(rawAccountCookie: string | null) {
+  if (!rawAccountCookie) return null;
+  try {
+    const authBase = getAuthBaseUrl();
+    const res = await fetch(`${authBase}/api/auth/me`, {
+      method: 'GET',
+      headers: {
+        cookie: `${ACCOUNT_COOKIE_NAME}=${rawAccountCookie}`,
+        origin: authBase
+      },
+      cache: 'no-store'
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as {
+      authenticated?: boolean;
+      account?: Record<string, unknown>;
+    };
+    if (data?.authenticated && data.account) {
+      return data;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export async function GET(req: Request) {
+  const rawAccountCookie = getCookieValue(req.headers, ACCOUNT_COOKIE_NAME);
   const verified = getVerifiedAccount(req.headers);
   if (!verified) {
-    return NextResponse.json({ authenticated: false, guest: true });
+    const central = await fetchCentralAuthFallback(rawAccountCookie);
+    if (central) {
+      return NextResponse.json(central);
+    }
+    return NextResponse.json({
+      authenticated: false,
+      guest: true,
+      reason: rawAccountCookie ? 'invalid_token' : 'no_cookie'
+    });
   }
 
   let dbAccount: Pick<
@@ -27,7 +65,15 @@ export async function GET(req: Request) {
     if (pool) {
       const active = await isSessionActiveInDb(pool, verified.sid);
       if (!active) {
-        return NextResponse.json({ authenticated: false, guest: true });
+        const central = await fetchCentralAuthFallback(rawAccountCookie);
+        if (central) {
+          return NextResponse.json(central);
+        }
+        return NextResponse.json({
+          authenticated: false,
+          guest: true,
+          reason: 'session_inactive'
+        });
       }
 
       const rows = await pool.query<
