@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { buildAuthLoginUrl } from '@/lib/auth/auth-url';
+import { buildAuthLoginUrl, buildAuthOnboardingUrl } from '@/lib/auth/auth-url';
 import { getUserProfileClient } from '@/lib/storage/client-storage';
 
 export default function ProfileRedirectPage() {
@@ -26,7 +26,7 @@ export default function ProfileRedirectPage() {
           return;
         }
         if (data?.authenticated && !data.account?.username) {
-          router.replace('/get-started');
+          window.location.replace(buildAuthOnboardingUrl());
           return;
         }
       } catch {

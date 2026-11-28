@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { getAuthBaseUrl } from '@/lib/auth/auth-url';
+import { buildAuthOnboardingUrl, getAuthBaseUrl } from '@/lib/auth/auth-url';
 
 interface CentralAuthModalProps {
   open: boolean;
@@ -32,7 +32,7 @@ export function CentralAuthModal({
       if (event.data && event.data.type === 'deepsia:auth-success') {
         if (event.data.needsOnboarding) {
           onClose();
-          window.location.assign('/get-started');
+          window.location.assign(buildAuthOnboardingUrl());
           return;
         }
         onSuccess();

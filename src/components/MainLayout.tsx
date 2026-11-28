@@ -25,7 +25,7 @@ import toast, { Toaster } from 'react-hot-toast';
 import { getChat, getSharedChat, deleteChat, shareChat, getUserProfile, updateChatTitle, togglePinChat } from '@/app/actions';
 import { deepchatQueryKeys } from '@/lib/query-keys';
 import { DEFAULT_GUEST_AVATAR } from '@/lib/avatar';
-import { openAuthModal } from '@/lib/auth/auth-url';
+import { buildAuthOnboardingUrl, openAuthModal } from '@/lib/auth/auth-url';
 import DesktopGlobalSearchModal from './ui/DesktopGlobalSearchModal';
 import {
   addNotificationToInbox,
@@ -182,15 +182,14 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     pathname === '/login' ||
     pathname === '/forgot-password' ||
     pathname === '/verify' ||
-    pathname === '/get-started' ||
     pathname === '/admin' ||
     pathname.startsWith('/admin/');
 
   useEffect(() => {
     if (!isStandalonePage && !isGuest && needsOnboarding) {
-      router.replace('/get-started');
+      window.location.replace(buildAuthOnboardingUrl());
     }
-  }, [isStandalonePage, isGuest, needsOnboarding, router]);
+  }, [isStandalonePage, isGuest, needsOnboarding]);
 
   useEffect(() => {
     if (sidebarPreferenceLoadedRef.current) return;
