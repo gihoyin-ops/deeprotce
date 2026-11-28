@@ -1114,30 +1114,32 @@ function ChatViewInner({ chatId, closeSearchRef }: { chatId: string; closeSearch
             {chatTitle ? <AnimatedChatTitle title={chatTitle} chatId={chatId} /> : null}
           </h1>
 
-          <button
-            type="button"
-            onClick={() => {
-              if (!isCanvasOpen) setIsSearchSidebarOpen(false);
-              setCanvasOpen(!isCanvasOpen);
-            }}
-            aria-expanded={isCanvasOpen}
-            className={`pointer-events-auto relative inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[12.5px] font-medium transition-colors ${
-              isCanvasOpen
-                ? 'border-[var(--dc-border-strong)] bg-[var(--dc-surface-hover)] text-[var(--dc-text-strong)]'
-                : 'border-[var(--dc-border)] bg-[var(--dc-surface)]/90 text-[var(--dc-text-body)] hover:bg-[var(--dc-surface-hover)] hover:text-[var(--dc-text-strong)]'
-            }`}
-          >
-            <PanelRight className="h-3.5 w-3.5" />
-            <span>Canvas</span>
-            {canvasFiles.length > 0 && (
-              <span className="text-[11px] tabular-nums text-[var(--dc-text-muted)]">
-                {canvasFiles.length}
-              </span>
-            )}
-            {pendingDiffCount > 0 && (
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-            )}
-          </button>
+          {(canvasFiles.length > 0 || isCanvasOpen || pendingDiffCount > 0) && (
+            <button
+              type="button"
+              onClick={() => {
+                if (!isCanvasOpen) setIsSearchSidebarOpen(false);
+                setCanvasOpen(!isCanvasOpen);
+              }}
+              aria-expanded={isCanvasOpen}
+              className={`pointer-events-auto relative inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[12.5px] font-medium transition-colors ${
+                isCanvasOpen
+                  ? 'border-[var(--dc-border-strong)] bg-[var(--dc-surface-hover)] text-[var(--dc-text-strong)]'
+                  : 'border-[var(--dc-border)] bg-[var(--dc-surface)]/90 text-[var(--dc-text-body)] hover:bg-[var(--dc-surface-hover)] hover:text-[var(--dc-text-strong)]'
+              }`}
+            >
+              <PanelRight className="h-3.5 w-3.5" />
+              <span>Canvas</span>
+              {canvasFiles.length > 0 && (
+                <span className="text-[11px] tabular-nums text-[var(--dc-text-muted)]">
+                  {canvasFiles.length}
+                </span>
+              )}
+              {pendingDiffCount > 0 && (
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              )}
+            </button>
+          )}
         </div>
       )}
 
