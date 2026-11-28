@@ -431,49 +431,23 @@ export function ComposerToolsMenu({
 
               <button
                 type="button"
-                onClick={() => {
-                  onToggleCanvas?.(!canvasEnabled);
-                  onClose();
-                }}
+                onClick={() => switchView('more')}
                 onPointerEnter={(e) => {
                   if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, true);
                 }}
                 onPointerLeave={(e) => {
                   if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, false);
                 }}
-                className={`dc-tools-row dc-tools-stagger min-h-[42px] active:scale-[0.985] sm:min-h-[38px] ${canvasEnabled ? 'dc-tools-row-active' : ''}`}
+                className="dc-tools-row dc-tools-stagger min-h-[42px] active:scale-[0.985] sm:min-h-[38px]"
               >
-                <span className="dc-tools-icon-well relative">
-                  <PenLine className="dc-tools-icon h-[16px] w-[16px]" strokeWidth={2.05} />
-                  <Plus className="absolute right-0.5 top-0.5 h-2.5 w-2.5 text-[var(--deepchat-accent)]" strokeWidth={2.5} />
+                <span className="dc-tools-icon-well">
+                  <MoreHorizontal className="dc-tools-icon h-[16px] w-[16px]" strokeWidth={2.05} />
                 </span>
                 <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">
-                  Canvas
+                  More
                 </span>
-                <ToolsAnimatedCheckSvg active={Boolean(canvasEnabled)} />
+                <ChevronRight className="dc-tools-chevron h-4 w-4 shrink-0 text-[var(--dc-text-muted)]" />
               </button>
-
-              {!isGuest && (
-                <button
-                  type="button"
-                  onClick={() => switchView('more')}
-                  onPointerEnter={(e) => {
-                    if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, true);
-                  }}
-                  onPointerLeave={(e) => {
-                    if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, false);
-                  }}
-                  className="dc-tools-row dc-tools-stagger min-h-[42px] active:scale-[0.985] sm:min-h-[38px]"
-                >
-                  <span className="dc-tools-icon-well">
-                    <MoreHorizontal className="dc-tools-icon h-[16px] w-[16px]" strokeWidth={2.05} />
-                  </span>
-                  <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">
-                    More
-                  </span>
-                  <ChevronRight className="dc-tools-chevron h-4 w-4 shrink-0 text-[var(--dc-text-muted)]" />
-                </button>
-              )}
             </div>
           )}
 
@@ -566,22 +540,48 @@ export function ComposerToolsMenu({
               <div className="space-y-0.5">
                 <button
                   type="button"
-                  onClick={onClose}
+                  onClick={() => {
+                    onToggleCanvas?.(!canvasEnabled);
+                    onClose();
+                  }}
                   onPointerEnter={(e) => {
                     if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, true);
                   }}
                   onPointerLeave={(e) => {
                     if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, false);
                   }}
-                  className="dc-tools-row dc-tools-stagger min-h-[42px] active:scale-[0.985] sm:min-h-[38px]"
+                  className={`dc-tools-row dc-tools-stagger min-h-[42px] active:scale-[0.985] sm:min-h-[38px] ${canvasEnabled ? 'dc-tools-row-active' : ''}`}
                 >
-                  <span className="dc-tools-icon-well">
-                    <SquareMousePointer className="dc-tools-icon h-[16px] w-[16px]" strokeWidth={2.05} />
+                  <span className="dc-tools-icon-well relative">
+                    <PenLine className="dc-tools-icon h-[16px] w-[16px]" strokeWidth={2.05} />
+                    <Plus className="absolute right-0.5 top-0.5 h-2.5 w-2.5 text-[var(--deepchat-accent)]" strokeWidth={2.5} />
                   </span>
                   <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">
-                    Agent mode
+                    Canvas
                   </span>
+                  <ToolsAnimatedCheckSvg active={Boolean(canvasEnabled)} />
                 </button>
+
+                {!isGuest && (
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    onPointerEnter={(e) => {
+                      if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, true);
+                    }}
+                    onPointerLeave={(e) => {
+                      if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, false);
+                    }}
+                    className="dc-tools-row dc-tools-stagger min-h-[42px] active:scale-[0.985] sm:min-h-[38px]"
+                  >
+                    <span className="dc-tools-icon-well">
+                      <SquareMousePointer className="dc-tools-icon h-[16px] w-[16px]" strokeWidth={2.05} />
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">
+                      Agent mode
+                    </span>
+                  </button>
+                )}
               </div>
             </div>
           )}

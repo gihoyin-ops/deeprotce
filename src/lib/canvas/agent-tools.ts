@@ -133,7 +133,7 @@ export const OPENAI_CANVAS_TOOLS = [
 
 const AUTO_CANVAS_PATTERNS = [
   /\b(open|use|in|on|buat|bikin|tampilkan|buka)\b[\s\S]{0,24}\bcanvas\b/i,
-  /\b(create|build|make|generate|design|draft|buat|buatkan|bikin|bikinkan)\b[\s\S]{0,40}\b(powerpoint|pptx|ppt|slide deck|presentation|presentasi|spreadsheet|excel|xlsx|word doc|docx|pdf report|pdf document|dokumen pdf|landing page|web app|dashboard|html)\b/i,
+  /\b(create|build|make|generate|design|draft|buat|buatkan|bikin|bikinkan|susun)\b[\s\S]{0,40}\b(powerpoint|pptx|ppt|slide|slide deck|presentation|presentasi|spreadsheet|excel|xlsx|word|docx|pdf|dokumen pdf|landing page|web app|dashboard|html)\b/i,
   /\b(edit|update|ubah|revisi|perbaiki)\b[\s\S]{0,24}\b(canvas|workspace|slide|sheet|index\.html|style\.css|app\.js)\b/i,
 ];
 

@@ -61,7 +61,7 @@ import fs from 'fs/promises';
 import path from 'path';
 
 export const runtime = 'nodejs';
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 const MAX_OPENAI_COMPATIBLE_IMAGE_BYTES = 8 * 1024 * 1024;
 
@@ -1187,6 +1187,75 @@ export async function POST(req: Request) {
               const toolCallsMap = new Map<number, { id: string; name: string; arguments: string }>();
               const lastCanvasStreamEmit = new Map<string, number>();
 
+              const processSseLine = (rawLine: string) => {
+                const trimmed = rawLine.trim();
+                if (!trimmed || trimmed.startsWith(':')) return;
+                const dataStr = trimmed.replace(/^data:\s*/, '').trim();
+                if (dataStr === '[DONE]') return;
+
+                let parsed: Record<string, unknown>;
+                try {
+                  const raw = JSON.parse(dataStr) as unknown;
+                  if (!raw || typeof raw !== 'object') return;
+                  parsed = raw as Record<string, unknown>;
+                } catch {
+                  return;
+                }
+
+                const choices = Array.isArray(parsed.choices) ? parsed.choices : [];
+                const firstChoice = choices[0] && typeof choices[0] === 'object' ? choices[0] as Record<string, unknown> : null;
+                const delta = firstChoice?.delta && typeof firstChoice.delta === 'object' ? firstChoice.delta as Record<string, unknown> : null;
+
+                if (delta) {
+                  if (typeof delta.content === 'string' && delta.content) {
+                    roundContent += delta.content;
+                  }
+                  if (Array.isArray(delta.tool_calls)) {
+                    for (const rawTc of delta.tool_calls) {
+                      if (!rawTc || typeof rawTc !== 'object') continue;
+                      const tc = rawTc as Record<string, unknown>;
+                      const tcIdx = typeof tc.index === 'number' ? tc.index : 0;
+                      const existing = toolCallsMap.get(tcIdx) || { id: `call_${round}_${tcIdx}`, name: '', arguments: '' };
+                      if (typeof tc.id === 'string' && tc.id) existing.id = tc.id;
+                      const fn = tc.function && typeof tc.function === 'object' ? tc.function as Record<string, unknown> : null;
+                      if (typeof fn?.name === 'string' && fn.name) existing.name += fn.name;
+                      if (typeof fn?.arguments === 'string' && fn.arguments) existing.arguments += fn.arguments;
+                      toolCallsMap.set(tcIdx, existing);
+
+                      const fnName = existing.name.trim();
+                      if (canvasToolsActive && (fnName === 'canvas_write_file' || fnName === 'canvas_patch_file')) {
+                        const extracted = extractStreamingCanvasFields(existing.arguments);
+                        if (extracted.path) {
+                          const now = Date.now();
+                          const prevEmit = lastCanvasStreamEmit.get(existing.id) || 0;
+                          if (now - prevEmit >= 65) {
+                            lastCanvasStreamEmit.set(existing.id, now);
+                            controller.enqueue(encoder.encode(sse({
+                              type: 'deepchat_canvas_stream',
+                              callId: existing.id,
+                              action: fnName === 'canvas_patch_file' ? 'patch' : 'write',
+                              path: extracted.path,
+                              kind: extracted.kind,
+                              partialContent: extracted.content ?? '',
+                              summary: extracted.summary
+                            })));
+                          }
+                        }
+                      }
+                    }
+                  }
+
+                  const hasTextDelta =
+                    (typeof delta.content === 'string' && delta.content.length > 0) ||
+                    (typeof delta.reasoning_content === 'string' && delta.reasoning_content.length > 0);
+                  if (hasTextDelta) {
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify(parsed)}\n\n`));
+                  }
+                } else if (parsed.error) {
+                  controller.enqueue(encoder.encode(`data: ${JSON.stringify(parsed)}\n\n`));
+                }
+              };
+
               while (true) {
                 const { done, value } = await reader.read();
                 if (done) break;
@@ -1195,77 +1264,16 @@ export async function POST(req: Request) {
                 sseBuffer = lines.pop() || '';
 
                 for (const line of lines) {
-                  const trimmed = line.trim();
-                  if (!trimmed || trimmed.startsWith(':')) continue;
-                  const dataStr = trimmed.replace(/^data:\s*/, '').trim();
-                  if (dataStr === '[DONE]') continue;
-
-                  let parsed: Record<string, unknown>;
-                  try {
-                    const raw = JSON.parse(dataStr) as unknown;
-                    if (!raw || typeof raw !== 'object') continue;
-                    parsed = raw as Record<string, unknown>;
-                  } catch {
-                    continue;
-                  }
-
-                  const choices = Array.isArray(parsed.choices) ? parsed.choices : [];
-                  const firstChoice = choices[0] && typeof choices[0] === 'object' ? choices[0] as Record<string, unknown> : null;
-                  const delta = firstChoice?.delta && typeof firstChoice.delta === 'object' ? firstChoice.delta as Record<string, unknown> : null;
-
-                  if (delta) {
-                    if (typeof delta.content === 'string' && delta.content) {
-                      roundContent += delta.content;
-                    }
-                    if (Array.isArray(delta.tool_calls)) {
-                      for (const rawTc of delta.tool_calls) {
-                        if (!rawTc || typeof rawTc !== 'object') continue;
-                        const tc = rawTc as Record<string, unknown>;
-                        const tcIdx = typeof tc.index === 'number' ? tc.index : 0;
-                        const existing = toolCallsMap.get(tcIdx) || { id: `call_${round}_${tcIdx}`, name: '', arguments: '' };
-                        if (typeof tc.id === 'string' && tc.id) existing.id = tc.id;
-                        const fn = tc.function && typeof tc.function === 'object' ? tc.function as Record<string, unknown> : null;
-                        if (typeof fn?.name === 'string' && fn.name) existing.name += fn.name;
-                        if (typeof fn?.arguments === 'string' && fn.arguments) existing.arguments += fn.arguments;
-                        toolCallsMap.set(tcIdx, existing);
-
-                        if (canvasToolsActive && (existing.name === 'canvas_write_file' || existing.name === 'canvas_patch_file')) {
-                          const extracted = extractStreamingCanvasFields(existing.arguments);
-                          if (extracted.path) {
-                            const now = Date.now();
-                            const prevEmit = lastCanvasStreamEmit.get(existing.id) || 0;
-                            if (now - prevEmit >= 65) {
-                              lastCanvasStreamEmit.set(existing.id, now);
-                              controller.enqueue(encoder.encode(sse({
-                                type: 'deepchat_canvas_stream',
-                                callId: existing.id,
-                                action: existing.name === 'canvas_patch_file' ? 'patch' : 'write',
-                                path: extracted.path,
-                                kind: extracted.kind,
-                                partialContent: extracted.content ?? '',
-                                summary: extracted.summary
-                              })));
-                            }
-                          }
-                        }
-                      }
-                    }
-
-                    const hasTextDelta =
-                      (typeof delta.content === 'string' && delta.content.length > 0) ||
-                      (typeof delta.reasoning_content === 'string' && delta.reasoning_content.length > 0);
-                    if (hasTextDelta) {
-                      controller.enqueue(encoder.encode(`data: ${JSON.stringify(parsed)}\n\n`));
-                    }
-                  } else if (parsed.error) {
-                    controller.enqueue(encoder.encode(`data: ${JSON.stringify(parsed)}\n\n`));
-                  }
+                  processSseLine(line);
                 }
+              }
+              if (sseBuffer.trim()) {
+                processSseLine(sseBuffer);
               }
 
               const toolCalls = [...toolCallsMap.entries()]
                 .sort((a, b) => a[0] - b[0])
-                .map(([, tc]) => tc)
+                .map(([, tc]) => ({ ...tc, name: tc.name.trim() }))
                 .filter(tc => tc.name);
 
               if (toolCalls.length === 0) {

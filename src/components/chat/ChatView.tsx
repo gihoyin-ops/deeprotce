@@ -859,6 +859,7 @@ function ChatViewInner({ chatId, closeSearchRef }: { chatId: string; closeSearch
       thinkingSteps: assistantMsg.thinkingSteps,
       clarification: assistantMsg.clarification,
       clarificationAnswer: assistantMsg.clarificationAnswer,
+      canvasEvents: assistantMsg.canvasEvents,
       generationMode: assistantMsg.generationMode,
       isError: assistantMsg.isError === true
     }]);
@@ -883,6 +884,7 @@ function ChatViewInner({ chatId, closeSearchRef }: { chatId: string; closeSearch
       thinkingSteps: [],
       clarification: undefined,
       clarificationAnswer: undefined,
+      canvasEvents: [],
       reasoningDuration: undefined,
       isStreaming: true,
       isError: false,

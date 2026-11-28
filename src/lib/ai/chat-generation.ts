@@ -15,6 +15,7 @@ import {
   shouldRequestImageGeneration
 } from '@/lib/agent/backend-tools';
 import { setActiveLimit } from '@/lib/security/client-limit';
+import { loadComposerToolState } from '@/lib/agent/composer-tool-state';
 import type { CanvasFileKind, CanvasMessageEvent, CanvasOp } from '@/lib/canvas/types';
 import {
   emitCanvasOp,
@@ -1043,7 +1044,9 @@ const runTask = async (task: ChatGenerationTask) => {
         canvasContext: isImageTask
           ? undefined
           : {
-              enabled: latestUserMessage?.canvasEnabled === true,
+              enabled:
+                latestUserMessage?.canvasEnabled === true ||
+                loadComposerToolState().canvasEnabled === true,
               activeFilePath: workspaceSnapshot?.activeFilePath ?? null,
               files: workspaceSnapshot?.files ?? []
             }
