@@ -1,18 +1,21 @@
 import { NextResponse } from 'next/server';
-import { ensureTursoSchema } from '@/backend/db/connection';
+import { getDbPool } from '@/backend/db/connection';
 import { revokeSessionById } from '@/backend/db/account-session';
-import { clearAllAccountSessionCookies, getVerifiedAccount } from '@/lib/security/auth';
+import { clearAllAccountSessionCookies, getAllVerifiedAccounts } from '@/lib/security/auth';
 
 export const runtime = 'nodejs';
 
 export async function POST(req: Request) {
-  const verified = getVerifiedAccount(req.headers);
+  const requestHost = req.headers.get('x-forwarded-host') ?? req.headers.get('host');
+  const verifiedList = getAllVerifiedAccounts(req.headers);
 
-  if (verified) {
+  if (verifiedList.length > 0) {
     try {
-      const pool = await ensureTursoSchema();
+      const pool = getDbPool();
       if (pool) {
-        await revokeSessionById(pool, verified.sid);
+        await Promise.all(
+          verifiedList.map(v => revokeSessionById(pool, v.sid).catch(() => undefined))
+        );
       }
     } catch {
       // Nuke the cookie anyway even if DB cleanup craps out
@@ -20,7 +23,7 @@ export async function POST(req: Request) {
   }
 
   const res = NextResponse.json({ ok: true });
-  for (const cookie of clearAllAccountSessionCookies()) {
+  for (const cookie of clearAllAccountSessionCookies(requestHost)) {
     res.headers.append('set-cookie', cookie);
   }
   return res;

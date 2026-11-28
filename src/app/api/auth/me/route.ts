@@ -1,27 +1,68 @@
 import { NextResponse } from 'next/server';
-import { ensureTursoSchema } from '@/backend/db/connection';
-import { isSessionActiveInDb, requireDbPool, type AccountRow } from '@/backend/db/account-session';
+import { ensureTursoSchema, getDbPool } from '@/backend/db/connection';
+import {
+  isSessionActiveInDb,
+  requireDbPool,
+  revokeSessionById,
+  type AccountRow
+} from '@/backend/db/account-session';
 import { deleteFromR2, isR2Configured } from '@/backend/storage/r2';
 import { getAuthBaseUrl } from '@/lib/auth/auth-url';
 import { buildDefaultAvatarUrl, isLegacyDefaultAvatar, normalizeUsername } from '@/lib/avatar';
 import {
   ACCOUNT_COOKIE_NAME,
   clearAccountSessionCookie,
-  getCookieValue,
+  clearAllAccountSessionCookies,
+  clearHostOnlyAccountSessionCookie,
+  getAccountCookieDomain,
+  getAllVerifiedAccounts,
+  getCookieValues,
   getVerifiedAccount,
   issueAccountSessionCookie
 } from '@/lib/security/auth';
 
 export const runtime = 'nodejs';
 
-async function fetchCentralAuthFallback(rawAccountCookie: string | null) {
-  if (!rawAccountCookie) return null;
+type JoinedSessionAccount = Pick<
+  AccountRow,
+  'id' | 'email' | 'username' | 'display_name' | 'avatar_url' | 'plan' | 'role' | 'is_banned'
+> & { session_id: string; expires_at: number };
+
+const JOINED_SESSION_SQL = `SELECT s.id AS session_id, s.expires_at,
+        a.id, a.email, a.username, a.display_name, a.avatar_url, a.plan, a.role, a.is_banned
+ FROM auth_sessions s
+ JOIN accounts a ON a.id = s.account_id
+ WHERE s.id = ?
+ LIMIT 1`;
+
+async function querySessionWithSchemaFallback(
+  pool: NonNullable<ReturnType<typeof getDbPool>>,
+  sid: string,
+  schemaEnsured: { done: boolean }
+): Promise<JoinedSessionAccount | null> {
+  try {
+    const rows = await pool.query<JoinedSessionAccount>(JOINED_SESSION_SQL, [sid]);
+    return rows[0] ?? null;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (!schemaEnsured.done && /no such (table|column)/i.test(msg)) {
+      schemaEnsured.done = true;
+      await ensureTursoSchema();
+      const rows = await pool.query<JoinedSessionAccount>(JOINED_SESSION_SQL, [sid]);
+      return rows[0] ?? null;
+    }
+    throw err;
+  }
+}
+
+async function fetchCentralAuthFallback(rawAccountCookies: string[]) {
+  if (rawAccountCookies.length === 0) return null;
   try {
     const authBase = getAuthBaseUrl();
     const res = await fetch(`${authBase}/api/auth/me`, {
       method: 'GET',
       headers: {
-        cookie: `${ACCOUNT_COOKIE_NAME}=${rawAccountCookie}`,
+        cookie: rawAccountCookies.map(v => `${ACCOUNT_COOKIE_NAME}=${v}`).join('; '),
         origin: authBase
       },
       cache: 'no-store'
@@ -41,61 +82,86 @@ async function fetchCentralAuthFallback(rawAccountCookie: string | null) {
 }
 
 export async function GET(req: Request) {
-  const rawAccountCookie = getCookieValue(req.headers, ACCOUNT_COOKIE_NAME);
-  const verified = getVerifiedAccount(req.headers);
-  if (!verified) {
-    const central = await fetchCentralAuthFallback(rawAccountCookie);
-    if (central) {
-      return NextResponse.json(central);
+  const requestHost = req.headers.get('x-forwarded-host') ?? req.headers.get('host');
+  const rawAccountCookies = getCookieValues(req.headers, ACCOUNT_COOKIE_NAME);
+  const candidates = getAllVerifiedAccounts(req.headers);
+
+  // Auto-heal duplicate host-only cookies so they stop shadowing the shared domain cookie
+  const maybeCleanHostOnly = (res: NextResponse): NextResponse => {
+    if (rawAccountCookies.length > 1 && getAccountCookieDomain(requestHost) !== null) {
+      res.headers.append('set-cookie', clearHostOnlyAccountSessionCookie(requestHost));
     }
-    return NextResponse.json({
-      authenticated: false,
-      guest: true,
-      reason: rawAccountCookie ? 'invalid_token' : 'no_cookie'
-    });
+    return res;
+  };
+
+  if (candidates.length === 0) {
+    const central = await fetchCentralAuthFallback(rawAccountCookies);
+    if (central) {
+      return maybeCleanHostOnly(NextResponse.json(central));
+    }
+    return maybeCleanHostOnly(
+      NextResponse.json({
+        authenticated: false,
+        guest: true,
+        reason: rawAccountCookies.length > 0 ? 'invalid_token' : 'no_cookie'
+      })
+    );
   }
 
-  let dbAccount: Pick<
-    AccountRow,
-    'id' | 'email' | 'username' | 'display_name' | 'avatar_url' | 'plan' | 'role' | 'is_banned'
-  > | null = null;
+  let matchedClaim = null as (typeof candidates)[number] | null;
+  let dbAccount: JoinedSessionAccount | null = null;
+  let sawBanned = false;
+  let dbLookupFailed = false;
+  let pool: ReturnType<typeof getDbPool> = null;
 
   try {
-    const pool = await ensureTursoSchema();
+    pool = getDbPool();
     if (pool) {
-      const active = await isSessionActiveInDb(pool, verified.sid);
-      if (!active) {
-        const central = await fetchCentralAuthFallback(rawAccountCookie);
-        if (central) {
-          return NextResponse.json(central);
+      const schemaEnsured = { done: false };
+      for (const candidate of candidates) {
+        const row = await querySessionWithSchemaFallback(pool, candidate.sid, schemaEnsured);
+        if (!row) continue;
+        if (Number(row.is_banned) === 1) {
+          await revokeSessionById(pool, candidate.sid).catch(() => undefined);
+          sawBanned = true;
+          continue;
         }
-        return NextResponse.json({
-          authenticated: false,
-          guest: true,
-          reason: 'session_inactive'
-        });
-      }
-
-      const rows = await pool.query<
-        Pick<
-          AccountRow,
-          'id' | 'email' | 'username' | 'display_name' | 'avatar_url' | 'plan' | 'role' | 'is_banned'
-        >
-      >(
-        'SELECT id, email, username, display_name, avatar_url, plan, role, is_banned FROM accounts WHERE id = ? LIMIT 1',
-        [verified.sub]
-      );
-      dbAccount = rows[0] ?? null;
-      if (dbAccount && Number(dbAccount.is_banned) === 1) {
-        const res = NextResponse.json({ authenticated: false, guest: true, banned: true });
-        res.headers.append('set-cookie', clearAccountSessionCookie());
-        return res;
+        if (Date.now() > Number(row.expires_at)) {
+          await revokeSessionById(pool, candidate.sid).catch(() => undefined);
+          continue;
+        }
+        matchedClaim = candidate;
+        dbAccount = row;
+        break;
       }
     }
   } catch {
     // DB crapped out transiently, fall back to the cryptographically verified claims
+    dbLookupFailed = true;
   }
 
+  if (!dbLookupFailed && pool && !matchedClaim) {
+    if (sawBanned) {
+      const res = NextResponse.json({ authenticated: false, guest: true, banned: true });
+      for (const cookie of clearAllAccountSessionCookies(requestHost)) {
+        res.headers.append('set-cookie', cookie);
+      }
+      return res;
+    }
+    const central = await fetchCentralAuthFallback(rawAccountCookies);
+    if (central) {
+      return maybeCleanHostOnly(NextResponse.json(central));
+    }
+    return maybeCleanHostOnly(
+      NextResponse.json({
+        authenticated: false,
+        guest: true,
+        reason: 'session_inactive'
+      })
+    );
+  }
+
+  const verified = matchedClaim ?? candidates[0];
   const displayName = dbAccount?.display_name || verified.name;
   const username = dbAccount?.username ?? null;
   const rawAvatar = dbAccount?.avatar_url;
@@ -104,20 +170,22 @@ export async function GET(req: Request) {
       ? rawAvatar
       : buildDefaultAvatarUrl(username || dbAccount?.id || verified.sub);
 
-  return NextResponse.json({
-    authenticated: true,
-    guest: false,
-    account: {
-      id: verified.sub,
-      email: dbAccount?.email || verified.email,
-      displayName,
-      username,
-      avatarUrl,
-      plan: dbAccount?.plan || verified.plan,
-      role: dbAccount?.role || verified.role || 'user',
-      needsOnboarding: dbAccount ? !dbAccount.username : false
-    }
-  });
+  return maybeCleanHostOnly(
+    NextResponse.json({
+      authenticated: true,
+      guest: false,
+      account: {
+        id: verified.sub,
+        email: dbAccount?.email || verified.email,
+        displayName,
+        username,
+        avatarUrl,
+        plan: dbAccount?.plan || verified.plan,
+        role: dbAccount?.role || verified.role || 'user',
+        needsOnboarding: dbAccount ? !dbAccount.username : false
+      }
+    })
+  );
 }
 
 export async function PATCH(req: Request) {
@@ -134,11 +202,14 @@ export async function PATCH(req: Request) {
       isPublic?: unknown;
     };
 
+    const requestHost = req.headers.get('x-forwarded-host') ?? req.headers.get('host');
     const pool = await requireDbPool();
     const active = await isSessionActiveInDb(pool, verified.sid);
     if (!active) {
       const res = NextResponse.json({ error: 'Session expired.' }, { status: 401 });
-      res.headers.append('set-cookie', clearAccountSessionCookie());
+      for (const cookie of clearAllAccountSessionCookies(requestHost)) {
+        res.headers.append('set-cookie', cookie);
+      }
       return res;
     }
 
@@ -221,14 +292,17 @@ export async function PATCH(req: Request) {
       );
     }
 
-    const cookieHeader = issueAccountSessionCookie({
-      sub: current.id,
-      sid: verified.sid,
-      email: current.email,
-      plan: current.plan,
-      role: current.role ?? 'user',
-      name: nextDisplayName
-    });
+    const cookieHeader = issueAccountSessionCookie(
+      {
+        sub: current.id,
+        sid: verified.sid,
+        email: current.email,
+        plan: current.plan,
+        role: current.role ?? 'user',
+        name: nextDisplayName
+      },
+      { requestHost }
+    );
 
     const res = NextResponse.json({
       ok: true,
@@ -245,6 +319,9 @@ export async function PATCH(req: Request) {
       }
     });
     res.headers.append('set-cookie', cookieHeader);
+    if (getAccountCookieDomain(requestHost) !== null) {
+      res.headers.append('set-cookie', clearHostOnlyAccountSessionCookie(requestHost));
+    }
     return res;
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to update profile.';
@@ -266,11 +343,14 @@ export async function DELETE(req: Request) {
   }
 
   try {
+    const requestHost = req.headers.get('x-forwarded-host') ?? req.headers.get('host');
     const pool = await requireDbPool();
     const active = await isSessionActiveInDb(pool, verified.sid);
     if (!active) {
       const res = NextResponse.json({ error: 'Session expired.' }, { status: 401 });
-      res.headers.append('set-cookie', clearAccountSessionCookie());
+      for (const cookie of clearAllAccountSessionCookies(requestHost)) {
+        res.headers.append('set-cookie', cookie);
+      }
       return res;
     }
 
@@ -296,7 +376,9 @@ export async function DELETE(req: Request) {
     await pool.exec('DELETE FROM accounts WHERE id = ?', [verified.sub]);
 
     const res = NextResponse.json({ ok: true });
-    res.headers.append('set-cookie', clearAccountSessionCookie());
+    for (const cookie of clearAllAccountSessionCookies(requestHost)) {
+      res.headers.append('set-cookie', cookie);
+    }
     return res;
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to delete account.';

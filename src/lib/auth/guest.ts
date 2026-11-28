@@ -2,12 +2,17 @@
 
 import { useEffect, useSyncExternalStore } from 'react';
 import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
-import { DEFAULT_GUEST_AVATAR } from '@/lib/avatar';
+import {
+  buildDefaultAvatarUrl,
+  DEFAULT_GUEST_AVATAR,
+  isLegacyDefaultAvatar
+} from '@/lib/avatar';
 import { buildAuthLogoutUrl, getAuthBaseUrl } from '@/lib/auth/auth-url';
 import { deepchatQueryKeys } from '@/lib/query-keys';
 import {
   getCachedUserProfileSync,
   saveUserProfileClient,
+  type UserProfileData,
 } from '@/lib/storage/client-storage';
 
 export interface AuthSessionState {
@@ -16,7 +21,12 @@ export interface AuthSessionState {
   guest: boolean;
   account?: {
     id?: string;
+    email?: string;
+    displayName?: string;
     username?: string | null;
+    avatarUrl?: string;
+    plan?: string;
+    role?: string;
     needsOnboarding?: boolean;
   };
 }
@@ -128,12 +138,49 @@ export function useGuestStatus() {
             window.dispatchEvent(new Event('profileUpdated'));
             window.dispatchEvent(new Event('chatUpdated'));
           });
-        } else if (payload.authenticated && prevHint !== '1') {
-          void queryClient.invalidateQueries({ queryKey: deepchatQueryKeys.profile });
-          void queryClient.invalidateQueries({ queryKey: deepchatQueryKeys.chats });
-          void queryClient.invalidateQueries({ queryKey: deepchatQueryKeys.recentFiles });
-          window.dispatchEvent(new Event('profileUpdated'));
-          window.dispatchEvent(new Event('chatUpdated'));
+        } else if (payload.authenticated) {
+          const acc = payload.account;
+          if (acc?.id) {
+            const nextAvatar =
+              acc.avatarUrl && !isLegacyDefaultAvatar(acc.avatarUrl)
+                ? acc.avatarUrl
+                : cachedProfile && !isLegacyDefaultAvatar(cachedProfile.avatar) && cachedProfile.id === acc.id
+                  ? cachedProfile.avatar
+                  : buildDefaultAvatarUrl(acc.username || acc.id);
+            const syncedProfile: UserProfileData = {
+              id: acc.id,
+              name: acc.displayName || (cachedProfile?.id === acc.id ? cachedProfile.name : '') || 'User',
+              username: acc.username ?? (cachedProfile?.id === acc.id ? cachedProfile.username : '') ?? '',
+              avatar: nextAvatar,
+              plan: acc.plan || (cachedProfile?.id === acc.id ? cachedProfile.plan : '') || '',
+              role: acc.role || (cachedProfile?.id === acc.id ? cachedProfile.role : '') || 'user',
+              age: cachedProfile?.age || '18 or older',
+            };
+            // Push profile into query cache right away so Sidebar doesn't flash Guest
+            queryClient.setQueryData(deepchatQueryKeys.profile, syncedProfile);
+
+            const changed =
+              !cachedProfile ||
+              cachedProfile.id !== syncedProfile.id ||
+              cachedProfile.name !== syncedProfile.name ||
+              cachedProfile.username !== syncedProfile.username ||
+              cachedProfile.avatar !== syncedProfile.avatar ||
+              cachedProfile.plan !== syncedProfile.plan ||
+              cachedProfile.role !== syncedProfile.role;
+
+            if (changed) {
+              void saveUserProfileClient(syncedProfile, { skipRemoteSync: true }).then(() => {
+                window.dispatchEvent(new Event('profileUpdated'));
+              });
+            }
+          }
+
+          if (prevHint !== '1' || (acc?.id && cachedProfile?.id !== acc.id)) {
+            void queryClient.invalidateQueries({ queryKey: deepchatQueryKeys.chats });
+            void queryClient.invalidateQueries({ queryKey: deepchatQueryKeys.recentFiles });
+            window.dispatchEvent(new Event('profileUpdated'));
+            window.dispatchEvent(new Event('chatUpdated'));
+          }
         }
       } catch {}
       return payload;

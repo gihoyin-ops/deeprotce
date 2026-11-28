@@ -9,6 +9,7 @@ import type {
 } from './types';
 import type { PersonaData } from '@/app/persona';
 import type { LLMSettings } from '@/lib/settings/llm-settings';
+import { getAuthBaseUrl } from '@/lib/auth/auth-url';
 import {
   buildDefaultAvatarUrl,
   DEFAULT_GUEST_AVATAR,
@@ -541,13 +542,31 @@ let inFlightMeSync: Promise<MeAccountPayload | null> | null = null;
 const fetchAuthenticatedAccount = async (): Promise<MeAccountPayload | null> => {
   if (typeof window === 'undefined') return null;
   if (!inFlightMeSync) {
-    inFlightMeSync = fetch('/api/auth/me', { credentials: 'same-origin' })
+    inFlightMeSync = fetch('/api/auth/me', { credentials: 'same-origin', cache: 'no-store' })
       .then(async res => {
-        if (!res.ok) return null;
+        let payload: MeAccountPayload | null = res.ok
+          ? ((await res.json()) as MeAccountPayload)
+          : null;
+        if (!payload?.authenticated) {
+          try {
+            const centralRes = await fetch(`${getAuthBaseUrl()}/api/auth/me`, {
+              credentials: 'include',
+              cache: 'no-store'
+            });
+            if (centralRes.ok) {
+              const centralData = (await centralRes.json()) as MeAccountPayload;
+              if (centralData?.authenticated) {
+                payload = centralData;
+              }
+            }
+          } catch {
+            // Keep local payload if central auth is unreachable
+          }
+        }
         try {
           localStorage.setItem(ME_SYNCED_AT_KEY, String(Date.now()));
         } catch {}
-        return (await res.json()) as MeAccountPayload;
+        return payload;
       })
       .catch(() => null)
       .finally(() => {

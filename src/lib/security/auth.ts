@@ -9,30 +9,53 @@ export const ACCOUNT_COOKIE_NAME = 'dc_account';
 export const ACCOUNT_SESSION_TTL_SECONDS = 60 * 60 * 24 * 14; // 14 days
 export const ACCOUNT_REMEMBER_TTL_SECONDS = 60 * 60 * 24 * 30; // 30 days
 
-export const getAccountCookieDomain = (): string | null => {
+const isLocalHost = (hostHeader?: string | null): boolean => {
+  if (!hostHeader) return false;
+  const hostname = hostHeader.split(',')[0].trim().toLowerCase().split(':')[0];
+  return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]' || hostname === '::1';
+};
+
+export const getAccountCookieDomain = (requestHost?: string | null): string | null => {
+  // Never force a prod Domain on localhost or browsers will drop the cookie
+  if (isLocalHost(requestHost)) return null;
   const configured = process.env.COOKIE_DOMAIN?.trim();
   if (configured) return configured;
   if (process.env.NODE_ENV === 'production') return '.deepsia.my.id';
   return null;
 };
 
-export const getCookieValue = (headers: Headers, cookieName: string): string | null => {
+export const getCookieValues = (headers: Headers, cookieName: string): string[] => {
   const cookie = headers.get('cookie');
-  if (cookie === null) return null;
+  if (cookie === null) return [];
+  const values: string[] = [];
   for (const part of cookie.split(';')) {
     const [rawName, ...rest] = part.split('=');
     if (rawName?.trim() === cookieName) {
       const value = rest.join('=').trim();
-      return value !== '' ? value : null;
+      if (value !== '') values.push(value);
     }
   }
-  return null;
+  return values;
 };
 
-export const getVerifiedAccount = (headers: Headers): SignedAccountClaims | null => {
-  const raw = getCookieValue(headers, ACCOUNT_COOKIE_NAME);
-  return verifyAccountClaims(raw);
+export const getCookieValue = (headers: Headers, cookieName: string): string | null =>
+  getCookieValues(headers, cookieName)[0] ?? null;
+
+export const getAllVerifiedAccounts = (headers: Headers): SignedAccountClaims[] => {
+  const bySid = new Map<string, SignedAccountClaims>();
+  for (const raw of getCookieValues(headers, ACCOUNT_COOKIE_NAME)) {
+    const claims = verifyAccountClaims(raw);
+    if (!claims) continue;
+    const prev = bySid.get(claims.sid);
+    if (!prev || claims.exp > prev.exp) {
+      bySid.set(claims.sid, claims);
+    }
+  }
+  return Array.from(bySid.values()).sort((a, b) => b.exp - a.exp);
 };
+
+export const getVerifiedAccount = (headers: Headers): SignedAccountClaims | null =>
+  getAllVerifiedAccounts(headers)[0] ?? null;
 
 export const hasAccountCookie = (headers: Headers): boolean => getVerifiedAccount(headers) !== null;
 
@@ -40,7 +63,7 @@ export const isGuestRequest = (headers: Headers): boolean => !hasAccountCookie(h
 
 export const issueAccountSessionCookie = (
   claims: Omit<SignedAccountClaims, 'exp'>,
-  options?: { rememberMe?: boolean }
+  options?: { rememberMe?: boolean; requestHost?: string | null }
 ): string => {
   const rememberMe = options?.rememberMe ?? true;
   const ttlSeconds = rememberMe ? ACCOUNT_REMEMBER_TTL_SECONDS : ACCOUNT_SESSION_TTL_SECONDS;
@@ -48,24 +71,31 @@ export const issueAccountSessionCookie = (
     ...claims,
     exp: Date.now() + ttlSeconds * 1000
   });
-  const domain = getAccountCookieDomain();
+  const domain = getAccountCookieDomain(options?.requestHost);
   const domainAttr = domain ? ` Domain=${domain};` : '';
-  const secureFlag = process.env.NODE_ENV === 'production' ? ' Secure;' : '';
+  const isSecure = process.env.NODE_ENV === 'production' && !isLocalHost(options?.requestHost);
+  const secureFlag = isSecure ? ' Secure;' : '';
   const maxAgeAttr = rememberMe ? ` Max-Age=${ttlSeconds}` : '';
   return `${ACCOUNT_COOKIE_NAME}=${token}; Path=/;${domainAttr} HttpOnly; SameSite=Lax;${secureFlag}${maxAgeAttr}`;
 };
 
-export const clearAccountSessionCookie = (): string => {
-  const domain = getAccountCookieDomain();
+export const clearAccountSessionCookie = (requestHost?: string | null): string => {
+  const domain = getAccountCookieDomain(requestHost);
   const domainAttr = domain ? ` Domain=${domain};` : '';
-  const secureFlag = process.env.NODE_ENV === 'production' ? ' Secure;' : '';
+  const isSecure = process.env.NODE_ENV === 'production' && !isLocalHost(requestHost);
+  const secureFlag = isSecure ? ' Secure;' : '';
   return `${ACCOUNT_COOKIE_NAME}=; Path=/;${domainAttr} HttpOnly; SameSite=Lax;${secureFlag} Max-Age=0`;
 };
 
-export const clearAllAccountSessionCookies = (): string[] => {
-  const secureFlag = process.env.NODE_ENV === 'production' ? ' Secure;' : '';
-  const hostOnly = `${ACCOUNT_COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax;${secureFlag} Max-Age=0`;
-  const domainCookie = clearAccountSessionCookie();
+export const clearHostOnlyAccountSessionCookie = (requestHost?: string | null): string => {
+  const isSecure = process.env.NODE_ENV === 'production' && !isLocalHost(requestHost);
+  const secureFlag = isSecure ? ' Secure;' : '';
+  return `${ACCOUNT_COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax;${secureFlag} Max-Age=0`;
+};
+
+export const clearAllAccountSessionCookies = (requestHost?: string | null): string[] => {
+  const hostOnly = clearHostOnlyAccountSessionCookie(requestHost);
+  const domainCookie = clearAccountSessionCookie(requestHost);
   return domainCookie === hostOnly ? [hostOnly] : [domainCookie, hostOnly];
 };
 

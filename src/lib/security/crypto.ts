@@ -149,6 +149,7 @@ export const verifyAccountClaims = (token: string | null | undefined): SignedAcc
       sid: parsed.sid,
       email: parsed.email,
       plan: (parsed.plan as BackendPlanId) ?? 'free',
+      role: typeof parsed.role === 'string' ? (parsed.role as AccountRole) : undefined,
       name: typeof parsed.name === 'string' ? parsed.name : parsed.email.split('@')[0] || 'User',
       exp: parsed.exp
     };
