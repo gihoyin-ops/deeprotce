@@ -62,6 +62,13 @@ export const clearAccountSessionCookie = (): string => {
   return `${ACCOUNT_COOKIE_NAME}=; Path=/;${domainAttr} HttpOnly; SameSite=Lax;${secureFlag} Max-Age=0`;
 };
 
+export const clearAllAccountSessionCookies = (): string[] => {
+  const secureFlag = process.env.NODE_ENV === 'production' ? ' Secure;' : '';
+  const hostOnly = `${ACCOUNT_COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax;${secureFlag} Max-Age=0`;
+  const domainCookie = clearAccountSessionCookie();
+  return domainCookie === hostOnly ? [hostOnly] : [domainCookie, hostOnly];
+};
+
 export const issueSessionToken = (): string => {
   const bytes = new Uint8Array(32);
   crypto.getRandomValues(bytes);

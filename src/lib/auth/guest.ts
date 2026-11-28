@@ -1,7 +1,7 @@
 'use client';
 
-import { useSyncExternalStore } from 'react';
-import { useQuery, type QueryClient } from '@tanstack/react-query';
+import { useEffect, useSyncExternalStore } from 'react';
+import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { DEFAULT_GUEST_AVATAR } from '@/lib/avatar';
 import { buildAuthLogoutUrl } from '@/lib/auth/auth-url';
 import { deepchatQueryKeys } from '@/lib/query-keys';
@@ -51,26 +51,72 @@ const notifyAuthHint = () => {
 };
 
 export function useGuestStatus() {
+  const queryClient = useQueryClient();
   const cachedAuthHint = useSyncExternalStore(
     subscribeAuthHint,
     getAuthHintSnapshot,
     () => null
   );
 
+  useEffect(() => {
+    const syncSession = () => {
+      if (document.visibilityState === 'hidden') return;
+      void queryClient.invalidateQueries({ queryKey: AUTH_SESSION_QUERY_KEY });
+    };
+    window.addEventListener('focus', syncSession);
+    document.addEventListener('visibilitychange', syncSession);
+    return () => {
+      window.removeEventListener('focus', syncSession);
+      document.removeEventListener('visibilitychange', syncSession);
+    };
+  }, [queryClient]);
+
   const { data } = useQuery<AuthSessionState>({
     queryKey: AUTH_SESSION_QUERY_KEY,
     queryFn: async () => {
-      const res = await fetch('/api/auth/session', { credentials: 'same-origin' });
+      const res = await fetch('/api/auth/session', {
+        credentials: 'same-origin',
+        cache: 'no-store',
+      });
       const payload: AuthSessionState = res.ok
         ? ((await res.json()) as AuthSessionState)
         : { ok: false, authenticated: false, guest: true };
       try {
+        const prevHint = localStorage.getItem(AUTH_HINT_KEY);
+        const cachedProfile = getCachedUserProfileSync();
         localStorage.setItem(AUTH_HINT_KEY, payload.authenticated ? '1' : '0');
         notifyAuthHint();
+
+        if (!payload.authenticated && (prevHint === '1' || (cachedProfile?.id && cachedProfile.id !== 'default'))) {
+          localStorage.removeItem('deepchat-user-profile');
+          localStorage.removeItem('deepchat-me-synced-at');
+          localStorage.removeItem('deepchat-library-cache-v1');
+          void saveUserProfileClient({
+            id: 'default',
+            name: 'Guest',
+            username: '',
+            avatar: DEFAULT_GUEST_AVATAR,
+            plan: '',
+            age: '18 or older',
+          }, { skipRemoteSync: true }).then(() => {
+            void queryClient.invalidateQueries({ queryKey: deepchatQueryKeys.profile });
+            void queryClient.invalidateQueries({ queryKey: deepchatQueryKeys.chats });
+            void queryClient.invalidateQueries({ queryKey: deepchatQueryKeys.recentFiles });
+            window.dispatchEvent(new Event('profileUpdated'));
+            window.dispatchEvent(new Event('chatUpdated'));
+          });
+        } else if (payload.authenticated && prevHint !== '1') {
+          void queryClient.invalidateQueries({ queryKey: deepchatQueryKeys.profile });
+          void queryClient.invalidateQueries({ queryKey: deepchatQueryKeys.chats });
+          void queryClient.invalidateQueries({ queryKey: deepchatQueryKeys.recentFiles });
+          window.dispatchEvent(new Event('profileUpdated'));
+          window.dispatchEvent(new Event('chatUpdated'));
+        }
       } catch {}
       return payload;
     },
-    staleTime: 60_000,
+    staleTime: 0,
+    refetchOnWindowFocus: 'always',
     retry: false,
   });
 

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { ensureTursoSchema } from '@/backend/db/connection';
 import { revokeSessionById } from '@/backend/db/account-session';
-import { clearAccountSessionCookie, getVerifiedAccount } from '@/lib/security/auth';
+import { clearAllAccountSessionCookies, getVerifiedAccount } from '@/lib/security/auth';
 
 export const runtime = 'nodejs';
 
@@ -20,6 +20,8 @@ export async function POST(req: Request) {
   }
 
   const res = NextResponse.json({ ok: true });
-  res.headers.append('set-cookie', clearAccountSessionCookie());
+  for (const cookie of clearAllAccountSessionCookies()) {
+    res.headers.append('set-cookie', cookie);
+  }
   return res;
 }
