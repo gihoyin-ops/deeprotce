@@ -648,13 +648,14 @@ const finishSuccessfulTask = async (task: ChatGenerationTask) => {
   }
 
   task.status = 'completed';
+  emitSnapshot(task, true);
+
   let finalMessage: StoredChatMessage | null = null;
   try {
     finalMessage = await saveFinalMessage(task);
   } catch {
     finalMessage = null;
   }
-  emitSnapshot(task, true);
 
   if (finalMessage) {
     void saveMemoriesFromResponse(task.chatId, task.apiMessages, finalMessage, task.connection);
@@ -682,8 +683,8 @@ const finishSuccessfulTask = async (task: ChatGenerationTask) => {
 const finishStoppedTask = async (task: ChatGenerationTask) => {
   task.status = 'stopped';
   task.fullContent = task.fullContent || 'Stopped, safe to go.';
-  await saveFinalMessage(task, { isStopped: true });
   emitSnapshot(task, true);
+  await saveFinalMessage(task, { isStopped: true });
   publishDeepChatNotification({
     id: `generation-stopped-${task.chatId}-${task.assistantMsgId}`,
     type: 'task',
@@ -698,9 +699,9 @@ const finishStoppedTask = async (task: ChatGenerationTask) => {
 const finishErroredTask = async (task: ChatGenerationTask, error: unknown) => {
   task.status = 'error';
   const message = getErrorMessage(error) || 'Oops, I fumbled that one. Try tapping it again.';
-  await saveFinalMessage(task, { isError: true, errorMessage: message });
   task.fullContent = message;
   emitSnapshot(task, true);
+  await saveFinalMessage(task, { isError: true, errorMessage: message });
   publishDeepChatNotification({
     id: `generation-error-${task.chatId}-${task.assistantMsgId}`,
     type: 'task',
@@ -720,7 +721,8 @@ const consumeStream = async (task: ChatGenerationTask, res: Response) => {
   if (!reader) return;
 
   let buffer = '';
-  while (true) {
+  let streamDone = false;
+  while (!streamDone) {
     const { done, value } = await reader.read();
     if (done) break;
 
@@ -732,7 +734,11 @@ const consumeStream = async (task: ChatGenerationTask, res: Response) => {
       if (!line.trim() || line.startsWith(':')) continue;
 
       const data = line.replace(/^data:\s*/, '').trim();
-      if (data === '[DONE]') break;
+      if (data === '[DONE]') {
+        streamDone = true;
+        void reader.cancel().catch(() => undefined);
+        break;
+      }
 
       let json: Record<string, unknown>;
       try {
