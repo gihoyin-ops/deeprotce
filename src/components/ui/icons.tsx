@@ -38,10 +38,14 @@ export type IconName =
   | 'edit'
   | 'ellipsis'
   | 'external-link'
+  | 'eye'
+  | 'file-diff'
   | 'file-down'
+  | 'file-plus'
   | 'file-spreadsheet'
   | 'file-text'
   | 'file'
+  | 'folder-open'
   | 'folder'
   | 'gauge'
   | 'globe'
@@ -56,6 +60,7 @@ export type IconName =
   | 'maximize-2'
   | 'message-square'
   | 'mic'
+  | 'minimize-2'
   | 'monitor'
   | 'more-horizontal'
   | 'more-vertical'
@@ -63,14 +68,18 @@ export type IconName =
   | 'palette'
   | 'panel-bottom'
   | 'panel-left'
+  | 'panel-right'
   | 'paperclip'
   | 'pen-line'
   | 'personalization'
   | 'pin'
   | 'play'
   | 'plus'
+  | 'presentation'
+  | 'printer'
   | 'rectangle-horizontal'
   | 'rectangle-vertical'
+  | 'redo-2'
   | 'refresh-cw'
   | 'scan'
   | 'search'
@@ -78,16 +87,20 @@ export type IconName =
   | 'share-2'
   | 'shield-alert'
   | 'sliders-horizontal'
+  | 'smartphone'
   | 'sparkles'
   | 'square-mouse-pointer'
   | 'square-pen'
   | 'square'
+  | 'table'
+  | 'tablet'
   | 'terminal'
   | 'thumbs-down'
   | 'thumbs-down-fill'
   | 'thumbs-up'
   | 'thumbs-up-fill'
   | 'trash-2'
+  | 'undo-2'
   | 'user'
   | 'video'
   | 'volume-2'
@@ -872,6 +885,123 @@ export const ICONS_DATA: Record<IconName, IconMeta> = {
     strokeLinecap: 'round',
     strokeLinejoin: 'round',
     inner: "<path d=\"M17 14V2\"/><path d=\"M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88Z\"/>"
+  },
+  'eye': {
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: '2',
+    strokeLinecap: 'round',
+    strokeLinejoin: 'round',
+    inner: "<path d=\"M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/>"
+  },
+  'file-diff': {
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: '2',
+    strokeLinecap: 'round',
+    strokeLinejoin: 'round',
+    inner: "<path d=\"M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z\"/><path d=\"M9 10h6\"/><path d=\"M12 7v6\"/><path d=\"M9 17h6\"/>"
+  },
+  'file-plus': {
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: '2',
+    strokeLinecap: 'round',
+    strokeLinejoin: 'round',
+    inner: "<path d=\"M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z\"/><path d=\"M14 2v5h5\"/><path d=\"M12 18v-6\"/><path d=\"M9 15h6\"/>"
+  },
+  'folder-open': {
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: '2',
+    strokeLinecap: 'round',
+    strokeLinejoin: 'round',
+    inner: "<path d=\"m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2\"/>"
+  },
+  'minimize-2': {
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: '2',
+    strokeLinecap: 'round',
+    strokeLinejoin: 'round',
+    inner: "<polyline points=\"4 14 10 14 10 20\"/><polyline points=\"20 10 14 10 14 4\"/><line x1=\"14\" y1=\"10\" x2=\"21\" y2=\"3\"/><line x1=\"3\" y1=\"21\" x2=\"10\" y2=\"14\"/>"
+  },
+  'panel-right': {
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: '2',
+    strokeLinecap: 'round',
+    strokeLinejoin: 'round',
+    inner: "<rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/><path d=\"M15 3v18\"/>"
+  },
+  'presentation': {
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: '2',
+    strokeLinecap: 'round',
+    strokeLinejoin: 'round',
+    inner: "<path d=\"M2 3h20\"/><path d=\"M21 3v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3\"/><path d=\"m7 21 5-5 5 5\"/>"
+  },
+  'printer': {
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: '2',
+    strokeLinecap: 'round',
+    strokeLinejoin: 'round',
+    inner: "<path d=\"M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2\"/><path d=\"M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6\"/><rect x=\"6\" y=\"14\" width=\"12\" height=\"8\" rx=\"1\"/>"
+  },
+  'redo-2': {
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: '2',
+    strokeLinecap: 'round',
+    strokeLinejoin: 'round',
+    inner: "<path d=\"m15 14 5-5-5-5\"/><path d=\"M20 9H9.5A5.5 5.5 0 0 0 4 14.5A5.5 5.5 0 0 0 9.5 20H13\"/>"
+  },
+  'smartphone': {
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: '2',
+    strokeLinecap: 'round',
+    strokeLinejoin: 'round',
+    inner: "<rect x=\"5\" y=\"2\" width=\"14\" height=\"20\" rx=\"2\"/><path d=\"M12 18h.01\"/>"
+  },
+  'table': {
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: '2',
+    strokeLinecap: 'round',
+    strokeLinejoin: 'round',
+    inner: "<rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/><path d=\"M3 9h18\"/><path d=\"M3 15h18\"/><path d=\"M9 3v18\"/>"
+  },
+  'tablet': {
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: '2',
+    strokeLinecap: 'round',
+    strokeLinejoin: 'round',
+    inner: "<rect x=\"4\" y=\"2\" width=\"16\" height=\"20\" rx=\"2\"/><line x1=\"12\" y1=\"18\" x2=\"12.01\" y2=\"18\"/>"
+  },
+  'undo-2': {
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: '2',
+    strokeLinecap: 'round',
+    strokeLinejoin: 'round',
+    inner: "<path d=\"M9 14 4 9l5-5\"/><path d=\"M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11\"/>"
   }
 };
 
@@ -943,10 +1073,14 @@ export const Edit3: React.FC<IconProps> = (props) => <Icon name="edit-3" {...pro
 export const Edit: React.FC<IconProps> = (props) => <Icon name="edit" {...props} />;
 export const Ellipsis: React.FC<IconProps> = (props) => <Icon name="ellipsis" {...props} />;
 export const ExternalLink: React.FC<IconProps> = (props) => <Icon name="external-link" {...props} />;
+export const Eye: React.FC<IconProps> = (props) => <Icon name="eye" {...props} />;
+export const FileDiff: React.FC<IconProps> = (props) => <Icon name="file-diff" {...props} />;
 export const FileDown: React.FC<IconProps> = (props) => <Icon name="file-down" {...props} />;
+export const FilePlus: React.FC<IconProps> = (props) => <Icon name="file-plus" {...props} />;
 export const FileSpreadsheet: React.FC<IconProps> = (props) => <Icon name="file-spreadsheet" {...props} />;
 export const FileText: React.FC<IconProps> = (props) => <Icon name="file-text" {...props} />;
 export const File: React.FC<IconProps> = (props) => <Icon name="file" {...props} />;
+export const FolderOpen: React.FC<IconProps> = (props) => <Icon name="folder-open" {...props} />;
 export const Folder: React.FC<IconProps> = (props) => <Icon name="folder" {...props} />;
 export const Gauge: React.FC<IconProps> = (props) => <Icon name="gauge" {...props} />;
 export const Globe: React.FC<IconProps> = (props) => <Icon name="globe" {...props} />;
@@ -961,6 +1095,7 @@ export const Loader2: React.FC<IconProps> = (props) => <Icon name="loader-2" {..
 export const Maximize2: React.FC<IconProps> = (props) => <Icon name="maximize-2" {...props} />;
 export const MessageSquare: React.FC<IconProps> = (props) => <Icon name="message-square" {...props} />;
 export const Mic: React.FC<IconProps> = (props) => <Icon name="mic" {...props} />;
+export const Minimize2: React.FC<IconProps> = (props) => <Icon name="minimize-2" {...props} />;
 export const Monitor: React.FC<IconProps> = (props) => <Icon name="monitor" {...props} />;
 export const MoreHorizontal: React.FC<IconProps> = (props) => <Icon name="more-horizontal" {...props} />;
 export const MoreVertical: React.FC<IconProps> = (props) => <Icon name="more-vertical" {...props} />;
@@ -968,14 +1103,18 @@ export const MousePointer2: React.FC<IconProps> = (props) => <Icon name="mouse-p
 export const Palette: React.FC<IconProps> = (props) => <Icon name="palette" {...props} />;
 export const PanelBottom: React.FC<IconProps> = (props) => <Icon name="panel-bottom" {...props} />;
 export const PanelLeft: React.FC<IconProps> = (props) => <Icon name="panel-left" {...props} />;
+export const PanelRight: React.FC<IconProps> = (props) => <Icon name="panel-right" {...props} />;
 export const Paperclip: React.FC<IconProps> = (props) => <Icon name="paperclip" {...props} />;
 export const PenLine: React.FC<IconProps> = (props) => <Icon name="pen-line" {...props} />;
 export const Personalization: React.FC<IconProps> = (props) => <Icon name="personalization" {...props} />;
 export const Pin: React.FC<IconProps> = (props) => <Icon name="pin" {...props} />;
 export const Play: React.FC<IconProps> = (props) => <Icon name="play" {...props} />;
 export const Plus: React.FC<IconProps> = (props) => <Icon name="plus" {...props} />;
+export const Presentation: React.FC<IconProps> = (props) => <Icon name="presentation" {...props} />;
+export const Printer: React.FC<IconProps> = (props) => <Icon name="printer" {...props} />;
 export const RectangleHorizontal: React.FC<IconProps> = (props) => <Icon name="rectangle-horizontal" {...props} />;
 export const RectangleVertical: React.FC<IconProps> = (props) => <Icon name="rectangle-vertical" {...props} />;
+export const Redo2: React.FC<IconProps> = (props) => <Icon name="redo-2" {...props} />;
 export const RefreshCw: React.FC<IconProps> = (props) => <Icon name="refresh-cw" {...props} />;
 export const Scan: React.FC<IconProps> = (props) => <Icon name="scan" {...props} />;
 export const Search: React.FC<IconProps> = (props) => <Icon name="search" {...props} />;
@@ -983,16 +1122,20 @@ export const Settings: React.FC<IconProps> = (props) => <Icon name="settings" {.
 export const Share2: React.FC<IconProps> = (props) => <Icon name="share-2" {...props} />;
 export const ShieldAlert: React.FC<IconProps> = (props) => <Icon name="shield-alert" {...props} />;
 export const SlidersHorizontal: React.FC<IconProps> = (props) => <Icon name="sliders-horizontal" {...props} />;
+export const Smartphone: React.FC<IconProps> = (props) => <Icon name="smartphone" {...props} />;
 export const Sparkles: React.FC<IconProps> = (props) => <Icon name="sparkles" {...props} />;
 export const SquareMousePointer: React.FC<IconProps> = (props) => <Icon name="square-mouse-pointer" {...props} />;
 export const SquarePen: React.FC<IconProps> = (props) => <Icon name="square-pen" {...props} />;
 export const Square: React.FC<IconProps> = (props) => <Icon name="square" {...props} />;
+export const Table: React.FC<IconProps> = (props) => <Icon name="table" {...props} />;
+export const Tablet: React.FC<IconProps> = (props) => <Icon name="tablet" {...props} />;
 export const Terminal: React.FC<IconProps> = (props) => <Icon name="terminal" {...props} />;
 export const ThumbsDown: React.FC<IconProps> = (props) => <Icon name="thumbs-down" {...props} />;
 export const ThumbsDownFill: React.FC<IconProps> = (props) => <Icon name="thumbs-down-fill" {...props} />;
 export const ThumbsUp: React.FC<IconProps> = (props) => <Icon name="thumbs-up" {...props} />;
 export const ThumbsUpFill: React.FC<IconProps> = (props) => <Icon name="thumbs-up-fill" {...props} />;
 export const Trash2: React.FC<IconProps> = (props) => <Icon name="trash-2" {...props} />;
+export const Undo2: React.FC<IconProps> = (props) => <Icon name="undo-2" {...props} />;
 export const User: React.FC<IconProps> = (props) => <Icon name="user" {...props} />;
 export const Video: React.FC<IconProps> = (props) => <Icon name="video" {...props} />;
 export const Volume2: React.FC<IconProps> = (props) => <Icon name="volume-2" {...props} />;

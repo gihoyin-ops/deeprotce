@@ -26,7 +26,7 @@ import { getChats } from '@/app/actions';
 import { isShortcutEvent, useShortcutLabels } from '@/components/shortcuts';
 import ModelSelector from './ModelSelector';
 import Tooltip from './Tooltip';
-import { ComposerToolsMenu, ImageToolBadge, SearchToolBadge } from './ComposerToolsMenu';
+import { CanvasToolBadge, ComposerToolsMenu, ImageToolBadge, SearchToolBadge } from './ComposerToolsMenu';
 import AttachmentPreviewModal from './AttachmentPreviewModal';
 import PdfCoverThumbnail from './PdfCoverThumbnail';
 import DictateAbstractOrb from './DictateAbstractOrb';
@@ -84,6 +84,7 @@ interface ChatComposerProps {
   isBusy?: boolean;
   webSearchEnabled?: boolean;
   imageGenerationEnabled?: boolean;
+  canvasEnabled?: boolean;
   imageAspectRatio?: ImageAspectRatio;
   placeholder?: string;
   maxTextareaHeight?: number;
@@ -92,6 +93,7 @@ interface ChatComposerProps {
   onStop?: () => void;
   onToggleWebSearch?: (enabled: boolean) => void;
   onToggleImageGeneration?: (enabled: boolean) => void;
+  onToggleCanvas?: (enabled: boolean) => void;
   onImageAspectRatioChange?: (aspectRatio: ImageAspectRatio) => void;
   onFilesUpload: (files: File[]) => void;
   onAttachRecentFile: (file: ComposerFile) => void;
@@ -189,6 +191,7 @@ export default function ChatComposer({
   isBusy = false,
   webSearchEnabled = false,
   imageGenerationEnabled = false,
+  canvasEnabled = false,
   imageAspectRatio = 'auto',
   placeholder = 'Message to Benthos',
   maxTextareaHeight = 192,
@@ -197,6 +200,7 @@ export default function ChatComposer({
   onStop,
   onToggleWebSearch,
   onToggleImageGeneration,
+  onToggleCanvas,
   onImageAspectRatioChange,
   onFilesUpload,
   onAttachRecentFile,
@@ -287,7 +291,7 @@ export default function ChatComposer({
   const canSubmit = value.trim().length > 0 || attachedFiles.length > 0;
   const hasText = value.trim().length > 0;
   const hasAttachedFiles = attachedFiles.length > 0;
-  const isToolComposerActive = webSearchEnabled || imageGenerationEnabled;
+  const isToolComposerActive = webSearchEnabled || imageGenerationEnabled || canvasEnabled;
   const activePreviewFile =
     previewFile &&
     attachedFiles.some(
@@ -437,6 +441,7 @@ export default function ChatComposer({
     value,
     webSearchEnabled,
     imageGenerationEnabled,
+    canvasEnabled,
     imageAspectRatio,
     attachedFiles.length,
   ]);
@@ -1082,6 +1087,7 @@ export default function ChatComposer({
           isUploading={isUploading}
           webSearchEnabled={webSearchEnabled}
           imageGenerationEnabled={imageGenerationEnabled}
+          canvasEnabled={canvasEnabled}
           imageAspectRatio={imageAspectRatio}
           uploadShortcut={shortcuts.uploadFile}
           recentFiles={recentFiles}
@@ -1098,6 +1104,10 @@ export default function ChatComposer({
             setIsAttachMenuOpen(false);
             onToggleImageGeneration?.(enabled);
           }}
+          onToggleCanvas={(enabled) => {
+            setIsAttachMenuOpen(false);
+            onToggleCanvas?.(enabled);
+          }}
           onImageAspectRatioChange={onImageAspectRatioChange}
           onClose={() => setIsAttachMenuOpen(false)}
           getFileIcon={getComposerFileIcon}
@@ -1110,6 +1120,7 @@ export default function ChatComposer({
   const searchToolBadge = (
     <div className="flex min-w-0 items-center gap-0.5 sm:gap-1">
       <SearchToolBadge enabled={webSearchEnabled} onDisable={() => onToggleWebSearch?.(false)} />
+      <CanvasToolBadge enabled={canvasEnabled} onDisable={() => onToggleCanvas?.(false)} />
       <ImageToolBadge
         enabled={imageGenerationEnabled}
         aspectRatio={imageAspectRatio}

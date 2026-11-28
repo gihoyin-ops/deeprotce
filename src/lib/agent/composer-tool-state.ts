@@ -6,12 +6,14 @@ export interface ComposerToolState {
   webSearchEnabled: boolean;
   imageGenerationEnabled: boolean;
   imageAspectRatio: ImageAspectRatio;
+  canvasEnabled: boolean;
 }
 
 export const defaultComposerToolState: ComposerToolState = {
   webSearchEnabled: false,
   imageGenerationEnabled: false,
-  imageAspectRatio: 'auto'
+  imageAspectRatio: 'auto',
+  canvasEnabled: false
 };
 
 export const loadComposerToolState = (): ComposerToolState => {
@@ -21,7 +23,8 @@ export const loadComposerToolState = (): ComposerToolState => {
     return {
       webSearchEnabled: parsed.webSearchEnabled === true,
       imageGenerationEnabled: parsed.imageGenerationEnabled === true,
-      imageAspectRatio: normalizeImageAspectRatio(parsed.imageAspectRatio)
+      imageAspectRatio: normalizeImageAspectRatio(parsed.imageAspectRatio),
+      canvasEnabled: parsed.canvasEnabled === true
     };
   } catch {
     return defaultComposerToolState;
@@ -33,6 +36,7 @@ export const saveComposerToolState = (state: ComposerToolState) => {
   localStorage.setItem(COMPOSER_TOOL_STATE_KEY, JSON.stringify({
     webSearchEnabled: state.webSearchEnabled,
     imageGenerationEnabled: state.imageGenerationEnabled,
-    imageAspectRatio: normalizeImageAspectRatio(state.imageAspectRatio)
+    imageAspectRatio: normalizeImageAspectRatio(state.imageAspectRatio),
+    canvasEnabled: state.canvasEnabled === true
   }));
 };

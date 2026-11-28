@@ -218,6 +218,9 @@ async function hydrateChats(pool: DbPool, rows: ChatRow[]): Promise<StoredChat[]
       ...(activeVersion?.memoriesSavedCount !== undefined
         ? { memoriesSavedCount: activeVersion.memoriesSavedCount }
         : {}),
+      ...(activeVersion?.canvasEvents !== undefined
+        ? { canvasEvents: activeVersion.canvasEvents }
+        : {}),
       ...(versions.length > 0 ? { versions } : {}),
       ...(attachedFiles && attachedFiles.length > 0 ? { attachedFiles } : {}),
     };
@@ -537,6 +540,7 @@ export async function saveAccountMessage(
             isStopped: message.isStopped,
             memoriesSaved: message.memoriesSaved,
             memoriesSavedCount: message.memoriesSavedCount,
+            canvasEvents: message.canvasEvents,
           },
         ];
 
@@ -555,6 +559,7 @@ export async function saveAccountMessage(
       isStopped: v.isStopped ?? (isActive ? message.isStopped : undefined),
       memoriesSaved: v.memoriesSaved ?? (isActive ? message.memoriesSaved : undefined),
       memoriesSavedCount: v.memoriesSavedCount ?? (isActive ? message.memoriesSavedCount : undefined),
+      canvasEvents: v.canvasEvents ?? (isActive ? message.canvasEvents : undefined),
     });
 
     await pool.exec(

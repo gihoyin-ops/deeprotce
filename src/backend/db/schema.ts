@@ -236,6 +236,29 @@ export const TURSO_SCHEMA_STATEMENTS: string[] = [
     created_at TEXT NOT NULL
   )`,
 
+  `CREATE TABLE IF NOT EXISTS chat_workspaces (
+    chat_id TEXT PRIMARY KEY REFERENCES chats(id) ON DELETE CASCADE,
+    account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+    title TEXT NOT NULL DEFAULT 'Workspace',
+    active_file_path TEXT,
+    updated_at TEXT NOT NULL
+  )`,
+
+  `CREATE TABLE IF NOT EXISTS workspace_files (
+    id TEXT PRIMARY KEY,
+    chat_id TEXT NOT NULL REFERENCES chat_workspaces(chat_id) ON DELETE CASCADE,
+    account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+    path TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    mime_type TEXT NOT NULL,
+    content_text TEXT,
+    r2_key TEXT,
+    public_url TEXT,
+    size_bytes INTEGER NOT NULL DEFAULT 0,
+    updated_at TEXT NOT NULL,
+    UNIQUE(chat_id, path)
+  )`,
+
   `CREATE INDEX IF NOT EXISTS idx_auth_sessions_account ON auth_sessions(account_id)`,
   `CREATE INDEX IF NOT EXISTS idx_chats_account_updated ON chats(account_id, updated_at)`,
   `CREATE INDEX IF NOT EXISTS idx_messages_chat_idx ON messages(chat_id, chat_index)`,
@@ -243,5 +266,6 @@ export const TURSO_SCHEMA_STATEMENTS: string[] = [
   `CREATE INDEX IF NOT EXISTS idx_email_otps_lookup ON email_otps(email, purpose, expires_at)`,
   `CREATE INDEX IF NOT EXISTS idx_library_folders_account ON library_folders(account_id)`,
   `CREATE INDEX IF NOT EXISTS idx_library_items_account ON library_items(account_id, trashed_at, created_at)`,
-  `CREATE INDEX IF NOT EXISTS idx_admin_audit_logs_created ON admin_audit_logs(created_at DESC)`
+  `CREATE INDEX IF NOT EXISTS idx_admin_audit_logs_created ON admin_audit_logs(created_at DESC)`,
+  `CREATE INDEX IF NOT EXISTS idx_workspace_files_chat ON workspace_files(chat_id, updated_at)`
 ];

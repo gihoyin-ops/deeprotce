@@ -10,6 +10,7 @@ import type {
 import type { PersonaData } from '@/app/persona';
 import type { LLMSettings } from '@/lib/settings/llm-settings';
 import { getAuthBaseUrl } from '@/lib/auth/auth-url';
+import { clearAllLocalWorkspaces, deleteLocalWorkspace } from '@/lib/canvas/storage';
 import {
   buildDefaultAvatarUrl,
   DEFAULT_GUEST_AVATAR,
@@ -446,6 +447,7 @@ export const deleteChatRecord = async (id: string): Promise<boolean> => {
       });
       if (res.ok) {
         await deleteChatReferencesClient(id);
+        await deleteLocalWorkspace(id);
         notifyChatUpdated(id);
         return true;
       }
@@ -459,6 +461,7 @@ export const deleteChatRecord = async (id: string): Promise<boolean> => {
 
   await idbDelete('chats', id);
   await deleteChatReferencesClient(id);
+  await deleteLocalWorkspace(id);
   notifyChatUpdated(id);
   return true;
 };
@@ -472,6 +475,7 @@ export const deleteAllChatRecords = async (): Promise<boolean> => {
       });
       if (res.ok) {
         await clearChatHistoryClient();
+        await clearAllLocalWorkspaces();
         notifyChatUpdated();
         return true;
       }
@@ -486,6 +490,7 @@ export const deleteAllChatRecords = async (): Promise<boolean> => {
   await idbClear('chats');
   await idbClear('shared_chats');
   await clearChatHistoryClient();
+  await clearAllLocalWorkspaces();
   notifyChatUpdated();
   return true;
 };

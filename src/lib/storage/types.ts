@@ -20,6 +20,7 @@ export type StoredMessageVersion = {
   clarification?: unknown;
   clarificationAnswer?: unknown;
   generationMode?: unknown;
+  canvasEvents?: unknown;
   [key: string]: unknown;
 };
 
@@ -46,6 +47,7 @@ export type StoredMessage = {
   clarification?: unknown;
   clarificationAnswer?: unknown;
   generationMode?: unknown;
+  canvasEvents?: unknown;
   [key: string]: unknown;
 };
 

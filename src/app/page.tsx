@@ -80,6 +80,7 @@ export default function WelcomePage() {
   const [headlineIndex, setHeadlineIndex] = useState(0);
   const [webSearchEnabled, setWebSearchEnabled] = useState(defaultComposerToolState.webSearchEnabled);
   const [imageGenerationEnabled, setImageGenerationEnabled] = useState(defaultComposerToolState.imageGenerationEnabled);
+  const [canvasEnabled, setCanvasEnabled] = useState(defaultComposerToolState.canvasEnabled);
   const [imageAspectRatio, setImageAspectRatio] = useState<ImageAspectRatio>(defaultComposerToolState.imageAspectRatio);
   const [isClientStateLoaded, setIsClientStateLoaded] = useState(false);
   const [announcementState, setAnnouncementState] = useState({ checked: false, open: false });
@@ -99,6 +100,7 @@ export default function WelcomePage() {
       const toolState = loadComposerToolState();
       setWebSearchEnabled(toolState.webSearchEnabled);
       setImageGenerationEnabled(toolState.imageGenerationEnabled);
+      setCanvasEnabled(toolState.canvasEnabled);
       setImageAspectRatio(toolState.imageAspectRatio);
       setHeadlineIndex(current => pickHeadlineIndex(current));
       setIsClientStateLoaded(true);
@@ -143,8 +145,8 @@ export default function WelcomePage() {
 
   useEffect(() => {
     if (!isClientStateLoaded) return;
-    saveComposerToolState({ webSearchEnabled, imageGenerationEnabled, imageAspectRatio });
-  }, [webSearchEnabled, imageGenerationEnabled, imageAspectRatio, isClientStateLoaded]);
+    saveComposerToolState({ webSearchEnabled, imageGenerationEnabled, imageAspectRatio, canvasEnabled });
+  }, [webSearchEnabled, imageGenerationEnabled, imageAspectRatio, canvasEnabled, isClientStateLoaded]);
 
   useEffect(() => {
     const wrapEl = composerWrapRef.current;
@@ -282,7 +284,7 @@ export default function WelcomePage() {
     setIsUploading(false);
   };
 
-  const startChat = async (inputMsg?: string, files: AttachedFile[] = attachedFiles, useWebSearch = webSearchEnabled, useImageGeneration = imageGenerationEnabled, selectedImageAspectRatio = imageAspectRatio) => {
+  const startChat = async (inputMsg?: string, files: AttachedFile[] = attachedFiles, useWebSearch = webSearchEnabled, useImageGeneration = imageGenerationEnabled, selectedImageAspectRatio = imageAspectRatio, useCanvas = canvasEnabled) => {
     localStorage.removeItem('deepchat-draft-new');
     const cleanFiles = files.map(stripAttachedPreview);
     const id = await createChat('New Chat', cleanFiles);
@@ -296,6 +298,7 @@ export default function WelcomePage() {
     const query = new URLSearchParams();
     if (inputMsg || files.length > 0) query.set('msg', inputMsg || '');
     if (useWebSearch) query.set('web', '1');
+    if (useCanvas) query.set('canvas', '1');
     if (useImageGeneration) {
       query.set('image', '1');
       query.set('ratio', selectedImageAspectRatio);
@@ -332,11 +335,13 @@ export default function WelcomePage() {
             isUploading={isUploading}
             webSearchEnabled={webSearchEnabled}
             imageGenerationEnabled={imageGenerationEnabled}
+            canvasEnabled={canvasEnabled}
             imageAspectRatio={imageAspectRatio}
             onChange={setInput}
             onSubmit={(value) => startChat(value)}
             onToggleWebSearch={setWebSearchEnabled}
             onToggleImageGeneration={setImageGenerationEnabled}
+            onToggleCanvas={setCanvasEnabled}
             onImageAspectRatioChange={setImageAspectRatio}
             onFilesUpload={handleFilesUpload}
             onAttachRecentFile={(file) => setAttachedFiles(prev => prev.some(item => item.name === file.name && item.ext === file.ext) ? prev : [...prev, file])}

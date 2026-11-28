@@ -49,6 +49,14 @@ import { getModelConfigValue } from '@/lib/ai/models';
 import { isImageGenerationModel } from '@/lib/images/image-generation';
 import { normalizeImageAspectRatio, type ImageAspectRatio } from '@/lib/images/image-aspect-ratio';
 import { TEMP_FILE_DIR as TEMP_FILE_ROOT } from '@/lib/data-directories';
+import {
+  buildCanvasSystemPrompt,
+  executeCanvasToolCall,
+  OPENAI_CANVAS_TOOLS,
+  sanitizeCanvasContext,
+  shouldAutoEnableCanvas
+} from '@/lib/canvas/agent-tools';
+import { extractStreamingCanvasFields } from '@/lib/canvas/stream-parser';
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -798,8 +806,9 @@ export async function POST(req: Request) {
       imageAspectRatio?: ImageAspectRatio;
       imageEdit?: unknown;
       injectedPrompt?: string;
+      canvasContext?: unknown;
     };
-    const { messages, modelId, connectionId, tools, manualSearch, skipRuntimeIntegrations, imageAspectRatio, imageEdit, injectedPrompt } = payload;
+    const { messages, modelId, connectionId, tools, manualSearch, skipRuntimeIntegrations, imageAspectRatio, imageEdit, injectedPrompt, canvasContext: rawCanvasContext } = payload;
 
     const validImageEdit = imageEdit !== undefined ? normalizeImageEditPayload(imageEdit) : null;
     if (imageEdit !== undefined && !validImageEdit) {
@@ -954,7 +963,17 @@ export async function POST(req: Request) {
     const latestUserMessage = getRuntimeMessageText(latestUser);
     const runtimeTools = skipRuntimeIntegrations ? [] : normalizeChatTools(tools);
     const hasSearchTools = runtimeTools.some(tool => tool.toolId !== 'url-context');
+    const canvasContext = sanitizeCanvasContext(rawCanvasContext);
     const isImageRequest = requestedImageGeneration || isImageGenerationModel(selectedModel) || Boolean(validImageEdit);
+    const canvasToolsActive =
+      !skipRuntimeIntegrations &&
+      !isImageRequest &&
+      (canvasContext.enabled || canvasContext.files.length > 0 || shouldAutoEnableCanvas(latestUserMessage));
+    const canvasMode: 'explicit' | 'workspace' | 'auto' = canvasContext.enabled
+      ? 'explicit'
+      : canvasContext.files.length > 0
+        ? 'workspace'
+        : 'auto';
 
     const promptToInject = typeof injectedPrompt === 'string' ? injectedPrompt : '';
     const injectSearchSystemPrompt = (targetMessages: ChatMessage[], context: string, hasSources: boolean) => {
@@ -981,7 +1000,7 @@ export async function POST(req: Request) {
       input: latestUserMessage
     };
 
-    if (hasSearchTools && isStream && !isImageRequest) {
+    if ((hasSearchTools || canvasToolsActive) && isStream && !isImageRequest) {
       const url = getChatCompletionsUrl(p, cleanBase);
       const headers = buildRelayHeaders({
         clientSecret: conn.apiKey,
@@ -993,6 +1012,12 @@ export async function POST(req: Request) {
       const modelToUse = selectedModel || conn.model;
       const fallbackMessages = messages.map(m => ({ ...m }));
       const urlContextTools = runtimeTools.filter(tool => tool.toolId === 'url-context');
+      const activeOpenAITools = [
+        ...(hasSearchTools ? OPENAI_SEARCH_TOOLS : []),
+        ...(canvasToolsActive ? OPENAI_CANVAS_TOOLS : [])
+      ];
+      const maxToolRounds = canvasToolsActive ? 8 : MAX_TOOL_ROUNDS;
+      const workingWorkspace = new Map(canvasContext.files.map(file => [file.path, { ...file }]));
 
       return new Response(new ReadableStream({
         async start(controller) {
@@ -1047,7 +1072,8 @@ export async function POST(req: Request) {
 
             const dynamicSystemText = [
               buildPlatformCapabilityPrompt(),
-              buildDynamicSearchSystemPrompt(manualSearch === true, urlOutcome.context)
+              hasSearchTools ? buildDynamicSearchSystemPrompt(manualSearch === true, urlOutcome.context) : urlOutcome.context,
+              canvasToolsActive ? buildCanvasSystemPrompt(canvasMode, canvasContext.files, canvasContext.activeFilePath) : ''
             ].filter(Boolean).join('\n\n');
 
             const dynamicMessages = messages.map(m => ({ ...m }));
@@ -1063,14 +1089,14 @@ export async function POST(req: Request) {
             const loopMessages: OpenAICompatibleMessage[] = await buildOpenAICompatibleMessages(dynamicMessages, providerName, mistralTarget);
             let modelUsageRecorded = false;
 
-            for (let round = 0; round < MAX_TOOL_ROUNDS; round += 1) {
+            for (let round = 0; round < maxToolRounds; round += 1) {
               const roundPromptTokens = estimateChatPromptTokens(loopMessages as Array<{ role?: string; content?: unknown }>);
-              const allowTools = round < MAX_TOOL_ROUNDS - 1;
+              const allowTools = round < maxToolRounds - 1 && activeOpenAITools.length > 0;
               const body = applyOpenAICompatibleReasoning({
                 model: modelToUse,
                 messages: loopMessages,
                 stream: true,
-                ...(allowTools ? { tools: OPENAI_SEARCH_TOOLS, tool_choice: 'auto' } : {})
+                ...(allowTools ? { tools: activeOpenAITools, tool_choice: 'auto' } : {})
               }, llmSettings);
 
               const res = await fetch(url, {
@@ -1159,6 +1185,7 @@ export async function POST(req: Request) {
               let sseBuffer = '';
               let roundContent = '';
               const toolCallsMap = new Map<number, { id: string; name: string; arguments: string }>();
+              const lastCanvasStreamEmit = new Map<string, number>();
 
               while (true) {
                 const { done, value } = await reader.read();
@@ -1201,6 +1228,26 @@ export async function POST(req: Request) {
                         if (typeof fn?.name === 'string' && fn.name) existing.name += fn.name;
                         if (typeof fn?.arguments === 'string' && fn.arguments) existing.arguments += fn.arguments;
                         toolCallsMap.set(tcIdx, existing);
+
+                        if (canvasToolsActive && (existing.name === 'canvas_write_file' || existing.name === 'canvas_patch_file')) {
+                          const extracted = extractStreamingCanvasFields(existing.arguments);
+                          if (extracted.path) {
+                            const now = Date.now();
+                            const prevEmit = lastCanvasStreamEmit.get(existing.id) || 0;
+                            if (now - prevEmit >= 65) {
+                              lastCanvasStreamEmit.set(existing.id, now);
+                              controller.enqueue(encoder.encode(sse({
+                                type: 'deepchat_canvas_stream',
+                                callId: existing.id,
+                                action: existing.name === 'canvas_patch_file' ? 'patch' : 'write',
+                                path: extracted.path,
+                                kind: extracted.kind,
+                                partialContent: extracted.content ?? '',
+                                summary: extracted.summary
+                              })));
+                            }
+                          }
+                        }
                       }
                     }
 
@@ -1262,8 +1309,12 @@ export async function POST(req: Request) {
               }
 
               const roundReadSources: SearchSource[] = [];
-              const toolOutputs = await Promise.all(
+              const toolOutputs: Array<{ id: string; content: string }> = [];
+
+              // Run search/read calls concurrently, then run canvas mutations in order so same-file edits never race
+              const nonCanvasResults = await Promise.all(
                 toolCalls.map(async tc => {
+                  if (tc.name.startsWith('canvas_')) return null;
                   let args: Record<string, unknown> = {};
                   try {
                     const parsedArgs = JSON.parse(tc.arguments || '{}') as unknown;
@@ -1308,6 +1359,35 @@ export async function POST(req: Request) {
                   return { id: tc.id, content: 'Unsupported tool.' };
                 })
               );
+
+              for (let i = 0; i < toolCalls.length; i += 1) {
+                const tc = toolCalls[i];
+                const asyncOut = nonCanvasResults[i];
+                if (asyncOut) {
+                  toolOutputs.push(asyncOut);
+                  continue;
+                }
+
+                let args: Record<string, unknown> = {};
+                try {
+                  const parsedArgs = JSON.parse(tc.arguments || '{}') as unknown;
+                  if (parsedArgs && typeof parsedArgs === 'object') args = parsedArgs as Record<string, unknown>;
+                } catch {}
+
+                if (canvasToolsActive) {
+                  const result = executeCanvasToolCall(tc.name, args, workingWorkspace);
+                  if (result.op) {
+                    controller.enqueue(encoder.encode(sse({
+                      type: 'deepchat_canvas_op',
+                      callId: tc.id,
+                      op: result.op
+                    })));
+                  }
+                  toolOutputs.push({ id: tc.id, content: result.toolOutput });
+                } else {
+                  toolOutputs.push({ id: tc.id, content: 'Canvas tools are disabled.' });
+                }
+              }
 
               if (allSources.length > 0 || allReadSources.length > 0) {
                 controller.enqueue(encoder.encode(sse({

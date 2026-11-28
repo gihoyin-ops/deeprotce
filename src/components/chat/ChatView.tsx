@@ -35,8 +35,12 @@ import ImageGenerationStage from '@/components/chat/image-generation/ImageGenera
 import GeneratedImagePreviewModal from '@/components/chat/image-generation/GeneratedImagePreviewModal';
 import { type ImageStudioEditRequest, type ImageStudioMode } from '@/components/chat/image-generation/image-studio-export';
 import {
-  Check, CheckCircle2, ChevronDown, ChevronRight, ChevronLeft, X, Copy, RefreshCw, Edit3, ThumbsUp, ThumbsUpFill, ThumbsDown, ThumbsDownFill
+  Check, CheckCircle2, ChevronDown, ChevronRight, ChevronLeft, X, Copy, RefreshCw, Edit3, PanelRight, ThumbsUp, ThumbsUpFill, ThumbsDown, ThumbsDownFill
 } from '@/components/ui/icons';
+import { CanvasWorkspaceProvider, useCanvasWorkspace } from '@/components/canvas/CanvasWorkspaceContext';
+import { CanvasPanel } from '@/components/canvas/CanvasPanel';
+import { CanvasChatCard } from '@/components/canvas/CanvasChatCard';
+import type { CanvasMessageEvent } from '@/lib/canvas/types';
 import toast from 'react-hot-toast';
 
 type AttachedFile = {
@@ -87,6 +91,7 @@ type MessageVersion = {
   clarificationAnswer?: AgentClarificationAnswer;
   versionIndex?: number;
   generationMode?: GenerationMode;
+  canvasEvents?: CanvasMessageEvent[];
   isError?: boolean;
   [key: string]: unknown;
 };
@@ -110,12 +115,14 @@ type ChatMessage = {
   attachedFiles?: AttachedFile[];
   webSearchEnabled?: boolean;
   imageGenerationEnabled?: boolean;
+  canvasEnabled?: boolean;
   imageAspectRatio?: ImageAspectRatio;
   createdAt?: string;
   isStreaming?: boolean;
   isError?: boolean;
   isStopped?: boolean;
   generationMode?: GenerationMode;
+  canvasEvents?: CanvasMessageEvent[];
   memoriesSaved?: boolean;
   memoriesSavedCount?: number;
   memoryProvider?: unknown;
@@ -174,6 +181,7 @@ const normalizeMessageForDisplay = (message: ChatMessage) => {
     clarification: currentVersion?.clarification ?? message.clarification ?? parsedVersion.clarification,
     clarificationAnswer: currentVersion?.clarificationAnswer ?? message.clarificationAnswer,
     generationMode: currentVersion?.generationMode ?? message.generationMode,
+    canvasEvents: currentVersion?.canvasEvents ?? message.canvasEvents,
     isStreaming: false
   };
 };
@@ -195,6 +203,7 @@ const mergeGenerationSnapshot = (items: ChatMessage[], snapshot: ChatGenerationS
     clarification: snapshot.clarification || parsedSnapshot.clarification,
     clarificationAnswer: m.clarificationAnswer,
     generationMode: snapshot.generationMode ?? m.generationMode,
+    canvasEvents: snapshot.canvasEvents?.length ? snapshot.canvasEvents : m.canvasEvents,
     isStreaming: snapshot.isStreaming,
     isError: snapshot.isError === true,
     isStopped: snapshot.isStopped === true
@@ -214,7 +223,8 @@ const mergeGenerationSnapshot = (items: ChatMessage[], snapshot: ChatGenerationS
       thinkingSteps: snapshot.thinkingSteps,
       clarification: snapshot.clarification || parsedSnapshot.clarification,
       clarificationAnswer: updated.versions[updated.currentVersionIndex]?.clarificationAnswer,
-      generationMode: snapshot.generationMode ?? updated.versions[updated.currentVersionIndex]?.generationMode
+      generationMode: snapshot.generationMode ?? updated.versions[updated.currentVersionIndex]?.generationMode,
+      canvasEvents: snapshot.canvasEvents?.length ? snapshot.canvasEvents : updated.versions[updated.currentVersionIndex]?.canvasEvents
     };
   }
 
@@ -237,6 +247,25 @@ const getSelectedGenerationMode = () => {
 };
 
 export default function ChatView({ chatId }: { chatId: string }) {
+  const closeSearchRef = useRef<(() => void) | null>(null);
+  return (
+    <CanvasWorkspaceProvider
+      chatId={chatId}
+      onOpening={() => closeSearchRef.current?.()}
+    >
+      <ChatViewInner chatId={chatId} closeSearchRef={closeSearchRef} />
+    </CanvasWorkspaceProvider>
+  );
+}
+
+function ChatViewInner({ chatId, closeSearchRef }: { chatId: string; closeSearchRef: React.MutableRefObject<(() => void) | null> }) {
+  const {
+    isOpen: isCanvasOpen,
+    files: canvasFiles,
+    pendingDiffCount,
+    setOpen: setCanvasOpen,
+    selectFile: selectCanvasFile,
+  } = useCanvasWorkspace();
   const [chatTitle, setChatTitle] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
@@ -245,6 +274,7 @@ export default function ChatView({ chatId }: { chatId: string }) {
   const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
   const [webSearchEnabled, setWebSearchEnabled] = useState(defaultComposerToolState.webSearchEnabled);
   const [imageGenerationEnabled, setImageGenerationEnabled] = useState(defaultComposerToolState.imageGenerationEnabled);
+  const [canvasEnabled, setCanvasEnabled] = useState(defaultComposerToolState.canvasEnabled);
   const [imageAspectRatio, setImageAspectRatio] = useState<ImageAspectRatio>(defaultComposerToolState.imageAspectRatio);
   const [isComposerToolStateLoaded, setIsComposerToolStateLoaded] = useState(false);
   const [isChatHydrated, setIsChatHydrated] = useState(false);
@@ -253,7 +283,7 @@ export default function ChatView({ chatId }: { chatId: string }) {
   const dotsContainerRef = useRef<HTMLDivElement>(null);
   const initialMsgProcessed = useRef(false);
   const messagesRef = useRef(messages);
-  const sendMessageRef = useRef<((text: string, overrideFiles?: AttachedFile[], overrideWebSearch?: boolean, overrideImageGeneration?: boolean, overrideImageAspectRatio?: ImageAspectRatio, overrideImageEdit?: ImageEditRequestPayload) => void | Promise<void>) | null>(null);
+  const sendMessageRef = useRef<((text: string, overrideFiles?: AttachedFile[], overrideWebSearch?: boolean, overrideImageGeneration?: boolean, overrideImageAspectRatio?: ImageAspectRatio, overrideImageEdit?: ImageEditRequestPayload, overrideCanvas?: boolean) => void | Promise<void>) | null>(null);
   const imageStudioSessionRef = useRef(0);
   const [imageStudioPreview, setImageStudioPreview] = useState<{
     sessionId: number;
@@ -285,9 +315,23 @@ export default function ChatView({ chatId }: { chatId: string }) {
       setIsSearchSidebarOpen(false);
       return;
     }
+    setCanvasOpen(false);
     setSearchSidebar({ messageId, sources });
     setIsSearchSidebarOpen(true);
-  }, [isSearchSidebarOpen, searchSidebar?.messageId]);
+  }, [isSearchSidebarOpen, searchSidebar?.messageId, setCanvasOpen]);
+
+  useEffect(() => {
+    closeSearchRef.current = () => setIsSearchSidebarOpen(false);
+    return () => {
+      closeSearchRef.current = null;
+    };
+  }, [closeSearchRef]);
+
+  const handleOpenCanvasFile = useCallback((filePath: string) => {
+    setIsSearchSidebarOpen(false);
+    selectCanvasFile(filePath);
+    setCanvasOpen(true);
+  }, [selectCanvasFile, setCanvasOpen]);
 
   // Toggle the mobile floating scroll-to-bottom button based on scroll position
   useEffect(() => {
@@ -469,6 +513,7 @@ export default function ChatView({ chatId }: { chatId: string }) {
       const toolState = loadComposerToolState();
       setWebSearchEnabled(toolState.webSearchEnabled);
       setImageGenerationEnabled(toolState.imageGenerationEnabled);
+      setCanvasEnabled(toolState.canvasEnabled);
       setImageAspectRatio(toolState.imageAspectRatio);
       setIsComposerToolStateLoaded(true);
     });
@@ -480,8 +525,8 @@ export default function ChatView({ chatId }: { chatId: string }) {
 
   useEffect(() => {
     if (!isComposerToolStateLoaded) return;
-    saveComposerToolState({ webSearchEnabled, imageGenerationEnabled, imageAspectRatio });
-  }, [webSearchEnabled, imageGenerationEnabled, imageAspectRatio, isComposerToolStateLoaded]);
+    saveComposerToolState({ webSearchEnabled, imageGenerationEnabled, imageAspectRatio, canvasEnabled });
+  }, [webSearchEnabled, imageGenerationEnabled, imageAspectRatio, canvasEnabled, isComposerToolStateLoaded]);
 
   useEffect(() => {
     if (activeUserMsgId && dotsContainerRef.current) {
@@ -535,6 +580,7 @@ export default function ChatView({ chatId }: { chatId: string }) {
       const draftMsg = urlParams.get('draft');
       const initialWebSearch = urlParams.get('web') === '1';
       const initialImageGeneration = urlParams.get('image') === '1';
+      const initialCanvas = urlParams.get('canvas') === '1';
       const initialImageAspectRatio = normalizeImageAspectRatio(urlParams.get('ratio'));
 
       if (!mounted) return;
@@ -582,11 +628,12 @@ export default function ChatView({ chatId }: { chatId: string }) {
         window.history.replaceState({}, '', `/chat/${chatId}`);
         setWebSearchEnabled(initialWebSearch);
         setImageGenerationEnabled(initialImageGeneration);
+        if (initialCanvas) setCanvasEnabled(true);
         if (initialImageGeneration) setImageAspectRatio(initialImageAspectRatio);
 
         if (!chat || !chat.messages || chat.messages.length === 0) {
           setTimeout(() => {
-            if (mounted) void sendMessageRef.current?.(initialMsg, pendingFiles.length > 0 ? pendingFiles : undefined, initialWebSearch, initialImageGeneration, initialImageAspectRatio);
+            if (mounted) void sendMessageRef.current?.(initialMsg, pendingFiles.length > 0 ? pendingFiles : undefined, initialWebSearch, initialImageGeneration, initialImageAspectRatio, undefined, initialCanvas);
           }, 0);
         } else {
           setMessages(mergeActiveGeneration(chatId, chat.messages.map(normalizeMessageForDisplay)));
@@ -685,11 +732,12 @@ export default function ChatView({ chatId }: { chatId: string }) {
     };
   }, [chatId]);
 
-  const sendMessage = useCallback(async (text: string, overrideFiles?: AttachedFile[], overrideWebSearch?: boolean, overrideImageGeneration?: boolean, overrideImageAspectRatio?: ImageAspectRatio, overrideImageEdit?: ImageEditRequestPayload) => {
+  const sendMessage = useCallback(async (text: string, overrideFiles?: AttachedFile[], overrideWebSearch?: boolean, overrideImageGeneration?: boolean, overrideImageAspectRatio?: ImageAspectRatio, overrideImageEdit?: ImageEditRequestPayload, overrideCanvas?: boolean) => {
     const filesToUse = overrideFiles || attachedFiles;
     const cleanFilesToUse = filesToUse.map(stripAttachedPreview);
     const useWebSearch = typeof overrideWebSearch === 'boolean' ? overrideWebSearch : webSearchEnabled;
     const useImageGeneration = typeof overrideImageGeneration === 'boolean' ? overrideImageGeneration : imageGenerationEnabled;
+    const useCanvas = typeof overrideCanvas === 'boolean' ? overrideCanvas : canvasEnabled;
     const useImageAspectRatio = normalizeImageAspectRatio(overrideImageAspectRatio || imageAspectRatio);
     if ((!text.trim() && filesToUse.length === 0) || isLoading) return;
 
@@ -700,6 +748,7 @@ export default function ChatView({ chatId }: { chatId: string }) {
       attachedFiles: cleanFilesToUse.length > 0 ? cleanFilesToUse : undefined,
       webSearchEnabled: useWebSearch,
       imageGenerationEnabled: useImageGeneration,
+      canvasEnabled: useCanvas,
       imageAspectRatio: useImageGeneration ? useImageAspectRatio : undefined,
       createdAt: new Date().toISOString(),
       chatIndex: messagesRef.current.length
@@ -738,7 +787,7 @@ export default function ChatView({ chatId }: { chatId: string }) {
 
     await saveMessage(chatId, userMessage);
     await saveMessage(chatId, assistantMessage);
-  }, [applyGenerationSnapshot, attachedFiles, chatId, imageAspectRatio, imageGenerationEnabled, isLoading, webSearchEnabled]);
+  }, [applyGenerationSnapshot, attachedFiles, canvasEnabled, chatId, imageAspectRatio, imageGenerationEnabled, isLoading, webSearchEnabled]);
 
   useEffect(() => {
     sendMessageRef.current = sendMessage;
@@ -1054,15 +1103,58 @@ export default function ChatView({ chatId }: { chatId: string }) {
   return (
     <div className="deepchat-chat-view relative flex min-h-0 flex-1 flex-row overflow-hidden bg-[var(--dc-canvas)] text-[var(--dc-text)]">
       <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
-        {chatTitle && (
+        {(chatTitle || canvasFiles.length > 0 || isCanvasOpen) && (
         <div
-          className="pointer-events-none absolute top-0 left-0 right-0 z-10 hidden h-16 items-start px-5 pt-3.5 sm:flex"
+          className="pointer-events-none absolute top-0 left-0 right-0 z-10 hidden h-16 items-start justify-between gap-3 px-5 pt-3.5 sm:flex"
           style={{ background: 'linear-gradient(to bottom, var(--dc-canvas) 0%, var(--dc-canvas) 52%, transparent 100%)' }}
         >
-          <h1 className="pointer-events-auto truncate text-[15px] font-semibold tracking-[-0.01em] text-[var(--dc-text-strong)]">
-            <AnimatedChatTitle title={chatTitle} chatId={chatId} />
+          <h1 className="pointer-events-auto min-w-0 truncate text-[15px] font-semibold tracking-[-0.01em] text-[var(--dc-text-strong)]">
+            {chatTitle ? <AnimatedChatTitle title={chatTitle} chatId={chatId} /> : null}
           </h1>
+
+          <button
+            type="button"
+            onClick={() => {
+              if (!isCanvasOpen) setIsSearchSidebarOpen(false);
+              setCanvasOpen(!isCanvasOpen);
+            }}
+            aria-expanded={isCanvasOpen}
+            className={`pointer-events-auto relative inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[12.5px] font-medium transition-colors ${
+              isCanvasOpen
+                ? 'border-[var(--dc-border-strong)] bg-[var(--dc-surface-hover)] text-[var(--dc-text-strong)]'
+                : 'border-[var(--dc-border)] bg-[var(--dc-surface)]/90 text-[var(--dc-text-body)] hover:bg-[var(--dc-surface-hover)] hover:text-[var(--dc-text-strong)]'
+            }`}
+          >
+            <PanelRight className="h-3.5 w-3.5" />
+            <span>Canvas</span>
+            {canvasFiles.length > 0 && (
+              <span className="text-[11px] tabular-nums text-[var(--dc-text-muted)]">
+                {canvasFiles.length}
+              </span>
+            )}
+            {pendingDiffCount > 0 && (
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+            )}
+          </button>
         </div>
+      )}
+
+      {canvasFiles.length > 0 && !isCanvasOpen && (
+        <button
+          type="button"
+          onClick={() => {
+            setIsSearchSidebarOpen(false);
+            setCanvasOpen(true);
+          }}
+          aria-label="Open Canvas workspace"
+          className="fixed right-3 top-[calc(env(safe-area-inset-top,0px)+3.85rem)] z-20 inline-flex h-8 items-center gap-1.5 rounded-full border border-[var(--dc-border)] bg-[var(--dc-surface)]/95 px-2.5 text-[12px] font-medium text-[var(--dc-text-strong)] shadow-sm backdrop-blur-md active:scale-95 sm:hidden"
+        >
+          <PanelRight className="h-3.5 w-3.5" />
+          <span>Canvas</span>
+          {pendingDiffCount > 0 && (
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+          )}
+        </button>
       )}
       <div
         ref={scrollContainerRef}
@@ -1108,6 +1200,7 @@ export default function ChatView({ chatId }: { chatId: string }) {
                 onDislike={msg.role === 'assistant' && !msg.isStreaming ? () => handleMessageFeedback(msg.id, 'dislike', activeVersion) : undefined}
                 isSearchSidebarOpen={isSearchSidebarOpen && searchSidebar?.messageId === msg.id}
                 onOpenSearchResults={handleToggleSearchSidebar}
+                onOpenCanvasFile={handleOpenCanvasFile}
               />
             );
           })}
@@ -1188,6 +1281,7 @@ export default function ChatView({ chatId }: { chatId: string }) {
               isBusy={isLoading}
               webSearchEnabled={webSearchEnabled}
               imageGenerationEnabled={imageGenerationEnabled}
+              canvasEnabled={canvasEnabled}
               imageAspectRatio={imageAspectRatio}
               maxTextareaHeight={256}
               onChange={setInput}
@@ -1195,6 +1289,7 @@ export default function ChatView({ chatId }: { chatId: string }) {
               onStop={handleStopGeneration}
               onToggleWebSearch={setWebSearchEnabled}
               onToggleImageGeneration={setImageGenerationEnabled}
+              onToggleCanvas={setCanvasEnabled}
               onImageAspectRatioChange={setImageAspectRatio}
               onFilesUpload={handleFilesUpload}
               onAttachRecentFile={(file) => setAttachedFiles(prev => prev.some(item => item.name === file.name && item.ext === file.ext) ? prev : [...prev, file])}
@@ -1244,6 +1339,7 @@ export default function ChatView({ chatId }: { chatId: string }) {
           onExited={() => setSearchSidebar(null)}
         />
       )}
+      <CanvasPanel />
     </div>
   );
 }
@@ -1354,6 +1450,7 @@ type MessageBubbleProps = {
   onDislike?: () => void;
   isSearchSidebarOpen?: boolean;
   onOpenSearchResults?: (messageId: string, sources: SearchSource[]) => void;
+  onOpenCanvasFile?: (path: string) => void;
 };
 
 function MemorySavedBadge({ memoryKey }: { memoryKey: string }) {
@@ -1500,7 +1597,7 @@ function UserMessageEditor({
   );
 }
 
-const MessageBubble = React.memo(function MessageBubble({ message, deferOffscreen = false, requestedAspectRatio, onOpenGeneratedImagePreview, onRegenerate, onSwitchVersion, canEditUserMessage = false, onEditUserMessage, isMobileActionsOpen = false, onActivateMobileActions, feedbackRating = null, onLike, onDislike, isSearchSidebarOpen = false, onOpenSearchResults }: MessageBubbleProps) {
+const MessageBubble = React.memo(function MessageBubble({ message, deferOffscreen = false, requestedAspectRatio, onOpenGeneratedImagePreview, onRegenerate, onSwitchVersion, canEditUserMessage = false, onEditUserMessage, isMobileActionsOpen = false, onActivateMobileActions, feedbackRating = null, onLike, onDislike, isSearchSidebarOpen = false, onOpenSearchResults, onOpenCanvasFile }: MessageBubbleProps) {
   const isUser = message.role === 'user';
   const [copied, setCopied] = useState(false);
   const [isEditingUserMessage, setIsEditingUserMessage] = useState(false);
@@ -1732,10 +1829,14 @@ const MessageBubble = React.memo(function MessageBubble({ message, deferOffscree
           <div className={`max-w-full ${message.isError ? 'px-1 py-1 text-red-600' : 'px-0 py-0 text-black dark:text-slate-100'}`}>
             <MarkdownRenderer content={mainAssistantContent} isStreaming={message.isStreaming} searchSources={message.searchSources} />
           </div>
-        ) : message.isStreaming && !hasReasoningBlock && !hasStandaloneSearch && (
+        ) : message.isStreaming && !hasReasoningBlock && !hasStandaloneSearch && (!message.canvasEvents || message.canvasEvents.length === 0) && (
           <div className="flex min-h-8 w-fit items-center px-0.5 py-1.5" role="status" aria-label="Generating response">
             <KineticThinkingDotIcon active hovered={false} />
           </div>
+        )}
+
+        {!isUser && message.canvasEvents && message.canvasEvents.length > 0 && onOpenCanvasFile && (
+          <CanvasChatCard events={message.canvasEvents} onOpenFile={onOpenCanvasFile} />
         )}
 
         {!isUser && !message.isStreaming && message.memoriesSaved && (
@@ -1863,4 +1964,4 @@ const MessageBubble = React.memo(function MessageBubble({ message, deferOffscree
       />
     </div>
   );
-}, (prev, next) => prev.message === next.message && prev.deferOffscreen === next.deferOffscreen && prev.requestedAspectRatio === next.requestedAspectRatio && prev.onOpenGeneratedImagePreview === next.onOpenGeneratedImagePreview && prev.canEditUserMessage === next.canEditUserMessage && prev.isMobileActionsOpen === next.isMobileActionsOpen && prev.feedbackRating === next.feedbackRating && prev.isSearchSidebarOpen === next.isSearchSidebarOpen && prev.onOpenSearchResults === next.onOpenSearchResults);
+}, (prev, next) => prev.message === next.message && prev.deferOffscreen === next.deferOffscreen && prev.requestedAspectRatio === next.requestedAspectRatio && prev.onOpenGeneratedImagePreview === next.onOpenGeneratedImagePreview && prev.canEditUserMessage === next.canEditUserMessage && prev.isMobileActionsOpen === next.isMobileActionsOpen && prev.feedbackRating === next.feedbackRating && prev.isSearchSidebarOpen === next.isSearchSidebarOpen && prev.onOpenSearchResults === next.onOpenSearchResults && prev.onOpenCanvasFile === next.onOpenCanvasFile);

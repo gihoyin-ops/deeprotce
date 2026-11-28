@@ -3,7 +3,7 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { gsap } from 'gsap';
-import { ArrowLeftToLine, ArrowRightToLine, Check, Code2, Copy, Download, Edit3, Maximize2, PanelBottom, Play, Trash2, X } from '@/components/ui/icons';
+import { ArrowLeftToLine, ArrowRightToLine, Check, Code2, Copy, Download, Edit3, Maximize2, PanelBottom, PanelRight, Play, Trash2, X } from '@/components/ui/icons';
 import { bundledLanguages, type BundledLanguage, type Highlighter } from 'shiki';
 import { buildPreviewDocument } from '@/lib/code/code-preview-builder';
 import { normalizeCodeLanguage } from '@/lib/code/code-runner-detection';
@@ -742,6 +742,17 @@ export default function CodePreview({ language, value, highlighter, isStreaming 
     openFullscreen(true);
   };
 
+  const handleOpenInCanvas = () => {
+    if (typeof window === 'undefined') return;
+    window.dispatchEvent(new CustomEvent('deepchat:open-in-canvas', {
+      detail: {
+        language: normalizedLanguage,
+        code: draftCode,
+        fileName: getFileName(language)
+      }
+    }));
+  };
+
   const runPreview = () => {
     setConsoleEntries([{ id: Date.now(), type: 'system', text: 'Run started' }]);
     setRunId((current) => current + 1);
@@ -839,6 +850,9 @@ export default function CodePreview({ language, value, highlighter, isStreaming 
           )}
           <IconButton title="Download file" onClick={handleDownload}>
             <Download className="h-4 w-4" />
+          </IconButton>
+          <IconButton title="Open in Canvas" onClick={handleOpenInCanvas}>
+            <PanelRight className="h-4 w-4" />
           </IconButton>
           <IconButton title="Edit" onClick={handleEdit}>
             <Edit3 className="h-4 w-4" />

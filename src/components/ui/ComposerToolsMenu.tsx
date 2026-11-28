@@ -48,6 +48,7 @@ interface ComposerToolsMenuProps {
   isUploading?: boolean;
   webSearchEnabled?: boolean;
   imageGenerationEnabled?: boolean;
+  canvasEnabled?: boolean;
   imageAspectRatio: ImageAspectRatio;
   uploadShortcut: string[];
   recentFiles: ComposerToolsRecentFile[];
@@ -55,6 +56,7 @@ interface ComposerToolsMenuProps {
   onAttachRecentFile: (file: ComposerToolsFile) => void;
   onToggleWebSearch?: (enabled: boolean) => void;
   onToggleImageGeneration?: (enabled: boolean) => void;
+  onToggleCanvas?: (enabled: boolean) => void;
   onImageAspectRatioChange?: (aspectRatio: ImageAspectRatio) => void;
   onClose: () => void;
   getFileIcon: FileIconRenderer;
@@ -165,12 +167,14 @@ export function ComposerToolsMenu({
   isUploading,
   webSearchEnabled,
   imageGenerationEnabled,
+  canvasEnabled,
   uploadShortcut,
   recentFiles,
   onUpload,
   onAttachRecentFile,
   onToggleWebSearch,
   onToggleImageGeneration,
+  onToggleCanvas,
   onClose,
   getFileIcon,
   getDisplayName,
@@ -425,6 +429,30 @@ export function ComposerToolsMenu({
                 <ToolsAnimatedCheckSvg active={Boolean(webSearchEnabled)} />
               </button>
 
+              <button
+                type="button"
+                onClick={() => {
+                  onToggleCanvas?.(!canvasEnabled);
+                  onClose();
+                }}
+                onPointerEnter={(e) => {
+                  if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, true);
+                }}
+                onPointerLeave={(e) => {
+                  if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, false);
+                }}
+                className={`dc-tools-row dc-tools-stagger min-h-[42px] active:scale-[0.985] sm:min-h-[38px] ${canvasEnabled ? 'dc-tools-row-active' : ''}`}
+              >
+                <span className="dc-tools-icon-well relative">
+                  <PenLine className="dc-tools-icon h-[16px] w-[16px]" strokeWidth={2.05} />
+                  <Plus className="absolute right-0.5 top-0.5 h-2.5 w-2.5 text-[var(--deepchat-accent)]" strokeWidth={2.5} />
+                </span>
+                <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">
+                  Canvas
+                </span>
+                <ToolsAnimatedCheckSvg active={Boolean(canvasEnabled)} />
+              </button>
+
               {!isGuest && (
                 <button
                   type="button"
@@ -554,26 +582,6 @@ export function ComposerToolsMenu({
                     Agent mode
                   </span>
                 </button>
-
-                <button
-                  type="button"
-                  onClick={onClose}
-                  onPointerEnter={(e) => {
-                    if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, true);
-                  }}
-                  onPointerLeave={(e) => {
-                    if (e.pointerType === 'mouse') animateRowPointer(e.currentTarget, false);
-                  }}
-                  className="dc-tools-row dc-tools-stagger min-h-[42px] active:scale-[0.985] sm:min-h-[38px]"
-                >
-                  <span className="dc-tools-icon-well relative">
-                    <PenLine className="dc-tools-icon h-[16px] w-[16px]" strokeWidth={2.05} />
-                    <Plus className="absolute right-0.5 top-0.5 h-2.5 w-2.5 text-[var(--deepchat-accent)]" strokeWidth={2.5} />
-                  </span>
-                  <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">
-                    Canvas
-                  </span>
-                </button>
               </div>
             </div>
           )}
@@ -640,6 +648,67 @@ export function SearchToolBadge({
         />
       </span>
       <span>Search</span>
+    </button>
+  );
+}
+
+export function CanvasToolBadge({
+  enabled,
+  onDisable,
+}: {
+  enabled?: boolean;
+  onDisable?: () => void;
+}) {
+  const badgeRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!enabled) return;
+    const el = badgeRef.current;
+    if (!el || prefersReducedMotion()) return;
+    gsap.fromTo(
+      el,
+      { opacity: 0, scale: 0.9, x: -6 },
+      { opacity: 1, scale: 1, x: 0, duration: 0.26, ease: 'back.out(1.7)', clearProps: 'transform,opacity' }
+    );
+  }, [enabled]);
+
+  if (!enabled) return null;
+
+  const handleClick = () => {
+    const el = badgeRef.current;
+    if (!el || prefersReducedMotion()) {
+      onDisable?.();
+      return;
+    }
+    gsap.to(el, {
+      opacity: 0,
+      scale: 0.92,
+      duration: 0.13,
+      ease: 'power2.in',
+      onComplete: () => onDisable?.(),
+    });
+  };
+
+  return (
+    <button
+      ref={badgeRef}
+      type="button"
+      onClick={handleClick}
+      className="dc-tools-chip group/canvas-tool inline-flex h-9 shrink-0 items-center gap-2 rounded-full px-3 text-[13.5px] font-medium active:scale-95"
+      aria-label="Disable canvas"
+      aria-pressed="true"
+    >
+      <span className="relative h-[16px] w-[16px] shrink-0">
+        <PenLine
+          className="absolute inset-0 h-[16px] w-[16px] transition-all duration-150 group-hover/canvas-tool:scale-75 group-hover/canvas-tool:opacity-0"
+          strokeWidth={2.2}
+        />
+        <X
+          className="absolute inset-0 h-[16px] w-[16px] scale-75 opacity-0 transition-all duration-150 group-hover/canvas-tool:scale-100 group-hover/canvas-tool:opacity-100"
+          strokeWidth={2.35}
+        />
+      </span>
+      <span>Canvas</span>
     </button>
   );
 }

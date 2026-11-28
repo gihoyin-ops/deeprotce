@@ -15,6 +15,13 @@ import {
   shouldRequestImageGeneration
 } from '@/lib/agent/backend-tools';
 import { setActiveLimit } from '@/lib/security/client-limit';
+import type { CanvasFileKind, CanvasMessageEvent, CanvasOp } from '@/lib/canvas/types';
+import {
+  emitCanvasOp,
+  emitCanvasStreamDelta,
+  emitCanvasStreamEnd,
+  getWorkspaceSnapshotForChat
+} from '@/lib/canvas/workspace-store';
 
 interface MemoryApiMessage {
   id?: string;
@@ -36,6 +43,7 @@ interface ChatApiMessage {
   webSearchEnabled?: boolean;
   imageGenerationEnabled?: boolean;
   imageAspectRatio?: ImageAspectRatio;
+  canvasEnabled?: boolean;
   [key: string]: unknown;
 }
 
@@ -50,6 +58,7 @@ interface ChatMessageVersion {
   clarification?: AgentClarification;
   versionIndex?: number;
   generationMode?: GenerationMode;
+  canvasEvents?: CanvasMessageEvent[];
   [key: string]: unknown;
 }
 
@@ -67,6 +76,7 @@ interface StoredChatMessage extends MemoryAssistantMessage {
   isError?: boolean;
   isStopped?: boolean;
   generationMode?: GenerationMode;
+  canvasEvents?: CanvasMessageEvent[];
 }
 
 interface SelectedModelConnection {
@@ -85,6 +95,7 @@ export interface ChatGenerationSnapshot {
   readSources: SearchSource[];
   thinkingSteps: ThinkingStep[];
   clarification?: AgentClarification;
+  canvasEvents: CanvasMessageEvent[];
   isStreaming: boolean;
   isError?: boolean;
   isStopped?: boolean;
@@ -116,6 +127,7 @@ interface ChatGenerationTask {
   readSources: SearchSource[];
   thinkingSteps: ThinkingStep[];
   clarification?: AgentClarification;
+  canvasEvents: CanvasMessageEvent[];
   startedAt: number;
   reasoningEndTime: number;
   status: ChatGenerationSnapshot['status'];
@@ -223,6 +235,7 @@ const getSnapshot = (task: ChatGenerationTask): ChatGenerationSnapshot => {
     readSources: task.readSources,
     thinkingSteps: getPacedThinkingSteps(task.thinkingSteps, task.displayedReasoning.length, isRunning),
     clarification: task.clarification,
+    canvasEvents: [...task.canvasEvents],
     isStreaming: isRunning,
     isError: task.status === 'error',
     isStopped: task.status === 'stopped',
@@ -358,7 +371,8 @@ const updateMessageVersion = (
   thinkingSteps: ThinkingStep[] = [],
   clarification?: AgentClarification,
   generationMode?: GenerationMode,
-  isError = false
+  isError = false,
+  canvasEvents: CanvasMessageEvent[] = []
 ) => {
   const updated = {
     ...message,
@@ -371,7 +385,8 @@ const updateMessageVersion = (
     thinkingSteps,
     clarification,
     generationMode,
-    isError
+    isError,
+    ...(canvasEvents.length > 0 ? { canvasEvents } : {})
   };
 
   if (updated.versions && updated.currentVersionIndex !== undefined) {
@@ -387,7 +402,8 @@ const updateMessageVersion = (
       thinkingSteps,
       clarification,
       generationMode,
-      isError
+      isError,
+      ...(canvasEvents.length > 0 ? { canvasEvents } : {})
     };
   }
 
@@ -420,7 +436,8 @@ const saveFinalMessage = async (task: ChatGenerationTask, options: { isError?: b
       task.thinkingSteps,
       clarification,
       task.generationMode,
-      options.isError === true
+      options.isError === true,
+      task.canvasEvents
     ),
     isStreaming: false,
     isError: options.isError === true,
@@ -635,8 +652,13 @@ const materializeGeneratedImagesAsWebp = async (content: string): Promise<string
 };
 
 const finishSuccessfulTask = async (task: ChatGenerationTask) => {
-  if (!task.fullContent && !task.fullReasoning && !task.clarification) {
+  emitCanvasStreamEnd(task.chatId);
+  if (!task.fullContent && !task.fullReasoning && !task.clarification && task.canvasEvents.length === 0) {
     throw new Error('The provider returned an empty response.');
+  }
+  if (!task.fullContent && task.canvasEvents.length > 0) {
+    task.fullContent = 'Updated the Canvas workspace.';
+    task.displayedContent = task.fullContent;
   }
 
   if (task.fullContent && task.fullContent.includes('data:image/')) {
@@ -681,6 +703,7 @@ const finishSuccessfulTask = async (task: ChatGenerationTask) => {
 };
 
 const finishStoppedTask = async (task: ChatGenerationTask) => {
+  emitCanvasStreamEnd(task.chatId);
   task.status = 'stopped';
   task.fullContent = task.fullContent || 'Stopped, safe to go.';
   emitSnapshot(task, true);
@@ -697,6 +720,7 @@ const finishStoppedTask = async (task: ChatGenerationTask) => {
 };
 
 const finishErroredTask = async (task: ChatGenerationTask, error: unknown) => {
+  emitCanvasStreamEnd(task.chatId);
   task.status = 'error';
   const message = getErrorMessage(error) || 'Oops, I fumbled that one. Try tapping it again.';
   task.fullContent = message;
@@ -755,6 +779,75 @@ const consumeStream = async (task: ChatGenerationTask, res: Response) => {
 
       if (json.type === 'deepchat_content') {
         task.fullContent += getString(json.text);
+        emitSnapshot(task, true);
+        continue;
+      }
+
+      if (json.type === 'deepchat_canvas_stream') {
+        const callId = getString(json.callId) || `call_${task.canvasEvents.length}`;
+        const path = getString(json.path);
+        if (path) {
+          const kind = (getString(json.kind) || 'code') as CanvasFileKind;
+          const partialContent = getString(json.partialContent);
+          const summary = getString(json.summary) || undefined;
+          const action = json.action === 'patch' ? 'patch' : 'write';
+
+          emitCanvasStreamDelta(task.chatId, {
+            callId,
+            action,
+            path,
+            kind,
+            partialContent,
+            summary,
+            updatedAt: Date.now()
+          });
+
+          const existingIdx = task.canvasEvents.findIndex(
+            ev => (ev.callId && ev.callId === callId) || (ev.path === path && ev.status === 'streaming')
+          );
+          const nextEvent: CanvasMessageEvent = {
+            id: existingIdx >= 0 ? task.canvasEvents[existingIdx].id : `ce_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+            callId,
+            path,
+            kind,
+            action: action === 'patch' ? 'update' : 'create',
+            status: 'streaming',
+            summary
+          };
+          if (existingIdx >= 0) {
+            task.canvasEvents[existingIdx] = nextEvent;
+          } else {
+            task.canvasEvents.push(nextEvent);
+          }
+          emitSnapshot(task, true);
+        }
+        continue;
+      }
+
+      if (json.type === 'deepchat_canvas_op' && isRecord(json.op)) {
+        const rawOp = json.op as unknown as CanvasOp;
+        const callId = getString(json.callId) || undefined;
+        emitCanvasOp(task.chatId, rawOp);
+
+        const existingIdx = task.canvasEvents.findIndex(
+          ev => (callId && ev.callId === callId) || (ev.path === rawOp.path && ev.status === 'streaming')
+        );
+        const doneEvent: CanvasMessageEvent = {
+          id: rawOp.id || `ce_${Date.now()}`,
+          callId,
+          path: rawOp.path,
+          kind: rawOp.kind,
+          action: rawOp.action,
+          status: 'done',
+          summary: rawOp.summary,
+          linesAdded: rawOp.linesAdded,
+          linesRemoved: rawOp.linesRemoved
+        };
+        if (existingIdx >= 0) {
+          task.canvasEvents[existingIdx] = doneEvent;
+        } else {
+          task.canvasEvents.push(doneEvent);
+        }
         emitSnapshot(task, true);
         continue;
       }
@@ -934,6 +1027,7 @@ const runTask = async (task: ChatGenerationTask) => {
     const manualSearch = !isImageTask && latestUserMessage?.webSearchEnabled === true;
     const formattedMessages = formatMessages(task.apiMessages);
     const injectedPrompt = await getInjectedSystemPrompt('', latestUserMessage?.content || '');
+    const workspaceSnapshot = getWorkspaceSnapshotForChat(task.chatId);
     const res = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -945,7 +1039,14 @@ const runTask = async (task: ChatGenerationTask) => {
         imageAspectRatio: normalizeImageAspectRatio(latestUserMessage?.imageAspectRatio),
         imageEdit: task.imageEdit,
         manualSearch,
-        tools: isImageTask ? [] : getEnabledToolRuntimeItems(true)
+        tools: isImageTask ? [] : getEnabledToolRuntimeItems(true),
+        canvasContext: isImageTask
+          ? undefined
+          : {
+              enabled: latestUserMessage?.canvasEnabled === true,
+              activeFilePath: workspaceSnapshot?.activeFilePath ?? null,
+              files: workspaceSnapshot?.files ?? []
+            }
       }),
       signal: task.controller.signal
     });
@@ -998,6 +1099,7 @@ export const startChatGeneration = (
     readSources: [],
     thinkingSteps: [],
     clarification: undefined,
+    canvasEvents: [],
     startedAt: Date.now(),
     reasoningEndTime: Date.now(),
     status: 'running',

@@ -8,6 +8,7 @@ import {
   Globe,
   Image as ImageIcon,
   Paperclip,
+  PenLine,
   RectangleHorizontal,
   RectangleVertical,
   Scan,
@@ -39,12 +40,14 @@ interface MobileComposerToolsSheetProps {
   isUploading?: boolean;
   webSearchEnabled?: boolean;
   imageGenerationEnabled?: boolean;
+  canvasEnabled?: boolean;
   imageAspectRatio: ImageAspectRatio;
   recentFiles: ComposerRecentFile[];
   onUpload: () => void;
   onAttachRecentFile: (file: ComposerFile) => void;
   onToggleWebSearch?: (enabled: boolean) => void;
   onToggleImageGeneration?: (enabled: boolean) => void;
+  onToggleCanvas?: (enabled: boolean) => void;
   onImageAspectRatioChange?: (aspectRatio: ImageAspectRatio) => void;
   onClose: () => void;
   getFileIcon: (ext: string, className: string) => React.ReactNode;
@@ -70,12 +73,14 @@ export default function MobileComposerToolsSheet({
   isUploading = false,
   webSearchEnabled = false,
   imageGenerationEnabled = false,
+  canvasEnabled = false,
   imageAspectRatio,
   recentFiles,
   onUpload,
   onAttachRecentFile,
   onToggleWebSearch,
   onToggleImageGeneration,
+  onToggleCanvas,
   onImageAspectRatioChange,
   onClose,
   getFileIcon,
@@ -373,6 +378,31 @@ export default function MobileComposerToolsSheet({
                 onChange={(checked) => {
                   triggerSubtleHaptic(8);
                   onToggleWebSearch?.(checked);
+                }}
+              />
+            </div>
+
+            <div className="flex min-h-[56px] items-center justify-between gap-3 px-4 py-2.5">
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-500/12 text-emerald-600 dark:text-emerald-400">
+                  <PenLine className="h-4.5 w-4.5" strokeWidth={2.1} />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-[14px] font-semibold text-[var(--dc-text-strong)]">
+                    Canvas
+                  </p>
+                  <p className="text-[11.5px] font-medium text-[var(--dc-text-muted)]">
+                    Build docs, sheets, slides, PDF &amp; code live
+                  </p>
+                </div>
+              </div>
+              <ToggleSwitch
+                size="mobile"
+                ariaLabel="Toggle canvas"
+                checked={canvasEnabled}
+                onChange={(checked) => {
+                  triggerSubtleHaptic(8);
+                  onToggleCanvas?.(checked);
                 }}
               />
             </div>
