@@ -1,6 +1,6 @@
-# Contributing to DeepChat
+# Contributing to Benthos
 
-Thanks for helping build DeepChat. Keep changes focused, readable, and easy for the rest of the team to review.
+Thanks for helping build Benthos. Keep changes focused, readable, and easy for the rest of the team to review.
 
 ## Setup
 

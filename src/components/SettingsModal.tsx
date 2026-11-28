@@ -718,8 +718,8 @@ export default function SettingsModal({ isOpen, onClose, onBackToSidebar, initia
       toast.error('Please enable push notifications first.');
       return;
     }
-    new Notification('DeepChat Notification', {
-      body: 'This is a test notification from DeepChat.',
+    new Notification('Benthos Notification', {
+      body: 'This is a test notification from Benthos.',
       icon: '/favicon.ico'
     });
   };

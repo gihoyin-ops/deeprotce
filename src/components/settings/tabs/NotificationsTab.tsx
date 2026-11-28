@@ -101,13 +101,13 @@ export function NotificationsTab({
       <header className="hidden sm:block">
         <h3 className="text-2xl font-semibold tracking-tight text-[var(--dc-text-strong)]">Notifications</h3>
         <p className="mt-1 text-sm text-[var(--dc-text-muted)]">
-          Choose how you want to be notified about DeepChat activity
+          Choose how you want to be notified about Benthos activity
         </p>
       </header>
 
       <section>
         <h4 className="border-b border-[var(--dc-border-subtle)] pb-3 text-base font-medium text-[var(--dc-text-strong)]">
-          DeepChat notifications
+          Benthos notifications
         </h4>
 
         <div className="divide-y divide-[var(--dc-border-subtle)]">

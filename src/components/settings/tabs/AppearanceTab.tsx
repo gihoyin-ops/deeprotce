@@ -345,7 +345,7 @@ export function AppearanceTab({ settings, onChange }: AppearanceTabProps) {
               <div className="min-w-0">
                 <p className="text-sm font-medium text-[var(--dc-text-strong)]">UI font size</p>
                 <p className="mt-0.5 text-xs text-[var(--dc-text-muted)]">
-                  Adjust the base size used for DeepChat
+                  Adjust the base size used for Benthos
                 </p>
               </div>
               <div className="flex shrink-0 items-center gap-2">

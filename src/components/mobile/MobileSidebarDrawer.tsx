@@ -548,7 +548,7 @@ const MobileSidebarDrawer = forwardRef<MobileDrawerHandle, MobileSidebarDrawerPr
               className="flex min-h-[44px] items-center rounded-xl pr-2 text-left"
             >
               <span className="text-[18px] font-semibold tracking-[-0.02em] text-[var(--dc-text-strong)]">
-                DeepChat
+                Benthos
               </span>
             </button>
 

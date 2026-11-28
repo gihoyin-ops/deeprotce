@@ -124,7 +124,7 @@ export function StorageTab({ onRefresh }: StorageTabProps) {
             Storage
           </h3>
           <p className="mt-1 text-sm text-[var(--dc-text-muted)]">
-            Manage your DeepChat media storage
+            Manage your Benthos media storage
           </p>
         </div>
         <button

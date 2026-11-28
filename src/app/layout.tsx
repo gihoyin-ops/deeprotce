@@ -16,8 +16,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "DeepChat",
-  description: "DeepChat is a AI Platform for Agentic",
+  title: "Benthos",
+  description: "Benthos is a AI Platform for Agentic",
 };
 
 export const viewport: Viewport = {

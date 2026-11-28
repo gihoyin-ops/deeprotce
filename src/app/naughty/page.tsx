@@ -13,7 +13,7 @@ const NaughtyPage = () => {
       lines={[
         'This route is reserved for internal application requests and cannot be opened directly in the browser.',
       ]}
-      primary={{ label: 'Back to DeepChat', action: () => router.push('/') }}
+      primary={{ label: 'Back to Benthos', action: () => router.push('/') }}
     />
   );
 };

@@ -140,7 +140,7 @@ export function UsageTab() {
             </h4>
             <div className="flex items-center justify-between gap-4 py-4">
               <div>
-                <p className="text-sm font-semibold text-[var(--dc-text-strong)]">DeepChat {planName}</p>
+                <p className="text-sm font-semibold text-[var(--dc-text-strong)]">Benthos {planName}</p>
                 <p className="mt-0.5 text-xs text-[var(--dc-text-muted)]">{planSubtitle}</p>
               </div>
               {usage?.planId !== 'staff' && planName.toLowerCase() !== 'staff' && (
@@ -161,7 +161,7 @@ export function UsageTab() {
             <div className="border-b border-[var(--dc-border-subtle)] pb-3">
               <h4 className="text-base font-medium text-[var(--dc-text-strong)]">Plan limits</h4>
               <p className="mt-1 text-xs leading-relaxed text-[var(--dc-text-muted)]">
-                Usage limits apply per rolling 5-hour and weekly window on your active DeepChat plan.{' '}
+                Usage limits apply per rolling 5-hour and weekly window on your active Benthos plan.{' '}
                 <a
                   href="/pricing"
                   target="_blank"
@@ -212,7 +212,7 @@ export function UsageTab() {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="rounded-2xl border border-[var(--dc-border)] bg-[var(--dc-surface)] p-4">
               <p className="text-xs font-medium text-[var(--dc-text-muted)]">Active Plan</p>
-              <p className="mt-1 text-lg font-semibold text-[var(--dc-text-strong)]">DeepChat {planName}</p>
+              <p className="mt-1 text-lg font-semibold text-[var(--dc-text-strong)]">Benthos {planName}</p>
               <p className="mt-1 text-xs text-[var(--dc-text-muted)]">
                 Status: {usage?.enforced ? 'Enforced' : 'Not enforced'}
               </p>

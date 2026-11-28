@@ -343,7 +343,7 @@ export function MobileSettingsHome({
         </div>
 
         <p className="mt-8 pb-2 text-center text-[12px] font-medium text-[var(--dc-text-faint)]">
-          DeepChat V1.0.0
+          Benthos V1.0.0
         </p>
       </div>
     </div>

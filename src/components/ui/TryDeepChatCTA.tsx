@@ -42,7 +42,7 @@ export default function TryDeepChatCTA() {
             <h2 className="text-4xl sm:text-5xl font-extrabold text-slate-800 dark:text-white mb-4 tracking-tight leading-tight">
               Ready to try <br className="hidden sm:block md:hidden" />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 dark:from-indigo-400 dark:via-purple-400 dark:to-pink-400 animate-gradient-x">
-                DeepChat
+                Benthos
               </span>?
             </h2>
 

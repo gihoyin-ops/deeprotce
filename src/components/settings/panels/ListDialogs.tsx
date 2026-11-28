@@ -113,7 +113,7 @@ export function MemoriesDialog({ open, closing, memories, isLoading, isClearing,
         <div className="min-w-0">
           <h3 className="text-xl font-extrabold text-slate-900 dark:text-slate-100">Saved Memories</h3>
           <p className="mt-2 text-sm font-medium leading-relaxed text-slate-500 dark:text-slate-400">
-            DeepChat remembers and automatically manages useful information from chat, making responses more relevant and personal.
+            Benthos remembers and automatically manages useful information from chat, making responses more relevant and personal.
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">

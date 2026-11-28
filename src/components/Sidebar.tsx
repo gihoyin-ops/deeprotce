@@ -531,7 +531,7 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
             >
               <Image
                 src="/brands/brand.svg"
-                alt="DeepChat"
+                alt="Benthos"
                 width={28}
                 height={28}
                 unoptimized
@@ -600,12 +600,12 @@ export default function Sidebar({ isOpen, setIsOpen, setMobileOpen, onOpenSettin
 
       <div className={`deepchat-sidebar-light relative hidden min-h-0 origin-left overflow-hidden sm:flex flex-col border-r border-[var(--dc-sidebar-border)] bg-[var(--dc-surface)] dark:bg-[var(--dc-surface-input)] text-[var(--dc-text)] transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[width,opacity,transform] ${isOpen ? 'w-[248px] xl:w-[250px] translate-x-0 opacity-100' : 'w-0 -translate-x-4 opacity-0 pointer-events-none border-r-0'}`}>
         <div className="flex h-14 shrink-0 items-center justify-between px-3">
-          <button type="button" className="flex min-w-0 items-center px-1" onClick={() => router.push('/')} aria-label="DeepChat home">
+          <button type="button" className="flex min-w-0 items-center px-1" onClick={() => router.push('/')} aria-label="Benthos home">
             <span
               className="truncate text-[18px] font-semibold leading-none tracking-[-0.02em] text-[var(--dc-text-strong)]"
               style={{ fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}
             >
-              DeepChat
+              Benthos
             </span>
           </button>
           <div className="flex items-center gap-0.5">

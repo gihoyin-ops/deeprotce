@@ -104,7 +104,7 @@ export function PersonalizationTab({
       <header>
         <h3 className="text-2xl font-semibold tracking-tight text-[var(--dc-text-strong)]">Personalization</h3>
         <p className="mt-1 text-sm text-[var(--dc-text-muted)]">
-          Customize how DeepChat remembers you and responds across chats
+          Customize how Benthos remembers you and responds across chats
         </p>
       </header>
 
@@ -131,7 +131,7 @@ export function PersonalizationTab({
             <div className="min-w-0">
               <p className="text-sm font-medium text-[var(--dc-text-strong)]">Enable memory</p>
               <p className="mt-0.5 text-xs text-[var(--dc-text-muted)]">
-                Let DeepChat save and use memories when responding
+                Let Benthos save and use memories when responding
               </p>
             </div>
             <ToggleSwitch
@@ -146,7 +146,7 @@ export function PersonalizationTab({
             <div className="min-w-0">
               <p className="text-sm font-medium text-[var(--dc-text-strong)]">Memory summary</p>
               <p className="mt-0.5 text-xs text-[var(--dc-text-muted)]">
-                Review, edit, or clear what DeepChat remembers about you
+                Review, edit, or clear what Benthos remembers about you
               </p>
             </div>
             <button
@@ -171,7 +171,7 @@ export function PersonalizationTab({
             <div className="min-w-0">
               <p className="text-sm font-medium text-[var(--dc-text-strong)]">Reference photo</p>
               <p className="mt-0.5 text-xs text-[var(--dc-text-muted)]">
-                This is the photo that DeepChat refers to when you create an image of yourself
+                This is the photo that Benthos refers to when you create an image of yourself
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-2">
@@ -263,7 +263,7 @@ export function PersonalizationTab({
           <div className="min-w-0">
             <p className="text-sm font-medium text-[var(--dc-text-strong)]">Base style and tone</p>
             <p className="mt-0.5 text-xs text-[var(--dc-text-muted)]">
-              Set the style and tone of how DeepChat responds to you
+              Set the style and tone of how Benthos responds to you
             </p>
           </div>
           <PillDropdown
@@ -348,11 +348,11 @@ export function PersonalizationTab({
 
         <div className="flex items-center justify-between gap-6 py-4">
           <div className="min-w-0">
-            <p className="text-sm font-medium text-[var(--dc-text-strong)]">DeepChat</p>
+            <p className="text-sm font-medium text-[var(--dc-text-strong)]">Benthos</p>
             <p className="mt-0.5 truncate text-xs text-[var(--dc-text-muted)]">
               {persona.instructions?.trim()
                 ? persona.instructions.trim()
-                : 'Customize how DeepChat responds and what it knows about you'}
+                : 'Customize how Benthos responds and what it knows about you'}
             </p>
           </div>
           <button
@@ -376,7 +376,7 @@ export function PersonalizationTab({
             <div className="min-w-0">
               <p className="text-sm font-medium text-[var(--dc-text-strong)]">Suggested prompts</p>
               <p className="mt-0.5 text-xs text-[var(--dc-text-muted)]">
-                DeepChat can suggest prompts using your chats, files, and connected tools.
+                Benthos can suggest prompts using your chats, files, and connected tools.
               </p>
             </div>
             <ToggleSwitch
@@ -391,7 +391,7 @@ export function PersonalizationTab({
             <div className="min-w-0">
               <p className="text-sm font-medium text-[var(--dc-text-strong)]">Reference record history</p>
               <p className="mt-0.5 text-xs text-[var(--dc-text-muted)]">
-                Let DeepChat reference all previous chat transcripts and notes when responding.
+                Let Benthos reference all previous chat transcripts and notes when responding.
               </p>
             </div>
             <ToggleSwitch
@@ -406,7 +406,7 @@ export function PersonalizationTab({
             <div className="min-w-0">
               <p className="text-sm font-medium text-[var(--dc-text-strong)]">Web search</p>
               <p className="mt-0.5 text-xs text-[var(--dc-text-muted)]">
-                Let DeepChat automatically search the web for answers
+                Let Benthos automatically search the web for answers
               </p>
             </div>
             <ToggleSwitch
@@ -421,7 +421,7 @@ export function PersonalizationTab({
             <div className="min-w-0">
               <p className="text-sm font-medium text-[var(--dc-text-strong)]">Library search</p>
               <p className="mt-0.5 text-xs text-[var(--dc-text-muted)]">
-                Allow DeepChat to automatically search Library files for answers
+                Allow Benthos to automatically search Library files for answers
               </p>
             </div>
             <ToggleSwitch
@@ -469,7 +469,7 @@ export function PersonalizationTab({
                   value={draftInstructions}
                   onChange={event => setDraftInstructions(event.target.value)}
                   rows={4}
-                  placeholder="How would you like DeepChat to respond?"
+                  placeholder="How would you like Benthos to respond?"
                   className="w-full resize-none rounded-2xl border border-[var(--dc-border)] bg-[var(--dc-surface)] px-3.5 py-2.5 text-sm text-[var(--dc-text-strong)] outline-none focus:border-[var(--deepchat-accent)]"
                 />
               </div>
@@ -483,7 +483,7 @@ export function PersonalizationTab({
                     type="text"
                     value={draftName}
                     onChange={event => setDraftName(event.target.value)}
-                    placeholder="What should DeepChat call you?"
+                    placeholder="What should Benthos call you?"
                     className="w-full rounded-2xl border border-[var(--dc-border)] bg-[var(--dc-surface)] px-3.5 py-2 text-sm text-[var(--dc-text-strong)] outline-none focus:border-[var(--deepchat-accent)]"
                   />
                 </div>

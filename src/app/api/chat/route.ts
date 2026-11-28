@@ -729,7 +729,7 @@ const buildOpenAICompatibleMessages = async (messages: ChatMessage[], providerNa
     }
 
     if (unsupportedFiles.length > 0) {
-      textParts.push(`[Attachment notice: The user attached ${unsupportedFiles.join(', ')}. This ${providerName} chat-completions connection can only receive text and supported image attachments from DeepChat.]`);
+      textParts.push(`[Attachment notice: The user attached ${unsupportedFiles.join(', ')}. This ${providerName} chat-completions connection can only receive text and supported image attachments from Benthos.]`);
     }
 
     const text = textParts.join('\n\n');
@@ -781,9 +781,9 @@ const logUpstreamFailure = (status: number, detail: string) => {
 };
 
 const buildPlatformCapabilityPrompt = () => [
-  'DeepChat platform capabilities:',
+  'Benthos platform capabilities:',
   '- Search can gather fresh web facts and source-aware context when enabled by the router or user.',
-  '- Do not ask the user which internal tool to use. Continue naturally and let DeepChat continue seamlessly.'
+  '- Do not ask the user which internal tool to use. Continue naturally and let Benthos continue seamlessly.'
 ].join('\n');
 
 export async function POST(req: Request) {

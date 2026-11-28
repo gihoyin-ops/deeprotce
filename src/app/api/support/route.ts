@@ -4,17 +4,17 @@ export const runtime = 'nodejs';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const SUPPORT_EMAIL = 'support@deepsia.my.id';
-const DEFAULT_SENDER = 'DeepChat Support <noreply@deepsia.my.id>';
+const DEFAULT_SENDER = 'Benthos Support <noreply@deepsia.my.id>';
 
 const parseFromHeader = (rawFrom: string): { name: string; email: string } => {
   const match = rawFrom.match(/^(.*)<([^>]+)>$/);
   if (match) {
     return {
-      name: match[1].trim().replace(/^["']|["']$/g, '') || 'DeepChat Support',
+      name: match[1].trim().replace(/^["']|["']$/g, '') || 'Benthos Support',
       email: match[2].trim(),
     };
   }
-  return { name: 'DeepChat Support', email: rawFrom.trim() };
+  return { name: 'Benthos Support', email: rawFrom.trim() };
 };
 
 const escapeHtml = (value: string) =>
@@ -48,7 +48,7 @@ export async function POST(req: Request) {
     const brevoKey = process.env.BREVO_API_KEY?.trim();
     const rawFrom = process.env.EMAIL_FROM?.trim() || DEFAULT_SENDER;
     const sender = parseFromHeader(rawFrom);
-    const subject = `[DeepChat Support] Message from ${email}`;
+    const subject = `[Benthos Support] Message from ${email}`;
     const textContent = `From: ${email}\n\n${message}`;
     const htmlContent = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px; color: #111827; border: 1px solid #e5e7eb; border-radius: 16px;">

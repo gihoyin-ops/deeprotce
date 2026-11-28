@@ -110,7 +110,7 @@ export function KineticThinkingDotIcon({
           }
         );
       } else {
-        // Suck everything back into the settled DeepChat blue dot
+        // Suck everything back into the settled Benthos blue dot
         gsap.to([dropA, dropB], {
           x: 0,
           y: 0,

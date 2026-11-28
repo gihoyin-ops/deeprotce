@@ -1072,7 +1072,7 @@ export default function ChatView({ chatId }: { chatId: string }) {
         <div className="mx-auto flex w-full max-w-3xl flex-col gap-5 sm:gap-7" style={{ paddingBottom: Math.max(composerReserve - 42, 68) }}>
           {isChatHydrated && messages.length === 0 && !isLoading && (
             <div className="mt-24 flex flex-col items-center justify-center text-center">
-              <DotRevealHeadline text="Start a new thought with DeepChat" ready size="compact" />
+              <DotRevealHeadline text="Start a new thought with Benthos" ready size="compact" />
             </div>
           )}
 
@@ -1116,7 +1116,7 @@ export default function ChatView({ chatId }: { chatId: string }) {
           {displayMessages.length > 0 && (
             <div className="pt-4 pb-0 text-center">
               <p className="inline-flex px-3 text-[11.5px] font-normal text-[var(--dc-text-muted)] sm:text-[12px]">
-                DeepChat can make mistakes. Verify important information before using it.
+                Benthos can make mistakes. Verify important information before using it.
               </p>
             </div>
           )}

@@ -335,7 +335,7 @@ export default function SharedChatPage({ params }: { params: Promise<{ id: strin
           href="/"
           className="inline-flex h-10 items-center justify-center rounded-full bg-[var(--dc-invert)] px-5 text-[13.5px] font-medium text-[var(--dc-text-on-invert)] transition-transform hover:bg-[var(--dc-invert-hover)] active:scale-[0.97]"
         >
-          Back to DeepChat
+          Back to Benthos
         </Link>
       </div>
     );

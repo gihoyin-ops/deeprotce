@@ -190,7 +190,7 @@ export default function ChatComposer({
   webSearchEnabled = false,
   imageGenerationEnabled = false,
   imageAspectRatio = 'auto',
-  placeholder = 'Message to DeepChat',
+  placeholder = 'Message to Benthos',
   maxTextareaHeight = 192,
   onChange,
   onSubmit,

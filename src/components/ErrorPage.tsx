@@ -48,7 +48,7 @@ const StageIcon = ({ kind }: { kind: ErrorPageProps['kind'] }) => {
   );
 };
 
-// Self-contained error and restricted-route page styled with DeepChat theme tokens
+// Self-contained error and restricted-route page styled with Benthos theme tokens
 // so this shit still renders properly in global-error / global-not-found without globals.css
 const ErrorPage = ({ kind, title, lines, primary, secondary }: ErrorPageProps) => {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -474,7 +474,7 @@ const ErrorPage = ({ kind, title, lines, primary, secondary }: ErrorPageProps) =
       <div className="ep-grid" aria-hidden="true" />
 
       <div className="ep-wrap">
-        <div className="ep-brand">DeepChat</div>
+        <div className="ep-brand">Benthos</div>
 
         <main ref={cardRef} className="ep-card">
           <div className="ep-stage" aria-hidden="true">

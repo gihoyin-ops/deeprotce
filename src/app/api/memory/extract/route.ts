@@ -15,7 +15,7 @@ import { getClientIp } from '@/lib/security/rate-limit';
 export const runtime = 'nodejs';
 export const maxDuration = 15;
 
-const systemPrompt = `You extract durable user memories for DeepChat. Return a compact JSON array only. Each item must be {"content":"...","category":"...","importance":"low|medium|high"}. Save only explicit or strongly implied stable facts about the user: identity, preferred name, language preference stated by the user, role, durable preferences, long-term goals, recurring projects, constraints, and standing instructions. Do not infer preferences from a single greeting, language used once, assistant style, repeated regenerate outputs, short chit-chat, temporary requests, secrets, API keys, passwords, payment data, medical/legal/financial details, sensitive traits, facts about the assistant, insults, jokes, or anything uncertain. If there is nothing useful to remember, return [].`;
+const systemPrompt = `You extract durable user memories for Benthos. Return a compact JSON array only. Each item must be {"content":"...","category":"...","importance":"low|medium|high"}. Save only explicit or strongly implied stable facts about the user: identity, preferred name, language preference stated by the user, role, durable preferences, long-term goals, recurring projects, constraints, and standing instructions. Do not infer preferences from a single greeting, language used once, assistant style, repeated regenerate outputs, short chit-chat, temporary requests, secrets, API keys, passwords, payment data, medical/legal/financial details, sensitive traits, facts about the assistant, insults, jokes, or anything uncertain. If there is nothing useful to remember, return [].`;
 
 interface ExtractedMemoryCandidate {
   content?: unknown;

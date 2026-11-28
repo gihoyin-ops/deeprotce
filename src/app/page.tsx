@@ -59,9 +59,9 @@ const homeHeadlines = [
   () => 'Bring your ideas with our programs',
   () => 'Step first to a Agent AI',
   () => 'Turn your questions into clear answers',
-  () => 'Build something useful with DeepChat',
+  () => 'Build something useful with Benthos',
   () => 'Explore smarter ways to get work done',
-  () => 'Start a new thought with DeepChat'
+  () => 'Start a new thought with Benthos'
 ];
 
 const pickHeadlineIndex = (currentIndex?: number) => {

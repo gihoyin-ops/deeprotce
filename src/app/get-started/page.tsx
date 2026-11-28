@@ -317,10 +317,10 @@ export default function GetStartedPage() {
     <div className="custom-scrollbar h-dvh w-full overflow-x-hidden overflow-y-auto bg-[var(--dc-canvas)] text-[var(--dc-text)]">
       {/* Barebones header matching /login and /verify */}
       <header className="mx-auto flex h-16 max-w-6xl items-center px-6">
-        <Link href="/" aria-label="DeepChat" className="inline-flex items-center">
+        <Link href="/" aria-label="Benthos" className="inline-flex items-center">
           <span
             role="img"
-            aria-label="DeepChat"
+            aria-label="Benthos"
             className="inline-block h-7 w-[136px] bg-[var(--dc-text-strong)]"
             style={{
               WebkitMaskImage: 'url("/brand/brand_with_name.svg")',
@@ -374,7 +374,7 @@ export default function GetStartedPage() {
               Hello, tell us your name
             </h1>
             <p className="mt-2 text-[15px] leading-relaxed text-[var(--dc-text-muted)]">
-              This is how you&apos;ll appear across DeepChat. You can update it anytime.
+              This is how you&apos;ll appear across Benthos. You can update it anytime.
             </p>
           </div>
 

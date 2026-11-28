@@ -770,7 +770,7 @@ export default function AttachmentPreviewModal({
                 <p className="mt-3 text-[12.5px] leading-relaxed text-[var(--dc-text-muted)]">
                   {canDownload
                     ? 'Inline visual preview is not available for this binary document format. You can download it to view in its native app.'
-                    : 'This file is attached and ready for DeepChat to read in your conversation.'}
+                    : 'This file is attached and ready for Benthos to read in your conversation.'}
                 </p>
               </div>
               {canDownload && (

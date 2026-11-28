@@ -1,4 +1,4 @@
-// Turso / libSQL schema for DeepChat.
+// Turso / libSQL schema for Benthos.
 // Covers accounts, OAuth identities, sessions, plan grants, usage windows,
 // persistent guest rate limits, chats/messages/versions/attachments,
 // personas, settings, encrypted connections, memories, and feedback.

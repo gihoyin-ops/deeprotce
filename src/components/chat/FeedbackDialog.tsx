@@ -136,7 +136,7 @@ export function FeedbackDialog({ open, closing, messageKind, reasons, rating, in
           </div>
 
           <p className="text-xs font-medium leading-relaxed text-slate-500 dark:text-slate-400">
-            Your feedback is sent to the DeepChat server to help improve the platform.
+            Your feedback is sent to the Benthos server to help improve the platform.
           </p>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-3 border-t border-slate-100 p-4 dark:border-slate-700/60 sm:p-5">

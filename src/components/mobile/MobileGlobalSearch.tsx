@@ -266,7 +266,7 @@ export default function MobileGlobalSearch({ isOpen, onClose }: MobileGlobalSear
           <div className="flex h-full flex-col items-center justify-center px-6 text-center">
             <Search className="mb-2.5 h-6 w-6 text-[var(--dc-text-muted)]/60" />
             <p className="text-sm font-medium text-[var(--dc-text-strong)]">
-              {query.trim() ? 'No matching results' : 'Search across DeepChat'}
+              {query.trim() ? 'No matching results' : 'Search across Benthos'}
             </p>
             <p className="mt-1 text-xs text-[var(--dc-text-muted)]">
               Chats, images, documents, and projects appear here.

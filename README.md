@@ -1,4 +1,4 @@
-# DeepChat
+# Benthos
 
 Web AI chat platform running at [chat.deepsia.my.id](https://chat.deepsia.my.id), built with Next.js 16, React 19, TypeScript, and Tailwind CSS 4.
 

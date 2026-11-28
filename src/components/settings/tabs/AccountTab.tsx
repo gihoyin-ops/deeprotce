@@ -148,7 +148,7 @@ export function AccountTab({
           <div className="flex items-center justify-between gap-6 py-4">
             <div className="min-w-0">
               <p className="text-sm font-medium text-[var(--dc-text-strong)]">Username</p>
-              <p className="mt-0.5 text-xs text-[var(--dc-text-muted)]">Your unique handle on DeepChat</p>
+              <p className="mt-0.5 text-xs text-[var(--dc-text-muted)]">Your unique handle on Benthos</p>
             </div>
             {editingField === 'username' ? (
               <div className="flex items-center gap-2">
@@ -226,7 +226,7 @@ export function AccountTab({
           <div className="flex items-center justify-between gap-6 py-4">
             <div className="min-w-0">
               <p className="text-sm font-medium text-[var(--dc-text-strong)]">Delete account</p>
-              <p className="mt-0.5 text-xs text-[var(--dc-text-muted)]">Permanently delete your DeepChat account and all synced data</p>
+              <p className="mt-0.5 text-xs text-[var(--dc-text-muted)]">Permanently delete your Benthos account and all synced data</p>
             </div>
             <button
               type="button"

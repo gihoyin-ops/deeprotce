@@ -22,7 +22,7 @@ export async function generateMetadata({
         if (row) {
           const handle = row.username || cleanHandle;
           return {
-            title: `${row.display_name} (@${handle}) / DeepChat`,
+            title: `${row.display_name} (@${handle}) / Benthos`,
           };
         }
       }
@@ -32,7 +32,7 @@ export async function generateMetadata({
   }
 
   return {
-    title: cleanHandle ? `@${cleanHandle} / DeepChat` : 'Profile / DeepChat',
+    title: cleanHandle ? `@${cleanHandle} / Benthos` : 'Profile / Benthos',
   };
 }
 

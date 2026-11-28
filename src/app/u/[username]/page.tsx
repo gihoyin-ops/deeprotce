@@ -148,7 +148,7 @@ export default function UserProfilePage() {
 
   useEffect(() => {
     if (data?.profile) {
-      document.title = `${data.profile.name} (@${data.profile.username}) / DeepChat`;
+      document.title = `${data.profile.name} (@${data.profile.username}) / Benthos`;
     }
   }, [data?.profile?.name, data?.profile?.username]);
 
@@ -220,7 +220,7 @@ export default function UserProfilePage() {
     try {
       if (typeof navigator !== 'undefined' && navigator.share) {
         await navigator.share({
-          title: `${data.profile.name} (@${data.profile.username}) · DeepChat`,
+          title: `${data.profile.name} (@${data.profile.username}) · Benthos`,
           url: shareUrl
         });
         return;

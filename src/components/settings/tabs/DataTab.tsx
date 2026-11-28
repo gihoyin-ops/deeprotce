@@ -96,7 +96,7 @@ export function DataTab({
       <header>
         <h3 className="text-2xl font-semibold tracking-tight text-[var(--dc-text-strong)]">Data controls</h3>
         <p className="mt-1 text-sm text-[var(--dc-text-muted)]">
-          Manage your chat history and choose how DeepChat uses your data
+          Manage your chat history and choose how Benthos uses your data
         </p>
       </header>
 
@@ -139,7 +139,7 @@ export function DataTab({
           <div className="min-w-0">
             <p className="text-sm font-medium text-[var(--dc-text-strong)]">Location</p>
             <p className="mt-0.5 text-xs text-[var(--dc-text-muted)]">
-              When enabled, your location helps DeepChat provide more relevant local recommendations, news, and weather.
+              When enabled, your location helps Benthos provide more relevant local recommendations, news, and weather.
             </p>
           </div>
           <button

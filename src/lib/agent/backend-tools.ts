@@ -57,7 +57,7 @@ const getRecentConversationContext = (messages: BackendChatMessage[]) => message
 }).join('\n');
 
 const getToolDecisionInstruction = (manualSearch: boolean) => [
-  'You are DeepChat Tool Router. Choose which backend runtime tools should run before the assistant answers.',
+  'You are Benthos Tool Router. Choose which backend runtime tools should run before the assistant answers.',
   'Return only compact JSON with this exact shape: {"useSearch":boolean,"reason":"short reason"}.',
   'Available tools:',
   'Search: finds fresh web facts and returns source-aware context. Use it for current/latest/recent information, prices, currency exchange rates, Rupiah/USD/IDR, availability, news, public people or organizations, product specs, releases, citations, and facts likely to change.',

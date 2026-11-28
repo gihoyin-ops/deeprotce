@@ -32,7 +32,7 @@ const PLAN_DETAILS: Record<
   }
 > = {
   free: {
-    subtitle: 'Explore DeepChat for everyday questions and quick tasks',
+    subtitle: 'Explore Benthos for everyday questions and quick tasks',
     ctaLabel: 'Free plan',
     features: [
       'Standard usage limits',
@@ -47,7 +47,7 @@ const PLAN_DETAILS: Record<
     badge: 'Popular',
     features: [
       'Higher usage limits',
-      'Access to GPT Image 2.6 generation',
+      'Access to GPT Image 2.5 generation',
       'Unlock advanced reasoning and models',
       'Full personalization and custom workflows'
     ]
@@ -57,7 +57,7 @@ const PLAN_DETAILS: Record<
     ctaLabel: 'Upgrade to Cools',
     features: [
       'Much higher usage limits',
-      'Priority access to GPT Image 2.6',
+      'Priority access to GPT Image 2.5',
       'Unlock all advanced models and agents',
       'Extended context and faster response priority'
     ]
@@ -137,10 +137,10 @@ export default function PricingPage() {
       {/* Standalone top bar without the chat wireframe bs */}
       <header className="border-b border-[var(--dc-border-subtle)] bg-[var(--dc-panel)]/80 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-6">
-          <Link href="/" aria-label="DeepChat" className="inline-flex items-center">
+          <Link href="/" aria-label="Benthos" className="inline-flex items-center">
             <span
               role="img"
-              aria-label="DeepChat"
+              aria-label="Benthos"
               className="inline-block h-8 w-[148px] bg-[var(--dc-text-strong)]"
               style={{
                 WebkitMaskImage: 'url("/brand/brand_with_name.svg")',
@@ -159,7 +159,7 @@ export default function PricingPage() {
             className="inline-flex items-center gap-2 rounded-full border border-[var(--dc-border)] bg-[var(--dc-surface)] px-4 py-1.5 text-sm font-medium text-[var(--dc-text-strong)] transition-colors hover:bg-[var(--dc-surface-hover)]"
           >
             <ArrowLeft className="h-4 w-4" />
-            <span>Back to DeepChat</span>
+            <span>Back to Benthos</span>
           </Link>
         </div>
       </header>
@@ -170,7 +170,7 @@ export default function PricingPage() {
             Upgrade your plan
           </h1>
           <p className="mt-3 text-sm leading-relaxed text-[var(--dc-text-muted)] sm:text-base">
-            Choose the plan that fits how you chat, create with GPT Image 2.6, and build with DeepChat.
+            Choose the plan that fits how you chat, create with GPT Image 2.5, and build with Benthos.
           </p>
         </div>
 
@@ -184,7 +184,7 @@ export default function PricingPage() {
           <div className="mt-12 grid grid-cols-1 gap-6 md:grid-cols-3">
             {plans.map(plan => {
               const meta = PLAN_DETAILS[plan.id] || {
-                subtitle: 'DeepChat plan',
+                subtitle: 'Benthos plan',
                 ctaLabel: `Upgrade to ${plan.label}`,
                 features: ['Standard access']
               };

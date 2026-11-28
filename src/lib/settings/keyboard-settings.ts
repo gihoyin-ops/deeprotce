@@ -76,7 +76,7 @@ export const KEYBOARD_SHORTCUT_CATALOG: KeyboardShortcutMeta[] = [
   {
     id: 'openSettings',
     label: 'Open settings',
-    description: 'Open DeepChat settings',
+    description: 'Open Benthos settings',
     category: 'Navigation',
     defaultBinding: { mod: true, shift: false, alt: false, key: ',' }
   },
