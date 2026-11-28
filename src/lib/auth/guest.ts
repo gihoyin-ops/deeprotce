@@ -14,6 +14,11 @@ export interface AuthSessionState {
   ok: boolean;
   authenticated: boolean;
   guest: boolean;
+  account?: {
+    id?: string;
+    username?: string | null;
+    needsOnboarding?: boolean;
+  };
 }
 
 export const AUTH_SESSION_QUERY_KEY = ['auth', 'session'] as const;
@@ -123,11 +128,13 @@ export function useGuestStatus() {
   const resolvedAuthenticated = data ? Boolean(data.authenticated) : cachedAuthHint === true;
   const isAuthLoading = !data && cachedAuthHint === null;
   const isGuest = !resolvedAuthenticated;
+  const needsOnboarding = Boolean(data?.authenticated && data.account?.needsOnboarding);
 
   return {
     isGuest,
     isAuthenticated: resolvedAuthenticated,
     isAuthLoading,
+    needsOnboarding,
   };
 }
 

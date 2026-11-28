@@ -30,6 +30,11 @@ export function CentralAuthModal({
     const handleMessage = (event: MessageEvent) => {
       if (event.origin !== authOrigin) return;
       if (event.data && event.data.type === 'deepsia:auth-success') {
+        if (event.data.needsOnboarding) {
+          onClose();
+          window.location.assign('/get-started');
+          return;
+        }
         onSuccess();
         onClose();
       }

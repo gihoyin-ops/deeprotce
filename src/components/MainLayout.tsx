@@ -120,7 +120,7 @@ const THEME_TOAST_OPTIONS = {
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { isGuest } = useGuestStatus();
+  const { isGuest, needsOnboarding } = useGuestStatus();
   const router = useRouter();
   const queryClient = useQueryClient();
   const hasActiveChat = pathname.startsWith('/chat');
@@ -175,6 +175,22 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       // Eat storage errors if localStorage is locked down or full
     }
   }, []);
+
+  const isStandalonePage =
+    pathname === '/naughty' ||
+    pathname === '/pricing' ||
+    pathname === '/login' ||
+    pathname === '/forgot-password' ||
+    pathname === '/verify' ||
+    pathname === '/get-started' ||
+    pathname === '/admin' ||
+    pathname.startsWith('/admin/');
+
+  useEffect(() => {
+    if (!isStandalonePage && !isGuest && needsOnboarding) {
+      router.replace('/get-started');
+    }
+  }, [isStandalonePage, isGuest, needsOnboarding, router]);
 
   useEffect(() => {
     if (sidebarPreferenceLoadedRef.current) return;
@@ -803,16 +819,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       </div>
     </div>
   );
-
-  const isStandalonePage =
-    pathname === '/naughty' ||
-    pathname === '/pricing' ||
-    pathname === '/login' ||
-    pathname === '/forgot-password' ||
-    pathname === '/verify' ||
-    pathname === '/get-started' ||
-    pathname === '/admin' ||
-    pathname.startsWith('/admin/');
 
   if (isStandalonePage) {
     // Standalone guard page: kept outside the main app shell on purpose
