@@ -14,6 +14,7 @@ import {
 } from '@/components/notify_annouce_products';
 import { defaultComposerToolState, loadComposerToolState, saveComposerToolState } from '@/lib/agent/composer-tool-state';
 import { type ImageAspectRatio } from '@/lib/images/image-aspect-ratio';
+import { getCachedUserProfileSync } from '@/lib/storage/client-storage';
 
 interface AttachedFile {
   name: string;
@@ -91,6 +92,10 @@ export default function WelcomePage() {
     const frame = window.requestAnimationFrame(() => {
       if (cancelled) return;
       setInput(localStorage.getItem('deepchat-draft-new') || '');
+      const cachedProfile = getCachedUserProfileSync();
+      if (cachedProfile?.name) {
+        setProfileName(cachedProfile.name);
+      }
       const toolState = loadComposerToolState();
       setWebSearchEnabled(toolState.webSearchEnabled);
       setImageGenerationEnabled(toolState.imageGenerationEnabled);
@@ -121,7 +126,6 @@ export default function WelcomePage() {
     };
     const refreshProfile = () => {
       void loadProfile();
-      setHeadlineIndex(current => pickHeadlineIndex(current));
     };
     window.addEventListener('deepchat:new-home-prompt', refreshHome);
     window.addEventListener('profileUpdated', refreshProfile);
